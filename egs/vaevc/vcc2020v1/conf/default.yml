@@ -1,0 +1,130 @@
+# feature setting
+feature:
+  label: default
+  fs: 24000
+  fftl: 1024
+  framems: 20
+  shiftms: 10.6666667
+  hop_size: 256
+  fmin: 80
+  fmax: 7600
+  n_iteration: 100
+  mcep_dim: 34
+  mcep_alpha: 0.466
+  mlfb_dim: 80
+
+# dataloader setting
+network: vqvae2
+feat_type: mlfb  # mlfb, mcep
+trainer_type: vqvae  # vqvae, lsgan, cycle, cyclegan
+input_size: 80
+output_size: 80
+batch_size: 20
+batch_len: 1000
+spec_augment: false
+n_apply_spec_augment: 1
+
+# training setting
+n_steps: 400000
+dev_steps: 2000
+n_steps_save_model: 5000
+n_steps_print_loss: 50
+n_gl_samples: 5
+n_cv_spkrs: 5
+train_cv_classifier: false
+
+# generator setting
+lr: 0.0002
+lr_decay_size: 0.5
+lr_decay_step_size: 200000
+optimizer: adam
+
+# alpha
+alphas:
+  l1: 2
+  mse: 2
+  stft: 1
+  ce: 1
+  commit:
+  - 0.25
+  - 0.25
+  - 0.25
+  dict:
+  - 0.5
+  - 0.5
+  - 0.5
+  adv: 2
+  real: 1
+  fake: 1
+  kld: 2
+  cycle: 0.5
+
+# stft loss
+stft_params:
+  fft_sizes:
+     - 32
+     - 128
+     - 256
+  win_sizes:
+     - 20
+     - 80
+     - 160
+  hop_sizes:
+     - 10
+     - 20
+     - 80
+  logratio: 0.5
+
+# network setting
+ema_flag: true
+causal: false
+encoder_f0: false
+enc_aux_size: 0
+decoder_f0: true
+dec_aux_size: 2
+save_mlfb_type:
+save_f0_feats: True
+residual_channels: 64
+n_vq_stacks: 2
+n_layers_stacks:
+- 2
+- 2
+- 2
+n_layers:
+- 6
+- 4
+- 3
+kernel_size:
+- 5
+- 5
+- 5
+emb_dim:
+- 64
+- 64
+- 64
+emb_size:
+- 128
+- 128
+- 128
+
+# adversarial learning
+gan_type: lsgan
+discriminator_type: pwg
+train_first: discriminator
+cvadv_flag: false
+acgan_flag: true
+n_steps_gan_start: 100000
+n_steps_stop_generator: 0
+n_discriminator_layers: 8
+discriminator_output_size: 20
+discriminator_lr: 0.0001
+discriminator_lr_decay_size: 0.5
+discriminator_lr_decay_step_size: 200000
+
+# cyclic architecture
+n_cycles: 1
+n_steps_cycle_start: 100000
+cycle_with_normal_flag: true
+modified_cycle_flag: false
+cycle_reconstruction: false
+crip_grad_norm: 2.0

@@ -1,0 +1,56 @@
+SEF1:
+  minf0: 110
+  maxf0: 300
+  npow: -25
+SEF2:
+  minf0: 110
+  maxf0: 400
+  npow: -28
+SEM1:
+  minf0: 50
+  maxf0: 240
+  npow: -25
+SEM2:
+  minf0: 50
+  maxf0: 240
+  npow: -25
+TEF1:
+  minf0: 110
+  maxf0: 390
+  npow: -28
+TEF2:
+  minf0: 90
+  maxf0: 340
+  npow: -22
+TEM1:
+  minf0: 80
+  maxf0: 240
+  npow: -28
+TEM2:
+  minf0: 60
+  maxf0: 190
+  npow: -30
+TFF1:
+  minf0: 120
+  maxf0: 390
+  npow: -30
+TFM1:
+  minf0: 60
+  maxf0: 220
+  npow: -25
+TGF1:
+  minf0: 120
+  maxf0: 340
+  npow: -20
+TGM1:
+  minf0: 80
+  maxf0: 240
+  npow: -30
+TMF1:
+  minf0: 130
+  maxf0: 360
+  npow: -21
+TMM1:
+  minf0: 85
+  maxf0: 360
+  npow: -25

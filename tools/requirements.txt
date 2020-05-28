@@ -1,0 +1,12 @@
+pillow==6.2.1
+numpy
+scipy
+joblib
+matplotlib
+sprocket-vc
+torch==1.4.0
+torchvision==0.5.0
+parallel_wavegan
+tensorboardX
+torch-optimizer
+pytorch_lamb
