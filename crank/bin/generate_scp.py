@@ -72,59 +72,69 @@ def main():
     parser.add_argument(
         "--eval_speakers", type=str, nargs="*", help="name of evaluation speakers"
     )
+    parser.add_argument("--verbose", type=int, default=1,
+                        help="logging level. higher is more logging. (default=1)")
     args = parser.parse_args()
+
+    # set logger
+    if args.verbose > 1:
+        logging.basicConfig(
+            level=logging.DEBUG, format="%(asctime)s (%(module)s:%(lineno)d) %(levelname)s: %(message)s")
+    elif args.verbose > 0:
+        logging.basicConfig(
+            level=logging.INFO, format="%(asctime)s (%(module)s:%(lineno)d) %(levelname)s: %(message)s")
+    else:
+        logging.basicConfig(
+            level=logging.WARN, format="%(asctime)s (%(module)s:%(lineno)d) %(levelname)s: %(message)s")
+        logging.warning('Skip DEBUG/INFO messages')
 
     spkrs = [s.name for s in sorted(list(Path(args.wavdir).iterdir()))]
     if not Path(args.spkr_yml).exists():
         create_spkr_yml(args.spkr_yml, spkrs)
 
-    if not Path(args.scpdir).exists():
-        for spkr in spkrs:
-            spkrdir = Path(args.wavdir) / spkr
-            wavfs = [f for f in sorted(spkrdir.glob("**/*.wav"))]
+    for spkr in spkrs:
+        spkrdir = Path(args.wavdir) / spkr
+        wavfs = [f for f in sorted(spkrdir.glob("**/*.wav"))]
 
-            if args.shuffle:
-                wavfs = random.sample(wavfs, len(wavfs))
+        if args.shuffle:
+            wavfs = random.sample(wavfs, len(wavfs))
 
-            if args.eval_speakers[0] == "":
-                if args.eval_utterances == 0:
-                    # overlap dev and eval
-                    generate_scp(
-                        args.scpdir, spkr, wavfs[: -args.dev_utterances], phase="train"
-                    )
-                    generate_scp(
-                        args.scpdir, spkr, wavfs[-args.dev_utterances :], phase="dev"
-                    )
-                    generate_scp(
-                        args.scpdir, spkr, wavfs[-args.dev_utterances :], phase="eval"
-                    )
-                else:
-                    # not overlap dev and eval
-                    de = args.dev_utterances + args.eval_utterances
-                    generate_scp(args.scpdir, spkr, wavfs[:-de], phase="train")
-                    generate_scp(
-                        args.scpdir,
-                        spkr,
-                        wavfs[-de : -de + args.dev_utterances],
-                        phase="dev",
-                    )
-                    generate_scp(
-                        args.scpdir, spkr, wavfs[-args.eval_utterances :], phase="eval"
-                    )
+        if args.eval_speakers[0] == "":
+            if args.eval_utterances == 0:
+                # overlap dev and eval
+                generate_scp(
+                    args.scpdir, spkr, wavfs[: -args.dev_utterances], phase="train"
+                )
+                generate_scp(
+                    args.scpdir, spkr, wavfs[-args.dev_utterances :], phase="dev"
+                )
+                generate_scp(
+                    args.scpdir, spkr, wavfs[-args.dev_utterances :], phase="eval"
+                )
             else:
-                # use eval spkr for eval
-                if spkr not in args.eval_speakers:
-                    generate_scp(
-                        args.scpdir, spkr, wavfs[: -args.dev_utterances], phase="train"
-                    )
-                    generate_scp(
-                        args.scpdir, spkr, wavfs[-args.dev_utterances :], phase="dev"
-                    )
-                else:
-                    generate_scp(args.scpdir, spkr, wavfs, phase="eval")
-    else:
-        logging.info("scp directory is already exists")
-        logging.info("If you want to generate new, please delete {}".format(args.scp))
+                # not overlap dev and eval
+                de = args.dev_utterances + args.eval_utterances
+                generate_scp(args.scpdir, spkr, wavfs[:-de], phase="train")
+                generate_scp(
+                    args.scpdir,
+                    spkr,
+                    wavfs[-de : -de + args.dev_utterances],
+                    phase="dev",
+                )
+                generate_scp(
+                    args.scpdir, spkr, wavfs[-args.eval_utterances :], phase="eval"
+                )
+        else:
+            # use eval spkr for eval
+            if spkr not in args.eval_speakers:
+                generate_scp(
+                    args.scpdir, spkr, wavfs[: -args.dev_utterances], phase="train"
+                )
+                generate_scp(
+                    args.scpdir, spkr, wavfs[-args.dev_utterances :], phase="dev"
+                )
+            else:
+                generate_scp(args.scpdir, spkr, wavfs, phase="eval")
 
 
 if __name__ == "__main__":
