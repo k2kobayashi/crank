@@ -35,8 +35,8 @@ spkr_yml=conf/spkr.yml # speaker config
 
 # other settings
 checkpoint="None" # checkpoint path to resume
-dev_utterances=0  # # of development utterances
-eval_utterances=0 # # of evaluation utterances
+dev_utterances=3  # # of development utterances
+eval_utterances=5 # # of evaluation utterances
 eval_speakers=""  # evaluation speaker
 
 # parse options
@@ -45,8 +45,8 @@ eval_speakers=""  # evaluation speaker
 set -eu # stop when error occured and undefined vars are used
 
 mkdir -p "${expdir}"
+scpdir=${datadir}/scp
 featdir=${datadir}/feature; mkdir -p ${featdir}
-scpdir=${datadir}/scp; mkdir -p ${scpdir}
 logdir=${datadir}/log; mkdir -p ${logdir}
 
 # stage 0: download dataset and generate scp
