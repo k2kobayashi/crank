@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    paths-ignore:
+      - '**.md'
+    branches:
+      - '*'
+  schedule:
+    - cron: 0 0 * * 1
+
+jobs:
+  check_skip:
+    runs-on: ubuntu-18.04
+    if: "! contains(github.event.head_commit.message, '[skip ci]')"
+    steps:
+      - run: echo "${{ github.event.head_commit.message }}"
+  linter_and_test:
+    runs-on: ubuntu-18.04
+    needs: check_skip
+    strategy:
+      max-parallel: 10
+      matrix:
+        python-version: [3.6]
+        pytorch-version: [1.4]
+    steps:
+      - uses: actions/checkout@master
+      - uses: actions/setup-python@v1
+        with:
+          python-version: ${{ matrix.python-version }}
+          architecture: 'x64'
+      - uses: actions/cache@v1
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-${{ matrix.python-version }}-${{ matrix.pytorch-version }}-pip-${{ hashFiles('**/setup.py') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.python-version }}-${{ matrix.pytorch-version }}-pip-
+      - name: Install dependencies
+        run: |
+          # install python modules
+          python -m pip install --upgrade pip
+          pip install -q -U numpy
+          pip install -q torch==${{ matrix.pytorch-version }} -f https://download.pytorch.org/whl/cpu/stable.html
+          pip install -q -e .
+          pip install -q -r tools/test_requirements.txt
+          # install shell check
+          wget https://storage.googleapis.com/shellcheck/shellcheck-stable.linux.x86_64.tar.xz
+          tar -xvf shellcheck-stable.linux.x86_64.tar.xz
+      - name: ShellCheck
+        run: |
+          export PATH=shellcheck-stable:$PATH
+          find egs -name "*.sh" | while read line; do shellcheck -x --shell=bash -P $(dirname $line) ${line}; done
+      # - name: Flake8
+      #   run: |
+      #     flake8 crak
+      - name: Pytest
+        run: |
+          pytest test
