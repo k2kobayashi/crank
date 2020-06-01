@@ -112,7 +112,6 @@ def main():
 
             if args.eval_speakers[0] == "":
                 if args.eval_utterances == 0:
-                    if args.dev_utterances != 0:
                         # overlap dev and eval
                         generate_scp(scpdir / "train", spkr, wavfs[:-n_dev])
                         generate_scp(scpdir / "dev", spkr, wavfs[-n_dev:])
