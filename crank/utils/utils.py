@@ -97,7 +97,7 @@ def mlfb2wavf(mlfb, wavf, fs=22050, n_mels=80, fftl=1024, hop_size=220, plot=Fal
         plot_mlfb(mlfb, wavf)
 
 
-def mlfb2hdf5(mlfb, hdf5, ext="feats"):
+def feat2hdf5(mlfb, hdf5, ext="feats"):
     tdir, name = Path(hdf5).parent, Path(hdf5).stem
     h5f = tdir / (str(name) + ".h5")
     h5 = HDF5(str(h5f), "a")

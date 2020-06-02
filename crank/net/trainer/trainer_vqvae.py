@@ -16,7 +16,7 @@ import torch
 import numpy as np
 from joblib import Parallel, delayed
 
-from crank.utils import mlfb2wavf, mlfb2hdf5, world2wav, to_numpy
+from crank.utils import mlfb2wavf, feat2hdf5, world2wav, to_numpy
 from crank.net.trainer import BaseTrainer
 from crank.net.trainer.dataset import create_one_hot, convert_f0
 
@@ -97,7 +97,7 @@ class VQVAETrainer(BaseTrainer):
                     feat = self.scaler[self.conf["feat_type"]].inverse_transform(
                         normed_feat
                     )
-                    mlfb2hdf5(
+                    feat2hdf5(
                         feat,
                         wavf,
                         ext="feats_recon_{}-{}-{}".format(
@@ -305,16 +305,19 @@ class VQVAETrainer(BaseTrainer):
         k = "normed_feat" if self.conf["save_mlfb_type"] == "normed" else "feat"
         Parallel(n_jobs=self.n_jobs)(
             [
-                delayed(mlfb2hdf5)(feat[k], path, ext="feats")
+                delayed(feat2hdf5)(feat[k], path, ext="feats")
                 for path, feat in feats.items()
             ]
         )
 
         if self.conf["save_f0_feats"]:
-            for k in ["lcf0", "f0", "normed_lcf0", "uv"]:
+            type_features = ["lcf0", "f0", "normed_lcf0", "uv"]
+            if self.conf["feat_type"] == "mcep":
+                type_features += ["cap"]
+            for k in type_features:
                 Parallel(n_jobs=self.n_jobs)(
                     [
-                        delayed(mlfb2hdf5)(feat[k], path, ext=k)
+                        delayed(feat2hdf5)(feat[k], path, ext=k)
                         for path, feat in feats.items()
                     ]
                 )
