@@ -124,7 +124,4 @@ discriminator_lr_decay_step_size: 200000
 # cyclic architecture
 n_cycles: 1
 n_steps_cycle_start: 100000
-cycle_with_normal_flag: true
-modified_cycle_flag: false
 cycle_reconstruction: false
-crip_grad_norm: 2.0

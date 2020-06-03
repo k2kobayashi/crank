@@ -4,32 +4,9 @@ slurm-*.out
 .DS_Store
 *.h5
 *.pkl
-wav
 .nfs*
 *.out
 .autoenv.zsh
-
-##################
-# For Tools
-##################
-/tools/commands/analysis/analysis
-/tools/commands/get_f0s/get_f0s
-
-/tools/commands/get_f0s/Makefile
-/tools/commands/get_f0s/config.status
-/tools/commands/get_f0s/config.log
-/tools/commands/get_f0s/.deps/get_f0s.Po
-/tools/commands/get_f0s/.deps/misc.Po
-/tools/commands/get_f0s/.deps/sigproc.Po
-/tools/commands/get_f0s/Makefile
-/tools/commands/get_f0s/config.status
-/tools/commands/get_f0s/configure
-/tools/commands/get_f0s/autom4te.cache/
-
-/tools/sprocket
-/tools/venv
-*.o
-*.a
 
 __pycache__/
 .pytest_cache/
