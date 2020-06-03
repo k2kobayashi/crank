@@ -98,6 +98,7 @@ def main():
 
             if args.eval_speakers[0] == "":
                 if args.eval_utterances == 0:
+                    if args.dev_utterances != 0:
                         # overlap dev and eval
                         generate_scp(scpdir / "train", spkr, wavfs[:-n_dev])
                         generate_scp(scpdir / "dev", spkr, wavfs[-n_dev:])
@@ -127,7 +128,6 @@ def main():
                     generate_scp(scpdir / "eval", spkr, wavfs)
     else:
         logging.info("scp directory already exists: {}".format(args.scpdir))
->>>>>>> 1e59783157c031fc9e76e874e6bb7835bbe08e3a
 
 
 if __name__ == "__main__":
