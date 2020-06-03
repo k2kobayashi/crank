@@ -24,7 +24,7 @@ n_jobs=10 # number of parallel jobs
 n_gpus=1  # number of gpus
 
 # directory settings
-wavdir=downloads/wav # directory to save downloaded wav files
+downloaddir=        # directory to save downloaded wav files
 datadir=data         # directory to save list and features files
 expdir=exp           # directory to save experiments
 featsscp="None"
@@ -45,6 +45,7 @@ eval_speakers=""  # evaluation speaker
 set -eu # stop when error occured and undefined vars are used
 
 mkdir -p "${expdir}"
+wavdir=${downloadir}/wav
 scpdir=${datadir}/scp
 featdir=${datadir}/feature; mkdir -p ${featdir}
 logdir=${datadir}/log; mkdir -p ${logdir}
@@ -53,7 +54,7 @@ logdir=${datadir}/log; mkdir -p ${logdir}
 if [ "${stage}" -le 0 ] && [ "${stop_stage}" -ge 0 ]; then
     echo "stage 0: download dataset and generate scp"
     ${train_cmd} "${logdir}/download.log" \
-        local/download.sh --wavdir "${wavdir}"
+        local/download.sh "${downloaddir}"
     ${train_cmd} "${logdir}/generate_scp.log" \
         python -m crank.bin.generate_scp \
             --wavdir "${wavdir}" \
