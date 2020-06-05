@@ -24,9 +24,9 @@ n_jobs=10 # number of parallel jobs
 n_gpus=1  # number of gpus
 
 # directory settings
-downloaddir=        # directory to save downloaded wav files
-datadir=data         # directory to save list and features files
-expdir=exp           # directory to save experiments
+downloaddir=downloads # directory to save downloaded wav files
+datadir=data          # directory to save list and features files
+expdir=exp            # directory to save experiments
 featsscp="None"
 
 # config settings
