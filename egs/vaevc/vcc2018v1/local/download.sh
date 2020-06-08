@@ -44,7 +44,9 @@ if [ ! -e ${downloaddir}/.done ]; then
     
     # rename the folders
     cd ${wavdir}
-    rename "s/VCC2//g" *
+    for d in */; do
+        mv $d ${d//VCC2/}
+    done
     cd ..
    
     # copy the transcriptions
