@@ -45,7 +45,7 @@ eval_speakers=""  # evaluation speaker
 set -eu # stop when error occured and undefined vars are used
 
 mkdir -p "${expdir}"
-wavdir=${downloadir}/wav
+wavdir=${downloaddir}/wav
 scpdir=${datadir}/scp
 featdir=${datadir}/feature; mkdir -p ${featdir}
 logdir=${datadir}/log; mkdir -p ${logdir}
@@ -54,7 +54,7 @@ logdir=${datadir}/log; mkdir -p ${logdir}
 if [ "${stage}" -le 0 ] && [ "${stop_stage}" -ge 0 ]; then
     echo "stage 0: download dataset and generate scp"
     ${train_cmd} "${logdir}/download.log" \
-        local/download.sh "${downloaddir}"
+        local/download.sh --downloaddir "${downloaddir}"
     ${train_cmd} "${logdir}/generate_scp.log" \
         python -m crank.bin.generate_scp \
             --wavdir "${wavdir}" \

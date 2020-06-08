@@ -6,7 +6,7 @@
 # Distributed under terms of the MIT license.
 #
 
-db_root=$1
+downloaddir=
 
 # shellcheck disable=SC1091
 . utils/parse_options.sh || exit 1
@@ -14,11 +14,11 @@ set -eu # stop when error occured and undefined vars are used
 
 wavdir=wav
 textdir=text
-[ ! -e ${db_root}/${wavdir} ] && mkdir -p ${db_root}/${wavdir}
-[ ! -e ${db_root}/${textdir} ] && mkdir -p ${db_root}/${textdir}
+[ ! -e ${downloaddir}/${wavdir} ] && mkdir -p ${downloaddir}/${wavdir}
+[ ! -e ${downloaddir}/${textdir} ] && mkdir -p ${downloaddir}/${textdir}
 
-if [ ! -e ${db_root}/.done ]; then
-    cd ${db_root}
+if [ ! -e ${downloaddir}/.done ]; then
+    cd ${downloaddir}
     
     # download and decompress 
     wget https://datashare.is.ed.ac.uk/bitstream/handle/10283/3061/vcc2018_database_training.zip

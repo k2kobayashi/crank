@@ -6,7 +6,7 @@
 # Distributed under terms of the MIT license.
 #
 
-downloaddir=$1
+downloaddir=
 
 # shellcheck disable=SC1091
 . utils/parse_options.sh || exit 1
