@@ -6,13 +6,14 @@
 # Distributed under terms of the MIT license.
 #
 
-wavdir=downloads/wav
+downloaddir=
 
 # shellcheck disable=SC1091
 . utils/parse_options.sh || exit 1
 set -eu # stop when error occured and undefined vars are used
 
-[ ! -e downloads ] && mkdir downloads
+wavdir=${downloaddir}/wav
+[ ! -e ${downloaddir} ] && mkdir ${downloaddir}
 [ ! -e "${wavdir}" ] && mkdir -p ${wavdir}
 
 # TODO (k2koabayashi): Implement download
@@ -21,7 +22,7 @@ if [ ! -e downloads/.done ]; then
     echo "We will plan to implement the script after releasing."
     echo "If you have already had the dataset, you can put them "
     echo "like ``downloads/wav/{train,eval}/{SEF1,SEF2,...,TMM1}``."
-    touch downloads/.done
+    touch ${downloaddir}/.done
 else
     echo "already finished. skipped download."
 fi

@@ -12,6 +12,10 @@ $ cd crank/tools
 $ make
 ```
 
+## Available recipe
+- VCC2020
+- VCC2018 (Thanks to [@unilight](https://github.com/unilight))
+
 ## Run VCC2020 recipe
 
 crank has prepared recipe for Voice Conversion Challenge 2020.

@@ -1,0 +1,48 @@
+SF1:
+  maxf0: 450
+  minf0: 100
+  npow: -31
+SF2:
+  maxf0: 350
+  minf0: 110
+  npow: -31
+SF3:
+  maxf0: 340
+  minf0: 110
+  npow: -38
+SF4:
+  maxf0: 330
+  minf0: 120
+  npow: -34
+SM1:
+  maxf0: 200
+  minf0: 50
+  npow: -31
+SM2:
+  maxf0: 300
+  minf0: 70
+  npow: -40
+SM3:
+  maxf0: 220
+  minf0: 45
+  npow: -35
+SM4:
+  maxf0: 260
+  minf0: 45
+  npow: -32
+TF1:
+  maxf0: 350
+  minf0: 140
+  npow: -45
+TF2:
+  maxf0: 400
+  minf0: 100
+  npow: -30
+TM1:
+  maxf0: 200
+  minf0: 60
+  npow: -23
+TM2:
+  maxf0: 280
+  minf0: 50
+  npow: -31
