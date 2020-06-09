@@ -67,8 +67,7 @@ class Feature(object):
     def _open_wavf(self, wavf):
         # get file name (wav/spkr/file.wav -> spkr/file)
         flbl = Path(wavf).stem
-        x, fs = sf.read(str(wavf), dtype="int16")
-        x = np.clip(x, -32768, 32767)
+        x, fs = sf.read(str(wavf))
         x = np.array(x, dtype=np.float)
         x = low_cut_filter(x, fs, cutoff=70)
         return fs, x, flbl
@@ -142,8 +141,6 @@ class Feature(object):
             self.feats["ap"],
             alpha=self.conf["mcep_alpha"],
         )
-        self.feats["x_anasyn"] = np.clip(anasyn, -32768, 32767)
+        self.feats["x_anasyn"] = np.clip(anasyn, -1., 1.)
         anasynf = self.h5_dir / (flbl + "_anasyn.wav")
-        wavfile.write(
-            anasynf, self.conf["fs"], np.array(self.feats["x_anasyn"], dtype=np.int16)
-        )
+        sf.write(str(anasynf), anasyn, self.conf["fs"])

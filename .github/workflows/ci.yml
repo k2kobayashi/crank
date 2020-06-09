@@ -37,6 +37,8 @@ jobs:
             ${{ runner.os }}-${{ matrix.python-version }}-${{ matrix.pytorch-version }}-pip-
       - name: Install dependencies
         run: |
+          # install ubuntu dependency
+          sudo apt-get install libsndfile1-dev
           # install python modules
           python -m pip install --upgrade pip
           pip install -q -U numpy
@@ -44,7 +46,7 @@ jobs:
           pip install -q -e .
           pip install -q -r tools/test_requirements.txt
           # install shell check
-          wget https://storage.googleapis.com/shellcheck/shellcheck-stable.linux.x86_64.tar.xz
+          wget https://github.com/koalaman/shellcheck/releases/download/stable/shellcheck-stable.linux.x86_64.tar.xz
           tar -xvf shellcheck-stable.linux.x86_64.tar.xz
       - name: ShellCheck
         run: |

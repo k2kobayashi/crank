@@ -1,4 +1,4 @@
-pillow==6.2.1
+pillow
 numpy
 scipy
 joblib
