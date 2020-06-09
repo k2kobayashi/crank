@@ -13,7 +13,7 @@ downloaddir=
 set -eu # stop when error occured and undefined vars are used
 
 wavdir=${downloaddir}/wav
-[ ! -e ${downloaddir} ] && mkdir ${downloaddir}
+[ ! -e "${downloaddir}" ] && mkdir "${downloaddir}"
 [ ! -e "${wavdir}" ] && mkdir -p ${wavdir}
 
 # TODO (k2koabayashi): Implement download
@@ -22,7 +22,7 @@ if [ ! -e downloads/.done ]; then
     echo "We will plan to implement the script after releasing."
     echo "If you have already had the dataset, you can put them "
     echo "like ``downloads/wav/{train,eval}/{SEF1,SEF2,...,TMM1}``."
-    touch ${downloaddir}/.done
+    touch "${downloaddir}"/.done
 else
     echo "already finished. skipped download."
 fi
