@@ -14,13 +14,13 @@ set -eu # stop when error occured and undefined vars are used
 
 wavdir=wav
 textdir=text
-[ ! -e ${downloaddir}/${wavdir} ] && mkdir -p ${downloaddir}/${wavdir}
-[ ! -e ${downloaddir}/${textdir} ] && mkdir -p ${downloaddir}/${textdir}
+[ ! -e "${downloaddir}"/"${wavdir}" ] && mkdir -p "${downloaddir}"/"${wavdir}"
+[ ! -e "${downloaddir}"/"${textdir}" ] && mkdir -p "${downloaddir}"/"${textdir}"
 
-if [ ! -e ${downloaddir}/.done ]; then
-    cd ${downloaddir}
-    
-    # download and decompress 
+if [ ! -e "${downloaddir}"/.done ]; then
+    cd "${downloaddir}"
+
+    # download and decompress
     wget https://datashare.is.ed.ac.uk/bitstream/handle/10283/3061/vcc2018_database_training.zip
     wget https://datashare.is.ed.ac.uk/bitstream/handle/10283/3061/vcc2018_database_evaluation.zip
     wget https://datashare.is.ed.ac.uk/bitstream/handle/10283/3061/vcc2018_database_reference.zip
@@ -32,26 +32,26 @@ if [ ! -e ${downloaddir}/.done ]; then
 
     # copy the wav
     for spk in vcc2018_training/VCC2*; do
-        mkdir -p ${wavdir}/$(basename ${spk})
-        cp ${spk}/*.wav ${wavdir}/$(basename ${spk})
+        mkdir -p "${wavdir}"/"$(basename "${spk}")"
+        cp "${spk}"/*.wav "${wavdir}"/"$(basename "${spk}")"
     done
     for spk in vcc2018_evaluation/VCC2*; do
-        cp ${spk}/*.wav ${wavdir}/$(basename ${spk})
+        cp "${spk}"/*.wav "${wavdir}"/"$(basename "${spk}")"
     done
     for spk in vcc2018_reference/VCC2*; do
-        cp ${spk}/*.wav ${wavdir}/$(basename ${spk})
+        cp "${spk}"/*.wav "${wavdir}"/"$(basename "${spk}")"
     done
-    
+
     # rename the folders
-    cd ${wavdir}
+    cd "${wavdir}"
     for d in */; do
-        mv $d ${d//VCC2/}
+        mv "$d" "${d//VCC2/}"
     done
     cd ..
-   
+
     # copy the transcriptions
-    find vcc2018_training/Transcriptions -name "*.txt" -exec cp {} ${textdir} \;
-    cp scripts/*.txt ${textdir}
+    find vcc2018_training/Transcriptions -name "*.txt" -exec cp {} "${textdir}" \;
+    cp scripts/*.txt "${textdir}"
 
     # remove compressed files and decompressed folders
     rm -f vcc2018_database_training.zip
@@ -64,7 +64,7 @@ if [ ! -e ${downloaddir}/.done ]; then
     rm -rf scripts
 
     cd ..
-    touch downloads/.done
+    touch "$downloaddir"/.done
 else
     echo "Already finished. Skipping download."
 fi
