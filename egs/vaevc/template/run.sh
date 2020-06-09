@@ -30,7 +30,7 @@ expdir=exp            # directory to save experiments
 featsscp="None"
 
 # config settings
-conf=conf/default.yml  # newtork config
+conf=conf/mlfb_vqvae.yml  # newtork config
 spkr_yml=conf/spkr.yml # speaker config
 
 # other settings
