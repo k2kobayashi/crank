@@ -16,7 +16,6 @@ import logging
 
 import numpy as np
 import soundfile as sf
-from scipy.io import wavfile
 from sprocket.speech import FeatureExtractor, Synthesizer
 from sprocket.util import HDF5
 from parallel_wavegan.bin.preprocess import logmelfilterbank
