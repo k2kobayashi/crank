@@ -17,7 +17,7 @@
 #  4: reconstruction
 #  5: evaluation
 stage=0      # stage to start
-stop_stage=5 # stage to stop
+stop_stage=6 # stage to stop
 
 # job settings
 n_jobs=10 # number of parallel jobs
@@ -32,6 +32,12 @@ featsscp="None"
 # config settings
 conf=conf/mlfb_vqvae.yml  # newtork config
 spkr_yml=conf/spkr.yml # speaker config
+
+# synthesis related
+model_step=                     # If not specified, use the latest.
+voc=PWG                         # GL or PWG
+voc_expdir=downloads/PWG        # ex. `downloads/pwg`
+voc_checkpoint=                 # If not specified, use the latest checkpoint 
 
 # other settings
 checkpoint="None" # checkpoint path to resume
@@ -137,9 +143,9 @@ if [ "${stage}" -le 4 ] && [ "${stop_stage}" -ge 4 ]; then
     echo "stage 4: generate reconstruction has been done."
 fi
 
-# stage 5: evaluation
+# stage 5: decoding
 if [ "${stage}" -le 5 ] && [ "${stop_stage}" -ge 5 ]; then
-    echo "stage 5: evaluate"
+    echo "stage 5: decode"
     confname=$(basename "${conf}" .yml)
     ${train_cmd} --gpu ${n_gpus} \
        "${expdir}/${confname}/evaluate.log" \
@@ -153,4 +159,64 @@ if [ "${stage}" -le 5 ] && [ "${stop_stage}" -ge 5 ]; then
             --featsscp "${featsscp}" \
             --expdir "${expdir}"
     echo "stage 5: evaluation has been done."
+fi
+
+if [ "${stage}" -le 6 ] && [ "${stop_stage}" -ge 6 ]; then
+    echo "stage 6: synthesis"
+    
+    confname=$(basename "${conf}" .yml)
+    [ -z "${model_step}" ] && model_step="$(find "${expdir}/${confname}" -name "*.pkl" -print0 \
+        | xargs -0 ls -t | head -n 1 | cut -d"_" -f 2 | cut -d"s" -f 1)"
+    outdir=${expdir}/${confname}/eval_${voc}_wav/${model_step}
+    outwavdir=${outdir}/wav; mkdir -p ${outwavdir}
+
+    # GL
+    if [ ${voc} = "GL" ]; then
+        echo "Using Griffin-Lim phase recovery."
+        # TODO: implement
+
+    # PWG
+    elif [ ${voc} = "PWG" ]; then
+        echo "Using Parallel WaveGAN vocoder."
+    
+        if [ ! -d ${voc_expdir} ]; then
+            echo "Downloading pretrained PWG model..."
+            local/pretrained_model_download.sh \
+                --download_dir ${voc_expdir} \
+                --pretrained_model ${voc}
+        fi
+        echo "PWG model exists: ${voc_expdir}"
+
+        # variable settings
+        [ -z "${voc_checkpoint}" ] && voc_checkpoint="$(find "${voc_expdir}" -name "*.pkl" -print0 \
+            | xargs -0 ls -t | head -n 1)"
+        voc_conf="$(find "${voc_expdir}" -name "config.yml" -print0 | xargs -0 ls -t | head -n 1)"
+        voc_stats="$(find "${voc_expdir}" -name "stats.h5" -print0 | xargs -0 ls -t | head -n 1)"
+        hdf5_norm_dir=${outdir}/hdf5_norm; mkdir -p ${hdf5_norm_dir}
+        
+        # normalize and dump them
+        echo "Normalizing..."
+        ${train_cmd} "${hdf5_norm_dir}/normalize.log" \
+            parallel-wavegan-normalize \
+                --skip-wav-copy \
+                --rootdir ${expdir}/${confname}/eval_wav/${model_step} \
+                --config "${voc_conf}" \
+                --stats "${voc_stats}" \
+                --dumpdir ${hdf5_norm_dir} \
+                --verbose 1
+        echo "successfully finished normalization."
+
+        # decoding
+        echo "Decoding start. See the progress via ${outwavdir}/decode.log."
+        ${cuda_cmd} --gpu 1 "${outwavdir}/decode.log" \
+            parallel-wavegan-decode \
+                --dumpdir ${hdf5_norm_dir} \
+                --checkpoint "${voc_checkpoint}" \
+                --outdir ${outwavdir} \
+                --verbose 1
+        echo "successfully finished decoding."
+    else
+        echo "Vocoder type not supported. Only GL and PWG are available."
+    fi
+    echo "stage 6: synthesis has been done."
 fi
