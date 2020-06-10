@@ -108,6 +108,7 @@ class Feature(object):
             x,
             self.conf["fs"],
             hop_size=self.conf["hop_size"],
+            fft_size=self.conf["fftl"],
             win_length=self.conf["fftl"],
             window="hann",
             num_mels=self.conf["mlfb_dim"],
