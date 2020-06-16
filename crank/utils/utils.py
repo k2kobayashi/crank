@@ -20,17 +20,14 @@ import librosa
 import logging
 import matplotlib as mpl
 
-
 from distutils.version import LooseVersion
 from sprocket.util import HDF5
 from scipy.interpolate import interp1d
 from scipy.signal import firwin, lfilter
 import matplotlib.pyplot as plt
 from sprocket.speech import Synthesizer
-from scipy.io import wavfile
 
 mpl.use("Agg")  # noqa
-
 EPS = 1e-10
 
 
@@ -110,9 +107,9 @@ def world2wav(
 ):
     synthesizer = Synthesizer(fs=fs, fftl=fftl, shiftms=shiftms)
     wav = synthesizer.synthesis(f0, mcep, codeap, alpha=alpha)
-    wav = np.clip(np.array(wav, dtype=np.int16), -32768, 32767)
+    wav = np.clip(wav, -1.0, 1.0)
     if wavf is not None:
-        wavfile.write(wavf, fs, wav)
+        sf.write(wavf, wav, fs)
     else:
         return wav
 
@@ -122,9 +119,9 @@ def diff2wav(
 ):
     synthesizer = Synthesizer(fs=fs, fftl=fftl, shiftms=shiftms)
     wav = synthesizer.synthesis_diff(x, diffmcep, rmcep=rmcep, alpha=alpha)
-    wav = np.clip(np.array(wav, dtype=np.int16), -32768, 32767)
+    wav = np.clip(wav, -1.0, 1.0)
     if wavf is not None:
-        wavfile.write(wavf, fs, wav)
+        sf.write(wavf, wav, fs)
     else:
         return wav
 

@@ -10,3 +10,4 @@ parallel_wavegan
 tensorboardX
 torch-optimizer
 pytorch_lamb
+numba==0.48.0

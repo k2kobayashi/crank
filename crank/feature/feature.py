@@ -16,7 +16,6 @@ import logging
 
 import numpy as np
 import soundfile as sf
-from scipy.io import wavfile
 from sprocket.speech import FeatureExtractor, Synthesizer
 from sprocket.util import HDF5
 from parallel_wavegan.bin.preprocess import logmelfilterbank
@@ -109,6 +108,7 @@ class Feature(object):
             x,
             self.conf["fs"],
             hop_size=self.conf["hop_size"],
+            fft_size=self.conf["fftl"],
             win_length=self.conf["fftl"],
             window="hann",
             num_mels=self.conf["mlfb_dim"],

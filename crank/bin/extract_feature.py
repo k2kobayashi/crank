@@ -39,7 +39,7 @@ def main():
 
     featdir = Path(args.featdir) / conf["feature"]["label"] / args.phase
     featsscp = featdir / "feats.scp"
-    create_scp = False if featsscp.exists() else True
+    (featsscp).unlink(missing_ok=True)
 
     for spkr in scp["spkrs"]:
         logging.info("extract feature for {}".format(spkr))
@@ -48,12 +48,11 @@ def main():
         feat = Feature(featdir / spkr, conf["feature"], spkr_conf[spkr])
 
         # create feats.scp
-        if create_scp:
-            with open(featsscp, "a") as fp:
-                for uid in scp["spk2utt"][spkr]:
-                    wavf = scp["wav"][uid]
-                    h5f = str(featdir / spkr / (Path(wavf).stem + ".h5"))
-                    fp.write("{} {}\n".format(uid, h5f))
+        with open(featsscp, "a") as fp:
+            for uid in scp["spk2utt"][spkr]:
+                wavf = scp["wav"][uid]
+                h5f = str(featdir / spkr / (Path(wavf).stem + ".h5"))
+                fp.write("{} {}\n".format(uid, h5f))
 
         # feature extraction with GliffinLim
         Parallel(n_jobs=args.n_jobs)(
