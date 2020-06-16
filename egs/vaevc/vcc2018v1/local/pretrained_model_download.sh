@@ -20,8 +20,8 @@ esac
 
 dir=${download_dir}
 mkdir -p ${dir}
-if [ ! -e ${dir}/.complete ]; then
+if [ ! -e ${dir}/.done ]; then
     utils/download_from_google_drive.sh ${share_url} ${dir} ".tar.gz"
-    touch ${dir}/.complete
+    touch ${dir}/.done
 fi
 echo "Successfully finished donwload of pretrained model."

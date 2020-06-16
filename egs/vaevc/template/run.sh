@@ -15,7 +15,8 @@
 #  2: feature extraction
 #  3: training
 #  4: reconstruction
-#  5: evaluation
+#  5: decoding
+#  6: evaluation
 stage=0      # stage to start
 stop_stage=6 # stage to stop
 
@@ -158,7 +159,7 @@ if [ "${stage}" -le 5 ] && [ "${stop_stage}" -ge 5 ]; then
             --featdir "${featdir}" \
             --featsscp "${featsscp}" \
             --expdir "${expdir}"
-    echo "stage 5: evaluation has been done."
+    echo "stage 5: decoding has been done."
 fi
 
 if [ "${stage}" -le 6 ] && [ "${stop_stage}" -ge 6 ]; then
@@ -173,7 +174,11 @@ if [ "${stage}" -le 6 ] && [ "${stop_stage}" -ge 6 ]; then
     # GL
     if [ ${voc} = "GL" ]; then
         echo "Using Griffin-Lim phase recovery."
-        # TODO: implement
+        ${train_cmd} "${outwavdir}/decode.log" \
+            utils/griffin-lim.py \
+                --conf "${conf}" \
+                --rootdir ${expdir}/${confname}/eval_wav/${model_step} \
+                --outdir ${outwavdir}
 
     # PWG
     elif [ ${voc} = "PWG" ]; then
