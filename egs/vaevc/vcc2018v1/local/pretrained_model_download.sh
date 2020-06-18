@@ -19,9 +19,9 @@ case "${pretrained_model}" in
 esac
 
 dir=${download_dir}
-mkdir -p ${dir}
-if [ ! -e ${dir}/.done ]; then
-    utils/download_from_google_drive.sh ${share_url} ${dir} ".tar.gz"
-    touch ${dir}/.done
+mkdir -p "${dir}"
+if [ ! -e "${dir}"/.done ]; then
+    utils/download_from_google_drive.sh "${share_url}" "${dir}" ".tar.gz"
+    touch "${dir}"/.done
 fi
 echo "Successfully finished donwload of pretrained model."
