@@ -169,7 +169,7 @@ if [ "${stage}" -le 6 ] && [ "${stop_stage}" -ge 6 ]; then
     [ -z "${model_step}" ] && model_step="$(find "${expdir}/${confname}" -name "*.pkl" -print0 \
         | xargs -0 ls -t | head -n 1 | cut -d"_" -f 2 | cut -d"s" -f 1)"
     outdir=${expdir}/${confname}/eval_${voc}_wav/${model_step}
-    outwavdir=${outdir}/wav; mkdir -p ${outwavdir}
+    outwavdir=${outdir}/wav; mkdir -p "${outwavdir}"
 
     # GL
     if [ ${voc} = "GL" ]; then
@@ -177,8 +177,8 @@ if [ "${stage}" -le 6 ] && [ "${stop_stage}" -ge 6 ]; then
         ${train_cmd} "${outwavdir}/decode.log" \
             python -m crank.bin.griffin_lim \
                 --conf "${conf}" \
-                --rootdir ${expdir}/${confname}/eval_wav/${model_step} \
-                --outdir ${outwavdir}
+                --rootdir ${expdir}/"${confname}"/eval_wav/"${model_step}" \
+                --outdir "${outwavdir}"
 
     # PWG
     elif [ ${voc} = "PWG" ]; then
@@ -197,17 +197,17 @@ if [ "${stage}" -le 6 ] && [ "${stop_stage}" -ge 6 ]; then
             | xargs -0 ls -t | head -n 1)"
         voc_conf="$(find "${voc_expdir}" -name "config.yml" -print0 | xargs -0 ls -t | head -n 1)"
         voc_stats="$(find "${voc_expdir}" -name "stats.h5" -print0 | xargs -0 ls -t | head -n 1)"
-        hdf5_norm_dir=${outdir}/hdf5_norm; mkdir -p ${hdf5_norm_dir}
+        hdf5_norm_dir=${outdir}/hdf5_norm; mkdir -p "${hdf5_norm_dir}"
         
         # normalize and dump them
         echo "Normalizing..."
         ${train_cmd} "${hdf5_norm_dir}/normalize.log" \
             parallel-wavegan-normalize \
                 --skip-wav-copy \
-                --rootdir ${expdir}/${confname}/eval_wav/${model_step} \
+                --rootdir ${expdir}/"${confname}"/eval_wav/"${model_step}" \
                 --config "${voc_conf}" \
                 --stats "${voc_stats}" \
-                --dumpdir ${hdf5_norm_dir} \
+                --dumpdir "${hdf5_norm_dir}" \
                 --verbose 1
         echo "successfully finished normalization."
 
@@ -215,9 +215,9 @@ if [ "${stage}" -le 6 ] && [ "${stop_stage}" -ge 6 ]; then
         echo "Decoding start. See the progress via ${outwavdir}/decode.log."
         ${cuda_cmd} --gpu 1 "${outwavdir}/decode.log" \
             parallel-wavegan-decode \
-                --dumpdir ${hdf5_norm_dir} \
+                --dumpdir "${hdf5_norm_dir}" \
                 --checkpoint "${voc_checkpoint}" \
-                --outdir ${outwavdir} \
+                --outdir "${outwavdir}" \
                 --verbose 1
         echo "successfully finished decoding."
     else
