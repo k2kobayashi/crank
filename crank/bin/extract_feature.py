@@ -39,7 +39,8 @@ def main():
 
     featdir = Path(args.featdir) / conf["feature"]["label"] / args.phase
     featsscp = featdir / "feats.scp"
-    (featsscp).unlink(missing_ok=True)
+    if featsscp.exists():
+        featsscp.unlink()
 
     for spkr in scp["spkrs"]:
         logging.info("extract feature for {}".format(spkr))
