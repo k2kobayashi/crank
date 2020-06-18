@@ -11,17 +11,11 @@ import argparse
 import logging
 import os
 import sys
-
-import numpy as np
-
-
-from crank.utils import mlfb2wavf
-from crank.utils import load_yaml, open_scpdir, open_featsscp
-from crank.net.trainer.dataset import read_feature
-
-from parallel_wavegan.utils import find_files
-
 from joblib import Parallel, delayed
+
+from crank.utils import mlfb2wavf, load_yaml
+from crank.net.trainer.dataset import read_feature
+from parallel_wavegan.utils import find_files
 
 
 def main():

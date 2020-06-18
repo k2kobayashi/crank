@@ -175,7 +175,7 @@ if [ "${stage}" -le 6 ] && [ "${stop_stage}" -ge 6 ]; then
     if [ ${voc} = "GL" ]; then
         echo "Using Griffin-Lim phase recovery."
         ${train_cmd} "${outwavdir}/decode.log" \
-            utils/griffin-lim.py \
+            python -m crank.bin.griffin_lim \
                 --conf "${conf}" \
                 --rootdir ${expdir}/${confname}/eval_wav/${model_step} \
                 --outdir ${outwavdir}
