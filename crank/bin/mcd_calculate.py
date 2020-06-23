@@ -9,35 +9,24 @@
 
 import json
 import os
-
-import numpy as np
-
-import pysptk
-import pyworld as pw
-from scipy.io import wavfile
-import scipy
-from fastdtw import fastdtw
-
-import fnmatch
-from scipy.signal import firwin, lfilter
-
+import sys
 import argparse
 import logging
 import multiprocessing as mp
+import numpy as np
+import pysptk
+import pyworld as pw
+import scipy
+from fastdtw import fastdtw
 
-import sys
-
-from joblib import Parallel, delayed
 from pathlib import Path
 import soundfile as sf
 from parallel_wavegan.utils import find_files
 from sprocket.speech import FeatureExtractor
 from crank.net.trainer.dataset import read_feature
-from crank.utils import load_yaml, open_scpdir, open_featsscp
+from crank.utils import load_yaml, open_featsscp
 from crank.utils import low_cut_filter
 from crank.feature import Feature
-
-PATTERN = "{}_org-{}_cv-{}"
 
 def get_basename(path):
     return os.path.splitext(os.path.split(path)[-1])[0]
@@ -96,11 +85,8 @@ def main():
                         help='Speaker configuration file')
     parser.add_argument('--featdir', type=str, required=True,
                         help='Root directory of ground truth feature h5 files')
-    parser.add_argument("--scpdir", type=str,
-                        help="scp directory")
     parser.add_argument('--outwavdir', type=str, required=True,
-                        help='Output waveform directory')
-
+                        help='Converted waveform directory')
     parser.add_argument("--n_jobs", default=40, type=int,
                         help="number of parallel jobs")
     args = parser.parse_args()
