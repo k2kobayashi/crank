@@ -237,7 +237,6 @@ if [ "${stage}" -le 7 ] && [ "${stop_stage}" -ge 7 ]; then
             --conf "${conf}" \
             --spkr_conf "${spkr_yml}" \
             --outwavdir ${outwavdir} \
-            --featdir ${featdir} \
-            --scpdir "${scpdir}" \
+            --featdir ${featdir}
 
 fi 
