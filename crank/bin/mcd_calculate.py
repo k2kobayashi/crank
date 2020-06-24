@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# griffin-lim.py
+# mcd_calculate.py
 # Copyright (C) 2020 Wen-Chin HUANG
 #
 # Distributed under terms of the MIT license.
