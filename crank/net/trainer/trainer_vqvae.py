@@ -228,7 +228,7 @@ class VQVAETrainer(BaseTrainer):
 
         # generate wav
         if self.conf["feat_type"] == "mcep":
-            self._save_decoded_world(feats)
+            self._save_decoded_world(feats, save=(self.flag=="eval"))
         else:
             self._save_decoded_mlfbs(feats)
 
@@ -265,18 +265,36 @@ class VQVAETrainer(BaseTrainer):
                 feats[wavf]["cap"] = to_numpy(batch["cap"][n][:flen])
         return feats
 
-    def _save_decoded_world(self, feats):
-        for k, v in feats.items():
-            world2wav(
-                v["f0"][:, 0].astype(np.float64),
-                v["feat"].astype(np.float64),
-                v["cap"].astype(np.float64),
-                wavf=k,
-                fs=self.conf["feature"]["fs"],
-                fftl=self.conf["feature"]["fftl"],
-                shiftms=self.conf["feature"]["shiftms"],
-                alpha=self.conf["feature"]["mcep_alpha"],
-            )
+    def _save_decoded_world(self, feats, save=False):
+        # generate wav and save
+        Parallel(n_jobs=self.n_jobs)(
+            [
+                delayed(world2wav)(
+                    v["f0"][:, 0].astype(np.float64),
+                    v["feat"].astype(np.float64),
+                    v["cap"].astype(np.float64),
+                    wavf=k,
+                    fs=self.conf["feature"]["fs"],
+                    fftl=self.conf["feature"]["fftl"],
+                    shiftms=self.conf["feature"]["shiftms"],
+                    alpha=self.conf["feature"]["mcep_alpha"],
+                )
+                for k, v in feats.items()
+            ]
+        )
+
+        # save as hdf5
+        if save:
+            type_features = ["lcf0", "f0", "normed_lcf0", "uv", "cap"]
+            k = "normed_feat" if self.conf["save_mlfb_type"] == "normed" else "feat"
+            type_features.append(k)
+            for k in type_features:
+                Parallel(n_jobs=self.n_jobs)(
+                    [
+                        delayed(feat2hdf5)(feat[k], path, ext=k)
+                        for path, feat in feats.items()
+                    ]
+                )
 
     def _save_decoded_mlfbs(self, feats):
         n_samples = (
