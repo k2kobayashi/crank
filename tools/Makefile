@@ -8,6 +8,7 @@ venv:
 	. venv/bin/activate; pip install -U -q pip
 	. venv/bin/activate; pip install -q numpy
 	. venv/bin/activate; pip install -q -r requirements.txt
+	. venv/bin/activate; pip install git+https://github.com/aliutkus/speechmetrics#egg=speechmetrics[gpu] 
 
 crank:
 	. venv/bin/activate; cd .. && pip install -e .
