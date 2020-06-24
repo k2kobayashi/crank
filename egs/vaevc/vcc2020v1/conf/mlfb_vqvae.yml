@@ -23,6 +23,7 @@ batch_size: 20
 batch_len: 1000
 spec_augment: false
 n_apply_spec_augment: 1
+cache_dataset: true
 
 # training setting
 n_steps: 400000
