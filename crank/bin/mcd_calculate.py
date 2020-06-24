@@ -52,8 +52,9 @@ def calculate(file_list, gt_file_list, conf, spkr_conf, MCD):
     
     for i, cvt_path in enumerate(file_list):
         basename = get_basename(cvt_path)
-        number, _, trgspk = basename.split("_")
+        number, srcspk, trgspk = basename.split("_")
         trgspk = trgspk.split("-")[-1]
+        srcspk = srcspk.split("-")[-1]
         
         # get converted features. If mcep, from h5; else waveform
         if conf["feat_type"] == "mcep":
@@ -78,11 +79,10 @@ def calculate(file_list, gt_file_list, conf, spkr_conf, MCD):
         cvt_mcep_dtw = cvt_mcep[twf[0]]
         gt_mcep_dtw = gt_mcep[twf[1]]
 
-        # MCD 
+        # MCD
         diff2sum = np.sum((cvt_mcep_dtw - gt_mcep_dtw)**2, 1)
         mcd = np.mean(10.0 / np.log(10.0) * np.sqrt(2 * diff2sum), 0)
-        print('{} {}'.format(basename, mcd))
-        MCD.append(mcd)
+        MCD[f"{srcspk}-{trgspk}-{number}"] = mcd
 
 def main():
     
@@ -96,6 +96,9 @@ def main():
                         help='Root directory of ground truth feature h5 files')
     parser.add_argument('--outwavdir', type=str, required=True,
                         help='Converted waveform directory')
+    parser.add_argument('--out', '-O', type=str,
+                        help='The output filename. '
+                             'If omitted, then output to sys.stdout')
     parser.add_argument("--n_jobs", default=40, type=int,
                         help="number of parallel jobs")
     args = parser.parse_args()
@@ -123,13 +126,18 @@ def main():
     gt_feats = open_featsscp(featdir / "eval" / "feats.scp")
     
     # Get and divide list
-    print("number of utterances = %d" % len(converted_files))
-    file_lists = np.array_split(converted_files, args.n_jobs)
+    logging.info(f"number of utterances = {len(converted_files)}")
+    file_lists = np.array_split(converted_files[:100], args.n_jobs)
     file_lists = [f_list.tolist() for f_list in file_lists]
+    
+    if args.out is None:
+        out = sys.stdout
+    else:
+        out = open(args.out, 'w', encoding='utf-8')
 
     # multi processing
     with mp.Manager() as manager:
-        MCD = manager.list()
+        MCD = manager.dict()
         processes = []
         for f in file_lists:
             p = mp.Process(target=calculate, args=(f, gt_feats, conf, spkr_conf, MCD))
@@ -140,8 +148,19 @@ def main():
         for p in processes:
             p.join()
 
-        mMCD = np.mean(np.array(MCD))
-        print('Mean MCD: {:.2f}'.format(mMCD))
+        # summarize by pair
+        pairwise_MCD = {}
+        for k, v in MCD.items():
+            srcspk, trgspk, _ = k.split("-")
+            pair = srcspk + "-" + trgspk
+            if not pair in pairwise_MCD:
+                pairwise_MCD[pair] = []
+            pairwise_MCD[pair].append(v)
+
+    for k in sorted(pairwise_MCD.keys()):
+        mcd_list = pairwise_MCD[k]
+        mean_mcd = float(sum(mcd_list)/len(mcd_list))
+        out.write(f"{k} {mean_mcd:.3f}\n")
 
 if __name__ == '__main__':
     main()
