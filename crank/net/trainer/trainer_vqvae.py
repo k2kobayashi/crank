@@ -65,24 +65,33 @@ class VQVAETrainer(BaseTrainer):
     def dev(self, batch):
         loss_values = self.train(batch, phase="dev")
         for cv_spkr_name in random.sample(list(self.spkrs.keys()), self.n_cv_spkrs):
-            h = self._generate_conditions(batch, cv_spkr_name=cv_spkr_name)
-            outputs = self.model["G"].forward(batch["feats"], dec_h=h)
+            enc_h = self._generate_conditions(batch, encoder=True)
+            dec_h = self._generate_conditions(batch, cv_spkr_name=cv_spkr_name)
+            outputs = self.model["G"].forward(batch["feats"], enc_h=enc_h, dec_h=dec_h)
             self._generate_cvwav(batch, outputs, cv_spkr_name, tdir="dev_wav")
         return loss_values
 
     @torch.no_grad()
     def reconstruction(self, batch, tdir="reconstruction"):
         self.conf["n_gl_samples"] = 1
-        h = self._generate_conditions(batch, cv_spkr_name=None)
-        outputs = self.model["G"].forward(batch["feats"], dec_h=h)
+        enc_h = self._generate_conditions(batch, encoder=True)
+        dec_h = self._generate_conditions(batch, cv_spkr_name=None)
+        outputs = self.model["G"].forward(batch["feats"], enc_h=enc_h, dec_h=dec_h)
         self._generate_cvwav(batch, outputs, None, tdir=tdir)
 
         if self.conf["cycle_reconstruction"]:
             recondir = self.expdir / tdir / str(self.steps)
             for cv_spkr_name in self.spkrs.keys():
-                h_cv = self._generate_conditions(batch, cv_spkr_name=cv_spkr_name)
+                enc_h_cv = self._generate_conditions(
+                    batch, cv_spkr_name=cv_spkr_name, encoder=True
+                )
+                dec_h_cv = self._generate_conditions(batch, cv_spkr_name=cv_spkr_name)
                 cycle_outputs = self.model["G"].cycle_forward(
-                    batch["feats"], org_dec_h=h, cv_dec_h=h_cv
+                    batch["feats"],
+                    org_enc_h=enc_h,
+                    org_dec_h=dec_h,
+                    cv_enc_h=enc_h_cv,
+                    cv_dec_h=dec_h_cv,
                 )
                 recon = cycle_outputs[0]["recon"]["decoded"]
 
@@ -109,21 +118,23 @@ class VQVAETrainer(BaseTrainer):
     def eval(self, batch):
         self.conf["n_gl_samples"] = 1
         for cv_spkr_name in self.spkrs.keys():
-            h = self._generate_conditions(batch, cv_spkr_name=cv_spkr_name)
-            outputs = self.model["G"].forward(batch["feats"], dec_h=h)
+            enc_h = self._generate_conditions(batch, encoder=True)
+            dec_h = self._generate_conditions(batch, cv_spkr_name=cv_spkr_name)
+            outputs = self.model["G"].forward(batch["feats"], enc_h=enc_h, dec_h=dec_h)
             self._generate_cvwav(batch, outputs, cv_spkr_name, tdir="eval_wav")
 
     def forward_vqvae(self, batch, loss, phase="train"):
         # train generator
-        h = self._generate_conditions(batch)
+        enc_h = self._generate_conditions(batch, encoder=True)
+        dec_h = self._generate_conditions(batch)
         feats = batch["feats_sa"] if self.conf["spec_augment"] else batch["feats"]
-        outputs = self.model["G"].forward(feats, dec_h=h)
+        outputs = self.model["G"].forward(feats, enc_h=enc_h, dec_h=dec_h)
         loss = self.calculate_vqvae_loss(batch, outputs, loss)
 
         # Train clasifier using converted feature
         if self.conf["train_cv_classifier"]:
-            h_cv = self._generate_conditions(batch, use_cvfeats=True)
-            cv_outputs = self.model["G"].forward(feats, dec_h=h_cv)
+            dec_h_cv = self._generate_conditions(batch, use_cvfeats=True)
+            cv_outputs = self.model["G"].forward(feats, enc_h=enc_h, dec_h=dec_h_cv)
             _, cv_spkr_cls = self.model["G"].encode(
                 cv_outputs["decoded"].detach().transpose(1, 2)
             )
@@ -189,13 +200,11 @@ class VQVAETrainer(BaseTrainer):
         loss["generator"] += self.conf["alphas"]["ce"] * loss["ce_cv"]
         return loss
 
-    def _generate_conditions(self, batch, use_cvfeats=False, cv_spkr_name=None):
-        if cv_spkr_name is None:
-            if not use_cvfeats:
-                lcf0, uv, h_onehot = batch["lcf0"], batch["uv"], batch["org_h_onehot"]
-            else:
-                lcf0, uv, h_onehot = batch["cv_lcf0"], batch["uv"], batch["cv_h_onehot"]
-        else:
+    def _generate_conditions(
+        self, batch, cv_spkr_name=None, use_cvfeats=False, encoder=False
+    ):
+        # create lcf0, uv, h_onehot
+        if cv_spkr_name is not None:
             spkr_num = self.spkrs[cv_spkr_name]
             B, T, _ = batch["feats"].size()
             lcf0 = torch.tensor(self._get_cvf0(batch, cv_spkr_name)).to(self.device)
@@ -203,10 +212,23 @@ class VQVAETrainer(BaseTrainer):
             h_onehot = torch.tensor(create_one_hot(T, self.n_spkrs, spkr_num, B=B)).to(
                 self.device
             )
-        if not self.conf["decoder_f0"]:
-            return h_onehot.to(self.device)
         else:
-            return torch.cat([lcf0, uv, h_onehot], dim=-1).to(self.device)
+            if use_cvfeats:
+                lcf0, uv, h_onehot = batch["cv_lcf0"], batch["uv"], batch["cv_h_onehot"]
+            else:
+                lcf0, uv, h_onehot = batch["lcf0"], batch["uv"], batch["org_h_onehot"]
+
+        # return conditions
+        if encoder:
+            if self.conf["encoder_f0"]:
+                return torch.cat([lcf0, uv], dim=-1).to(self.device)
+            else:
+                return None
+        else:
+            if self.conf["decoder_f0"]:
+                return torch.cat([lcf0, uv, h_onehot], dim=-1).to(self.device)
+            else:
+                return h_onehot.to(self.device)
 
     def _get_cvf0(self, batch, spkr_name):
         cv_lcf0s = []

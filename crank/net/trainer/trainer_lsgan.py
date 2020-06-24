@@ -87,14 +87,15 @@ class LSGANTrainer(VQVAETrainer):
 
     def update_G(self, batch, loss, phase="train"):
         # train generator
-        h = self._generate_conditions(batch)
+        enc_h = self._generate_conditions(batch, encoder=True)
+        dec_h = self._generate_conditions(batch)
         feats = batch["feats_sa"] if self.conf["spec_augment"] else batch["feats"]
-        outputs = self.model["G"].forward(feats, dec_h=h)
+        outputs = self.model["G"].forward(feats, enc_h=enc_h, dec_h=dec_h)
         loss = self.calculate_vqvae_loss(batch, outputs, loss)
 
         if self.conf["cvadv_flag"] and random.choice([True, False]):
             h_cv = self._generate_conditions(batch, use_cvfeats=True)
-            cv_outputs = self.model["G"].forward(feats, dec_h=h_cv)
+            cv_outputs = self.model["G"].forward(feats, enc_h=enc_h, dec_h=h_cv)
             decoded = cv_outputs["decoded"]
             h_scaler = batch["cv_h_scalar"]
         else:
@@ -110,12 +111,13 @@ class LSGANTrainer(VQVAETrainer):
 
     def update_D(self, batch, loss, phase="train"):
         # train discriminator
-        h = self._generate_conditions(batch)
+        enc_h = self._generate_conditions(batch, encoder=True)
+        dec_h = self._generate_conditions(batch)
         feats = batch["feats_sa"] if self.conf["spec_augment"] else batch["feats"]
-        outputs = self.model["G"].forward(feats, dec_h=h)
+        outputs = self.model["G"].forward(feats, enc_h=enc_h, dec_h=dec_h)
         if self.conf["cvadv_flag"] and random.choice([True, False]):
-            h_cv = self._generate_conditions(batch, use_cvfeats=True)
-            cv_outputs = self.model["G"].forward(feats, dec_h=h_cv)
+            dec_h_cv = self._generate_conditions(batch, use_cvfeats=True)
+            cv_outputs = self.model["G"].forward(feats, enc_h=enc_h, dec_h=dec_h_cv)
             decoded = cv_outputs["decoded"]
             h_scaler = batch["cv_h_scalar"]
         else:
@@ -157,9 +159,7 @@ class LSGANTrainer(VQVAETrainer):
         fake_sample = (
             self.model["D"].forward(decoded.detach().transpose(1, 2)).transpose(1, 2)
         )
-        real_sample = (
-            self.model["D"].forward(feats.transpose(1, 2)).transpose(1, 2)
-        )
+        real_sample = self.model["D"].forward(feats.transpose(1, 2)).transpose(1, 2)
 
         if self.conf["acgan_flag"]:
             fake_sample, spkr_cls_fake = torch.split(

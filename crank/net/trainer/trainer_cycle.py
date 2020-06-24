@@ -65,12 +65,18 @@ class CycleVQVAETrainer(VQVAETrainer):
         return loss_values
 
     def forward_cycle(self, batch, loss, phase="train"):
-        h = self._generate_conditions(batch)
-        h_cv = self._generate_conditions(batch, use_cvfeats=True)
+        enc_h = self._generate_conditions(batch, encoder=True)
+        enc_h_cv = self._generate_conditions(batch, use_cvfeats=True, encoder=True)
+        dec_h = self._generate_conditions(batch)
+        dec_h_cv = self._generate_conditions(batch, use_cvfeats=True)
 
         feats = batch["feats_sa"] if self.conf["spec_augment"] else batch["feats"]
         cycle_outputs = self.model["G"].cycle_forward(
-            feats, org_dec_h=h, cv_dec_h=h_cv
+            feats,
+            org_enc_h=enc_h,
+            org_dec_h=dec_h,
+            cv_enc_h=enc_h_cv,
+            cv_dec_h=dec_h_cv,
         )
         loss = self.calculate_vqvae_loss(batch, cycle_outputs[0]["org"], loss)
         loss = self.calculate_cyclevqvae_loss(batch, cycle_outputs, loss)
