@@ -16,6 +16,7 @@ import numpy as np
 import random
 from pathlib import Path
 from abc import abstractmethod
+from multiprocessing import Manager
 from torch.utils.data import Dataset
 
 
@@ -37,6 +38,12 @@ class BaseDataset(Dataset):
         self.spkrdict = dict(zip(self.spkrlist, range(len(self.spkrlist))))
         self.n_spkrs = len(self.spkrdict)
 
+        if self.conf["cache_dataset"]:
+            self.manager = Manager()
+            self.caches = self.manager.list()
+            for _ in range(len(self.h5list)):
+                self.caches += [None]
+
     @abstractmethod
     def mid_getitem(self, sample, idx, h5f):
         raise NotImplementedError("No mid_getitem function.")
@@ -45,6 +52,10 @@ class BaseDataset(Dataset):
         return len(self.h5list)
 
     def __getitem__(self, idx):
+        # use cache
+        if self.conf["cache_dataset"] and self.caches[idx] is not None:
+            return self.caches[idx]
+
         h5f = str(self.h5list[idx])
 
         # preprocess
@@ -58,6 +69,11 @@ class BaseDataset(Dataset):
 
         # postprocess
         sample = self._post_getitem(sample)
+
+        # cache for next epoch
+        if self.conf["cache_dataset"]:
+            self.caches[idx] = sample
+
         return sample
 
     def _pre_getitem(self, idx, h5f):
