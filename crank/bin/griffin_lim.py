@@ -43,9 +43,9 @@ def main():
         logging.info("{}: {}".format(k, v))
 
     # find h5 files
-    feats_files = find_files(args.rootdir, "*.h5")
+    feats_files = sorted(list(Path(args.rootdir).glob("*.h5")))
     feats = {
-        os.path.join(args.outdir, os.path.basename(filename).replace(".h5", ".wav")):read_feature(filename, "feats")
+        Path(args.outdir) / filename.stem + ".wav" : read_feature(filename, "feats")
         for filename in feats_files
     }
 
