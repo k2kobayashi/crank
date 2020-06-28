@@ -17,18 +17,21 @@ from pathlib import Path
 from crank.utils import load_yaml
 import speechmetrics
 
-def get_basename(path):
-    return os.path.splitext(os.path.split(path)[-1])[0]
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Use MOSnet to predict quality scores.',
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--outwavdir', type=str, required=True,
-                        help='Converted waveform directory')
-    parser.add_argument('--out', '-O', type=str,
-                        help='The output filename. '
-                             'If omitted, then output to sys.stdout')
+        description="Use MOSnet to predict quality scores.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser.add_argument(
+        "--outwavdir", type=str, required=True, help="Converted waveform directory"
+    )
+    parser.add_argument(
+        "--out",
+        "-O",
+        type=str,
+        help="The output filename. " "If omitted, then output to sys.stdout",
+    )
     args = parser.parse_args()
 
     # logging info
@@ -43,13 +46,13 @@ def main():
     logging.info(f"number of utterances = {len(converted_files)}")
 
     # construct metric class
-    metrics = speechmetrics.load('mosnet', None)
-    
+    metrics = speechmetrics.load("mosnet", None)
+
     if args.out is None:
         out = sys.stdout
     else:
-        out = open(args.out, 'w', encoding='utf-8')
-    
+        out = open(args.out, "w", encoding="utf-8")
+
     # actual calculation
     scores = {}
     for cv_path in converted_files:
@@ -60,7 +63,6 @@ def main():
         orgspk = orgspk.split("-")[-1]
 
         scores[f"{orgspk}-{tarspk}-{number}"] = score
-
 
     # summarize by pair
     pairwise_scores = {}
@@ -73,8 +75,9 @@ def main():
 
     for k in sorted(pairwise_scores.keys()):
         score_list = pairwise_scores[k]
-        mean_score = float(sum(score_list)/len(score_list))
+        mean_score = float(sum(score_list) / len(score_list))
         out.write(f"{k} {mean_score:.3f}\n")
+
 
 if __name__ == "__main__":
     main()
