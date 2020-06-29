@@ -1,4 +1,4 @@
-# Crank
+# crank
 
 Non-parallel voice conversion based on vector-quantized variational autoencoder
 
