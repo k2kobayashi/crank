@@ -20,14 +20,17 @@ from parallel_wavegan.utils import find_files
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Convert filter banks to waveform using Griffin-Lim algorithm',
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--conf', type=str, required=True,
-                        help='Cofiguration file')
-    parser.add_argument('--rootdir', type=str, required=True,
-                        help='Root directory of filter bank h5 files')
-    parser.add_argument('--outdir', type=str, required=True,
-                        help='Output directory')
+        description="Convert filter banks to waveform using Griffin-Lim algorithm",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser.add_argument("--conf", type=str, required=True, help="Cofiguration file")
+    parser.add_argument(
+        "--rootdir",
+        type=str,
+        required=True,
+        help="Root directory of filter bank h5 files",
+    )
+    parser.add_argument("--outdir", type=str, required=True, help="Output directory")
     args = parser.parse_args()
 
     # logging info
@@ -36,16 +39,16 @@ def main():
         stream=sys.stdout,
         format="%(asctime)s (%(module)s:%(lineno)d) " "%(levelname)s: %(message)s",
     )
-    
+
     # load configure files
     conf = load_yaml(args.conf)
     for k, v in conf.items():
         logging.info("{}: {}".format(k, v))
 
     # find h5 files
-    feats_files = find_files(args.rootdir, "*.h5")
+    feats_files = sorted(list(Path(args.rootdir).glob("*.h5")))
     feats = {
-        os.path.join(args.outdir, os.path.basename(filename).replace(".h5", ".wav")):read_feature(filename, "feats")
+        Path(args.outdir) / filename.stem + ".wav": read_feature(filename, "feats")
         for filename in feats_files
     }
 
@@ -64,6 +67,7 @@ def main():
             for wavf in list(feats.keys())
         ]
     )
+
 
 if __name__ == "__main__":
     main()

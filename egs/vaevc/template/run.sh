@@ -16,9 +16,10 @@
 #  3: training
 #  4: reconstruction
 #  5: decoding
-#  6: evaluation
+#  6: synthesis
+#  7: evaluation
 stage=0      # stage to start
-stop_stage=6 # stage to stop
+stop_stage=7 # stage to stop
 
 # job settings
 n_jobs=10 # number of parallel jobs
@@ -149,7 +150,7 @@ if [ "${stage}" -le 5 ] && [ "${stop_stage}" -ge 5 ]; then
     echo "stage 5: decode"
     confname=$(basename "${conf}" .yml)
     ${train_cmd} --gpu ${n_gpus} \
-       "${expdir}/${confname}/evaluate.log" \
+       "${expdir}/${confname}/decode.log" \
         python -m crank.bin.train \
             --flag eval \
             --n_jobs "${n_jobs}" \
@@ -162,15 +163,16 @@ if [ "${stage}" -le 5 ] && [ "${stop_stage}" -ge 5 ]; then
     echo "stage 5: decoding has been done."
 fi
 
+confname=$(basename "${conf}" .yml)
+[ -z "${model_step}" ] && model_step="$(find "${expdir}/${confname}" -name "*.pkl" -print0 \
+    | xargs -0 ls -t | head -n 1 | cut -d"/" -f 3 | cut -d"_" -f 2 | cut -d"s" -f 1)"
+outdir=${expdir}/${confname}/eval_${voc}_wav/${model_step}
+outwavdir=${outdir}/wav
 if [ "${stage}" -le 6 ] && [ "${stop_stage}" -ge 6 ]; then
     echo "stage 6: synthesis"
     
-    confname=$(basename "${conf}" .yml)
-    [ -z "${model_step}" ] && model_step="$(find "${expdir}/${confname}" -name "*.pkl" -print0 \
-        | xargs -0 ls -t | head -n 1 | cut -d"_" -f 2 | cut -d"s" -f 1)"
-    outdir=${expdir}/${confname}/eval_${voc}_wav/${model_step}
-    outwavdir=${outdir}/wav; mkdir -p "${outwavdir}"
-
+    mkdir -p "${outwavdir}"
+    
     # GL
     if [ ${voc} = "GL" ]; then
         echo "Using Griffin-Lim phase recovery."
@@ -220,8 +222,34 @@ if [ "${stage}" -le 6 ] && [ "${stop_stage}" -ge 6 ]; then
                 --outdir "${outwavdir}" \
                 --verbose 1
         echo "successfully finished decoding."
+
+        # rename
+        find "${outwavdir}" -name '*.wav' | sed -e "p;s/_gen//" | xargs -n2 mv
     else
         echo "Vocoder type not supported. Only GL and PWG are available."
     fi
     echo "stage 6: synthesis has been done."
 fi
+
+if [ "${stage}" -le 7 ] && [ "${stop_stage}" -ge 7 ]; then
+    echo "stage 7: evaluation"
+
+    echo "MCD calculation. Results can be found in ${outwavdir}/mcd_calculate.log"
+    feat_type=$(grep feat_type ${conf} | head -n 1 | awk '{ print $2}')
+    if [ "${feat_type}" = "mcep" ]; then
+        outwavdir=${expdir}/${confname}/eval_wav/${model_step}
+    fi
+    ${train_cmd} "${outwavdir}/mcd_calculate.log" \
+        python -m crank.bin.calculate_mcd \
+            --conf "${conf}" \
+            --spkr_conf "${spkr_yml}" \
+            --outwavdir "${outwavdir}" \
+            --featdir ${featdir}
+
+    echo "MOSnet score prediction. Results can be found in ${outwavdir}/mosnet.log"
+    ${train_cmd} --gpu 1 \
+        "${outwavdir}/mosnet.log" \
+        python -m crank.bin.mosnet \
+            --outwavdir "${outwavdir}"
+
+fi 
