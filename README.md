@@ -149,4 +149,6 @@ Thank you [@kan-bayashi](https://github.com/kan-bayashi) for lots of contributio
 
 - Kazuhiro Kobayashi [@k2kobayashi](https://github.com/k2kobayashi) [maintainer, design and development]
 
+- Wen-Chin Huang [@unilight](https://github.com/unilight) [maintainer, design and development]
+
 - [Tomoki Toda](https://sites.google.com/site/tomokitoda/) [advisor]
