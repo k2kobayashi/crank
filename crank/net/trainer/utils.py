@@ -28,6 +28,7 @@ def get_criterion(conf):
         "ce": nn.CrossEntropyLoss(ignore_index=-100),
         "kld": nn.KLDivLoss(reduction="mean"),
         "stft": MultiSizeSTFTLoss(**conf["stft_params"]),
+        "bce": nn.BCELoss()
     }
     return criterion
 

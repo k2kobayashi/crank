@@ -18,9 +18,9 @@ from parallel_wavegan.models import ParallelWaveGANGenerator
 
 
 class VQVAE2(nn.Module):
-    def __init__(self, net_conf, spkr_size=0):
+    def __init__(self, conf, spkr_size=0):
         super(VQVAE2, self).__init__()
-        self.net_conf = net_conf
+        self.conf = conf
         self.spkr_size = spkr_size
         self._construct_net()
 
@@ -29,9 +29,9 @@ class VQVAE2(nn.Module):
         enc_h = enc_h.transpose(1, 2) if enc_h is not None else None
         dec_h = dec_h.transpose(1, 2) if dec_h is not None else None
 
-        enc, spkr_cls = self.encode(x, enc_h=enc_h)
+        enc, spkr_cls, pred_f0 = self.encode(x, enc_h=enc_h)
         enc, dec, emb_idxs, _, qidxs = self.decode(enc, dec_h, use_ema=use_ema)
-        outputs = self.make_dict(enc, dec, emb_idxs, qidxs, spkr_cls)
+        outputs = self.make_dict(enc, dec, emb_idxs, qidxs, spkr_cls, pred_f0)
         return outputs
 
     def cycle_forward(
@@ -44,8 +44,8 @@ class VQVAE2(nn.Module):
         cv_dec_h = cv_dec_h.transpose(1, 2) if cv_dec_h is not None else None
 
         outputs = []
-        for n in range(self.net_conf["n_cycles"]):
-            enc, org_spkr_cls = self.encode(x, enc_h=org_enc_h)
+        for n in range(self.conf["n_cycles"]):
+            enc, org_spkr_cls, org_pred_f0 = self.encode(x, enc_h=org_enc_h)
             org_enc, org_dec, org_emb_idxs, _, org_qidxs = self.decode(
                 enc, org_dec_h, use_ema=True
             )
@@ -53,20 +53,25 @@ class VQVAE2(nn.Module):
                 enc, cv_dec_h, use_ema=False
             )
 
-            enc, cv_spkr_cls = self.encode(cv_dec, enc_h=cv_enc_h)
+            enc, cv_spkr_cls, cv_pred_f0 = self.encode(cv_dec, enc_h=cv_enc_h)
             recon_enc, recon_dec, recon_emb_idxs, _, recon_qidxs = self.decode(
                 enc, org_dec_h, use_ema=True
             )
             outputs.append(
                 {
                     "org": self.make_dict(
-                        org_enc, org_dec, org_emb_idxs, org_qidxs, org_spkr_cls
+                        org_enc,
+                        org_dec,
+                        org_emb_idxs,
+                        org_qidxs,
+                        org_spkr_cls,
+                        org_pred_f0,
                     ),
                     "cv": self.make_dict(
-                        cv_enc, cv_dec, cv_emb_idxs, cv_qidxs, cv_spkr_cls,
+                        cv_enc, cv_dec, cv_emb_idxs, cv_qidxs, cv_spkr_cls, cv_pred_f0,
                     ),
                     "recon": self.make_dict(
-                        recon_enc, recon_dec, recon_emb_idxs, recon_qidxs, None,
+                        recon_enc, recon_dec, recon_emb_idxs, recon_qidxs, None, None,
                     ),
                 }
             )
@@ -74,24 +79,30 @@ class VQVAE2(nn.Module):
         return outputs
 
     def encode(self, x, enc_h=None):
-        # encode
         encoded = []
-        for n in range(self.net_conf["n_vq_stacks"]):
+        for n in range(self.conf["n_vq_stacks"]):
             if n == 0:
-                enc = self.encoders[n](x, c=enc_h)
-                enc, spkr_cls = torch.split(
-                    enc, [self.net_conf["emb_dim"][n], self.spkr_size], dim=1
-                )
+                if not self.conf["enc_predict_f0"]:
+                    enc = self.encoders[n](x, c=enc_h)
+                    enc, spkr_cls = torch.split(
+                        enc, [self.conf["emb_dim"][n], self.spkr_size], dim=1
+                    )
+                    pred_f0 = None
+                else:
+                    enc = self.encoders[n](x, c=enc_h)
+                    enc, spkr_cls, pred_f0 = torch.split(
+                        enc, [self.conf["emb_dim"][n], self.spkr_size, 2], dim=1
+                    )
             else:
                 enc = self.encoders[n](enc, c=None)
             encoded.append(enc)
-        return encoded, spkr_cls
+        return encoded, spkr_cls, pred_f0
 
     def decode(self, enc, dec_h, use_ema=True):
         # decode
         dec = 0
         emb_idxs, emb_idx_qxs, qidxs = [], [], []
-        for n in reversed(range(self.net_conf["n_vq_stacks"])):
+        for n in reversed(range(self.conf["n_vq_stacks"])):
             # vq
             enc[n] = enc[n] + dec
             emb_idx, emb_idx_qx, qidx = self.quantizers[n](enc[n], use_ema=use_ema)
@@ -107,11 +118,11 @@ class VQVAE2(nn.Module):
         return enc, dec, emb_idxs, emb_idx_qxs, qidxs
 
     def remove_weight_norm(self):
-        for n in range(self.net_conf["n_vq_stacks"]):
+        for n in range(self.conf["n_vq_stacks"]):
             self.encoders[n].remove_weight_norm()
             self.decoders[n].remove_weight_norm()
 
-    def make_dict(self, enc, dec, emb_idxs, qidxs, spkr_cls=None):
+    def make_dict(self, enc, dec, emb_idxs, qidxs, spkr_cls=None, pred_f0=None):
         # NOTE: transpose from [B, D, T] to be [B, T, D]
         # NOTE: index of bottom outputs to be 0
         return {
@@ -120,38 +131,44 @@ class VQVAE2(nn.Module):
             "decoded": dec.transpose(1, 2),
             "emb_idx": emb_idxs[::-1],
             "qidx": qidxs[::-1],
+            "pred_f0": pred_f0.transpose(1, 2) if pred_f0 is not None else None,
         }
 
     def _construct_net(self):
-        nc = self.net_conf
         self.encoders = nn.ModuleList()
         self.decoders = nn.ModuleList()
         self.quantizers = nn.ModuleList()
-        for n in range(nc["n_vq_stacks"]):
+        for n in range(self.conf["n_vq_stacks"]):
             if n == 0:
-                enc_in_channels = nc["input_size"]
-                enc_out_channels = nc["emb_dim"][n] + self.spkr_size
-                enc_aux_channels = nc["enc_aux_size"]
+                enc_in_channels = self.conf["input_size"]
+                enc_out_channels = self.conf["emb_dim"][n] + self.spkr_size
+                if self.conf["enc_predict_f0"]:
+                    if self.conf["enc_aux_f0"]:
+                        raise ValueError(
+                            "Make disable either enc_predict_f0 or enc_aux_f0."
+                        )
+                    enc_out_channels += 2
+                enc_aux_channels = self.conf["enc_aux_size"]
                 dec_in_channels = sum(
-                    [nc["emb_dim"][i] for i in range(nc["n_vq_stacks"])]
+                    [self.conf["emb_dim"][i] for i in range(self.conf["n_vq_stacks"])]
                 )
-                dec_out_channels = nc["output_size"]
-                dec_aux_channels = nc["dec_aux_size"] + self.spkr_size
+                dec_out_channels = self.conf["output_size"]
+                dec_aux_channels = self.conf["dec_aux_size"] + self.spkr_size
             elif n >= 1:
-                enc_in_channels = nc["emb_dim"][n - 1]
-                enc_out_channels = nc["emb_dim"][n]
+                enc_in_channels = self.conf["emb_dim"][n - 1]
+                enc_out_channels = self.conf["emb_dim"][n]
                 enc_aux_channels = 0
-                dec_in_channels = nc["emb_dim"][n]
-                dec_out_channels = nc["emb_dim"][n - 1]
+                dec_in_channels = self.conf["emb_dim"][n]
+                dec_out_channels = self.conf["emb_dim"][n - 1]
                 dec_aux_channels = 0
             self.encoders.append(
                 ParallelWaveGANGenerator(
                     in_channels=enc_in_channels,
                     out_channels=enc_out_channels,
-                    kernel_size=nc["kernel_size"][n],
-                    layers=nc["n_layers"][n] * nc["n_layers_stacks"][n],
-                    stacks=nc["n_layers_stacks"][n],
-                    residual_channels=nc["residual_channels"],
+                    kernel_size=self.conf["kernel_size"][n],
+                    layers=self.conf["n_layers"][n] * self.conf["n_layers_stacks"][n],
+                    stacks=self.conf["n_layers_stacks"][n],
+                    residual_channels=self.conf["residual_channels"],
                     gate_channels=128,
                     skip_channels=64,
                     aux_channels=enc_aux_channels,
@@ -159,7 +176,7 @@ class VQVAE2(nn.Module):
                     dropout=0.0,
                     bias=True,
                     use_weight_norm=True,
-                    use_causal_conv=nc["causal"],
+                    use_causal_conv=self.conf["causal"],
                     upsample_conditional_features=False,
                 )
             )
@@ -167,10 +184,10 @@ class VQVAE2(nn.Module):
                 ParallelWaveGANGenerator(
                     in_channels=dec_in_channels,
                     out_channels=dec_out_channels,
-                    kernel_size=nc["kernel_size"][n],
-                    layers=nc["n_layers"][n] * nc["n_layers_stacks"][n],
-                    stacks=nc["n_layers_stacks"][n],
-                    residual_channels=nc["residual_channels"],
+                    kernel_size=self.conf["kernel_size"][n],
+                    layers=self.conf["n_layers"][n] * self.conf["n_layers_stacks"][n],
+                    stacks=self.conf["n_layers_stacks"][n],
+                    residual_channels=self.conf["residual_channels"],
                     gate_channels=128,
                     skip_channels=64,
                     aux_channels=dec_aux_channels,
@@ -178,15 +195,15 @@ class VQVAE2(nn.Module):
                     dropout=0.0,
                     bias=True,
                     use_weight_norm=True,
-                    use_causal_conv=nc["causal"],
+                    use_causal_conv=self.conf["causal"],
                     upsample_conditional_features=False,
                 )
             )
             self.quantizers.append(
                 Quantize(
-                    nc["emb_dim"][n],
-                    nc["emb_size"][n],
-                    ema_flag=nc["ema_flag"],
+                    self.conf["emb_dim"][n],
+                    self.conf["emb_size"][n],
+                    ema_flag=self.conf["ema_flag"],
                     bdt_flag=True,
                 )
             )

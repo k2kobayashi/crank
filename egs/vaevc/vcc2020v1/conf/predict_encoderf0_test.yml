@@ -46,6 +46,7 @@ alphas:
   mse: 2
   stft: 1
   ce: 1
+  bce: 1
   commit:
   - 0.25
   - 0.25

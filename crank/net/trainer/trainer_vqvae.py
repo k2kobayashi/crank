@@ -154,13 +154,26 @@ class VQVAETrainer(BaseTrainer):
 
         # loss for reconstruction
         decoded = outputs["decoded"].masked_select(mask)
-        spkr_cls = outputs["spkr_cls"]
         loss["l1"] = self.criterion["l1"](batch["feats"].masked_select(mask), decoded)
         loss["mse"] = self.criterion["mse"](batch["feats"].masked_select(mask), decoded)
         loss["stft"] = self.criterion["stft"](batch["feats"], outputs["decoded"])
+
+        # loss for encoder
+        spkr_cls = outputs["spkr_cls"]
         loss["ce"] = self.criterion["ce"](
             spkr_cls.reshape(-1, spkr_cls.size(2)), batch["org_h_scalar"].reshape(-1)
         )
+
+        if self.conf["enc_predict_f0"]:
+            pred_f0 = outputs["pred_f0"]
+            lcf0, uv = torch.split(pred_f0, [1, 1], dim=2)
+            uv = torch.sigmoid(uv)
+            loss["enc_lcf0"] = self.criterion["l1"](
+                batch["lcf0"].masked_select(mask), lcf0.masked_select(mask)
+            )
+            loss["enc_uv"] = self.criterion["bce"](
+                uv.masked_select(mask), batch["uv"].masked_select(mask),
+            )
 
         # loss for vq
         encoded = outputs["encoded"]
@@ -190,6 +203,11 @@ class VQVAETrainer(BaseTrainer):
         loss = _parse_vq("commit")
         if not self.conf["ema_flag"]:
             loss = _parse_vq("dict")
+
+        if self.conf["enc_predict_f0"]:
+            loss["generator"] += self.conf["alphas"]["bce"] * loss["enc_uv"]
+            loss["generator"] += self.conf["alphas"]["l1"] * loss["enc_lcf0"]
+
         return loss
 
     def calculate_cv_spkr_cls_loss(self, batch, cv_spkr_cls, loss):
@@ -220,12 +238,12 @@ class VQVAETrainer(BaseTrainer):
 
         # return conditions
         if encoder:
-            if self.conf["encoder_f0"]:
+            if self.conf["enc_aux_f0"]:
                 return torch.cat([lcf0, uv], dim=-1).to(self.device)
             else:
                 return None
         else:
-            if self.conf["decoder_f0"]:
+            if self.conf["dec_aux_f0"]:
                 return torch.cat([lcf0, uv, h_onehot], dim=-1).to(self.device)
             else:
                 return h_onehot.to(self.device)
@@ -250,7 +268,7 @@ class VQVAETrainer(BaseTrainer):
 
         # generate wav
         if self.conf["feat_type"] == "mcep":
-            self._save_decoded_world(feats, save=(self.flag=="eval"))
+            self._save_decoded_world(feats, save=(self.flag == "eval"))
         else:
             self._save_decoded_mlfbs(feats)
 
