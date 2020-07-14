@@ -28,6 +28,11 @@ class VQVAE2(nn.Module):
             self.spkr_embedding = nn.Embedding(
                 self.spkr_size, self.conf["spkr_embedding_size"]
             )
+            if self.conf["use_embedding_transform"]:
+                self.embedding_transform = nn.Linear(
+                    self.conf["spkr_embedding_size"],
+                    self.conf["embedding_transform_size"],
+                )
 
     def forward(self, x, enc_h=None, dec_h=None, use_ema=True):
         x = x.transpose(1, 2)
@@ -141,9 +146,15 @@ class VQVAE2(nn.Module):
                 )
                 dec_out_channels = self.conf["output_size"]
                 if self.conf["use_spkr_embedding"]:
-                    dec_aux_channels = (
-                        self.conf["dec_aux_size"] + self.conf["spkr_embedding_size"]
-                    )
+                    if not self.conf["use_embedding_transform"]:
+                        dec_aux_channels = (
+                            self.conf["dec_aux_size"] + self.conf["spkr_embedding_size"]
+                        )
+                    else:
+                        dec_aux_channels = (
+                            self.conf["dec_aux_size"]
+                            + self.conf["embedding_transform_size"]
+                        )
                 else:
                     dec_aux_channels = self.conf["dec_aux_size"] + self.spkr_size
             elif n >= 1:

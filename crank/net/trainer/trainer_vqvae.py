@@ -247,11 +247,7 @@ class VQVAETrainer(BaseTrainer):
                     # decoder w/o f0
                     return spkrcode.to(self.device)
 
-        # prepare lcf0, uv, spkrcode
-        lcf0, uv, spkrcode = _prepare_feats(batch, cv_spkr_name, use_cvfeats)
-
-        # TODO: implement pre_net for generate conditions
-        if self.conf["use_spkr_embedding"]:
+        def _generate_spkrembedding(batch, cv_spkr_name, use_cvfeats):
             B, T, _ = batch["feats"].size()
             if cv_spkr_name is not None:
                 spkr_num = self.spkrs[cv_spkr_name]
@@ -264,6 +260,17 @@ class VQVAETrainer(BaseTrainer):
                 torch.ones((T, B), dtype=torch.long).to(self.device) * spkr_num
             ).transpose(0, 1)
             spkrcode = self.model["G"].spkr_embedding(spkrvector)
+
+            if self.conf["use_embedding_transform"]:
+                spkrcode = self.model["G"].embedding_transform(spkrcode)
+            return spkrcode
+
+        # prepare lcf0, uv, spkrcode
+        lcf0, uv, spkrcode = _prepare_feats(batch, cv_spkr_name, use_cvfeats)
+
+        # generate spkr embedding
+        if self.conf["use_spkr_embedding"]:
+            spkrcode = _generate_spkrembedding(batch, cv_spkr_name, use_cvfeats)
 
         # return features
         return _return_conditions(lcf0, uv, spkrcode, encoder)

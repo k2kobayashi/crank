@@ -85,8 +85,8 @@ decoder_f0: false
 dec_aux_size: 0
 use_spkr_embedding: True
 spkr_embedding_size: 32
-use_embedding_transform: False
-embedding_transform_size: 0
+use_embedding_transform: True
+embedding_transform_size: 2
 save_mlfb_type:
 save_f0_feats: True
 residual_channels: 64
