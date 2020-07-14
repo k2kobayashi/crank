@@ -95,6 +95,7 @@ class BaseDataset(Dataset):
         sample["org_h_onehot"], sample["org_h_scalar"] = self._get_spkrcode(
             sample["org_spkr_name"], sample["flen"]
         )
+        sample["cv_spkr_num"] = int(self.spkrdict[sample["cv_spkr_name"]])
         sample["cv_h_onehot"], sample["cv_h_scalar"] = self._get_spkrcode(
             sample["cv_spkr_name"], sample["flen"]
         )
