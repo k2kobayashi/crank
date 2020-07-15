@@ -116,12 +116,33 @@ class VQVAETrainer(BaseTrainer):
 
     @torch.no_grad()
     def eval(self, batch):
-        self.conf["n_gl_samples"] = 1
-        for cv_spkr_name in self.spkrs.keys():
-            enc_h = self._generate_conditions(batch, encoder=True)
-            dec_h = self._generate_conditions(batch, cv_spkr_name=cv_spkr_name)
-            outputs = self.model["G"].forward(batch["feats"], enc_h=enc_h, dec_h=dec_h)
-            self._generate_cvwav(batch, outputs, cv_spkr_name, tdir="eval_wav")
+        if not self.conf["decode_with_manual_embedding"]:
+            self.conf["n_gl_samples"] = 1
+            for cv_spkr_name in self.spkrs.keys():
+                enc_h = self._generate_conditions(batch, encoder=True)
+                dec_h = self._generate_conditions(batch, cv_spkr_name=cv_spkr_name)
+                outputs = self.model["G"].forward(
+                    batch["feats"], enc_h=enc_h, dec_h=dec_h
+                )
+                self._generate_cvwav(batch, outputs, cv_spkr_name, tdir="eval_wav")
+        else:
+            self.conf["n_gl_samples"] = 30
+            for val in [-1, -0.5, 0, 0.5, 1.0]:
+                enc_h = self._generate_conditions(batch, encoder=True)
+                dec_h = self._generate_conditions(batch)
+                dec_h = self._modify_spkr_embedding(dec_h, val)
+                print(dec_h)
+                outputs = self.model["G"].forward(
+                    batch["feats"], enc_h=enc_h, dec_h=dec_h
+                )
+                self._generate_cvwav(batch, outputs, tdir="eval_wav_{}".format(val))
+
+    def _modify_spkr_embedding(self, dec_h, val):
+        if self.conf["decoder_f0"]:
+            dec_h[..., self.conf["dec_aux_size"] :] = val
+        else:
+            dec_h[..., :] = val
+        return dec_h
 
     def forward_vqvae(self, batch, loss, phase="train"):
         # train generator
@@ -263,6 +284,7 @@ class VQVAETrainer(BaseTrainer):
 
             if self.conf["use_embedding_transform"]:
                 spkrcode = self.model["G"].embedding_transform(spkrcode)
+                print(spkrcode)
             return spkrcode
 
         # prepare lcf0, uv, spkrcode
