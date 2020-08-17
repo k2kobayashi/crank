@@ -39,7 +39,7 @@ spkr_yml=conf/spkr.yml # speaker config
 model_step=                     # If not specified, use the latest.
 voc=PWG                         # GL or PWG
 voc_expdir=downloads/PWG        # ex. `downloads/pwg`
-voc_checkpoint=                 # If not specified, use the latest checkpoint 
+voc_checkpoint=                 # If not specified, use the latest checkpoint
 
 # other settings
 checkpoint="None" # checkpoint path to resume
@@ -82,7 +82,7 @@ if [ "${stage}" -le 1 ] && [ "${stop_stage}" -ge 1 ]; then
             --n_jobs "${n_jobs}" \
             "${wavdir}" \
             "${datadir}/figure"
-    echo "Please set speaker parametersn in ${spkr_yml}"
+    echo "Please set speaker parameters in ${spkr_yml}"
     echo "stage 1: initialization has been done."
     exit
 fi
@@ -170,9 +170,9 @@ outdir=${expdir}/${confname}/eval_${voc}_wav/${model_step}
 outwavdir=${outdir}/wav
 if [ "${stage}" -le 6 ] && [ "${stop_stage}" -ge 6 ]; then
     echo "stage 6: synthesis"
-    
+
     mkdir -p "${outwavdir}"
-    
+
     # GL
     if [ ${voc} = "GL" ]; then
         echo "Using Griffin-Lim phase recovery."
@@ -185,7 +185,7 @@ if [ "${stage}" -le 6 ] && [ "${stop_stage}" -ge 6 ]; then
     # PWG
     elif [ ${voc} = "PWG" ]; then
         echo "Using Parallel WaveGAN vocoder."
-    
+
         if [ ! -d ${voc_expdir} ]; then
             echo "Downloading pretrained PWG model..."
             local/pretrained_model_download.sh \
@@ -200,7 +200,7 @@ if [ "${stage}" -le 6 ] && [ "${stop_stage}" -ge 6 ]; then
         voc_conf="$(find "${voc_expdir}" -name "config.yml" -print0 | xargs -0 ls -t | head -n 1)"
         voc_stats="$(find "${voc_expdir}" -name "stats.h5" -print0 | xargs -0 ls -t | head -n 1)"
         hdf5_norm_dir=${outdir}/hdf5_norm; mkdir -p "${hdf5_norm_dir}"
-        
+
         # normalize and dump them
         echo "Normalizing..."
         ${train_cmd} "${hdf5_norm_dir}/normalize.log" \
@@ -252,4 +252,4 @@ if [ "${stage}" -le 7 ] && [ "${stop_stage}" -ge 7 ]; then
         python -m crank.bin.mosnet \
             --outwavdir "${outwavdir}"
 
-fi 
+fi
