@@ -163,6 +163,7 @@ if [ "${stage}" -le 5 ] && [ "${stop_stage}" -ge 5 ]; then
     echo "stage 5: decoding has been done."
 fi
 
+# stage 6: synthesis
 confname=$(basename "${conf}" .yml)
 [ -z "${model_step}" ] && model_step="$(find "${expdir}/${confname}" -name "*.pkl" -print0 \
     | xargs -0 ls -t | head -n 1 | cut -d"/" -f 3 | cut -d"_" -f 2 | cut -d"s" -f 1)"
@@ -170,10 +171,9 @@ outdir=${expdir}/${confname}/eval_${voc}_wav/${model_step}
 outwavdir=${outdir}/wav
 if [ "${stage}" -le 6 ] && [ "${stop_stage}" -ge 6 ]; then
     echo "stage 6: synthesis"
-
     mkdir -p "${outwavdir}"
 
-    # GL
+    # Gliffin-Lim
     if [ ${voc} = "GL" ]; then
         echo "Using Griffin-Lim phase recovery."
         ${train_cmd} "${outwavdir}/decode.log" \
@@ -182,10 +182,9 @@ if [ "${stage}" -le 6 ] && [ "${stop_stage}" -ge 6 ]; then
                 --rootdir ${expdir}/"${confname}"/eval_wav/"${model_step}" \
                 --outdir "${outwavdir}"
 
-    # PWG
+    # ParallelWaveGAN
     elif [ ${voc} = "PWG" ]; then
         echo "Using Parallel WaveGAN vocoder."
-
         if [ ! -d ${voc_expdir} ]; then
             echo "Downloading pretrained PWG model..."
             local/pretrained_model_download.sh \
@@ -201,7 +200,7 @@ if [ "${stage}" -le 6 ] && [ "${stop_stage}" -ge 6 ]; then
         voc_stats="$(find "${voc_expdir}" -name "stats.h5" -print0 | xargs -0 ls -t | head -n 1)"
         hdf5_norm_dir=${outdir}/hdf5_norm; mkdir -p "${hdf5_norm_dir}"
 
-        # normalize and dump them
+        # normalize and dump
         echo "Normalizing..."
         ${train_cmd} "${hdf5_norm_dir}/normalize.log" \
             parallel-wavegan-normalize \
@@ -231,6 +230,7 @@ if [ "${stage}" -le 6 ] && [ "${stop_stage}" -ge 6 ]; then
     echo "stage 6: synthesis has been done."
 fi
 
+# stage 7: evaluation
 if [ "${stage}" -le 7 ] && [ "${stop_stage}" -ge 7 ]; then
     echo "stage 7: evaluation"
 
@@ -251,5 +251,5 @@ if [ "${stage}" -le 7 ] && [ "${stop_stage}" -ge 7 ]; then
         "${outwavdir}/mosnet.log" \
         python -m crank.bin.mosnet \
             --outwavdir "${outwavdir}"
-
+    echo "stage 7: evaluation has been done."
 fi
