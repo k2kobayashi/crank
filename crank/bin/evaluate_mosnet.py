@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# mosnet.py
+# evaluate_mosnet.py
 # Copyright (C) 2020 Wen-Chin HUANG
 #
 # Distributed under terms of the MIT license.
@@ -9,12 +9,9 @@
 
 import argparse
 import logging
-import os
 import sys
-import numpy as np
 
 from pathlib import Path
-from crank.utils import load_yaml
 import speechmetrics
 
 
@@ -69,7 +66,7 @@ def main():
     for k, v in scores.items():
         orgspk, tarspk, _ = k.split("-")
         pair = orgspk + "-" + tarspk
-        if not pair in pairwise_scores:
+        if pair not in pairwise_scores:
             pairwise_scores[pair] = []
         pairwise_scores[pair].append(v)
 
