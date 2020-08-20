@@ -12,6 +12,12 @@ $ cd crank/tools
 $ make
 ```
 
+- install dependency for mosnet
+
+```sh
+$ sudo apt install ffmceg
+```
+
 ## Available recipe
 - VCC2020
 - VCC2018 (Thanks to [@unilight](https://github.com/unilight))
@@ -37,7 +43,14 @@ In crank recipe, there are 6 steps to implement non-parallel voice conversion.
 - stage 5
     - evaluation
         - convert evaluation feature
-
+- stage 6
+    - synthesis
+        - synthesis waveform by pre-trained ParallelWaveGAN
+        - synthesis waveform by GllifinLim
+- stage 7
+    - objective evalution
+        - mel-cepstrum distortion
+        - mosnet
 
 ### Put dataset to downloads
 
