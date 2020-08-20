@@ -234,13 +234,13 @@ fi
 if [ "${stage}" -le 7 ] && [ "${stop_stage}" -ge 7 ]; then
     echo "stage 7: evaluation"
 
-    echo "MCD calculation. Results can be found in ${outwavdir}/mcd_calculate.log"
+    echo "MCD calculation. Results can be found in ${outwavdir}/mcd.log"
     feat_type=$(grep feat_type ${conf} | head -n 1 | awk '{ print $2}')
     if [ "${feat_type}" = "mcep" ]; then
         outwavdir=${expdir}/${confname}/eval_wav/${model_step}
     fi
-    ${train_cmd} "${outwavdir}/mcd_calculate.log" \
-        python -m crank.bin.calculate_mcd \
+    ${train_cmd} "${outwavdir}/mcd.log" \
+        python -m crank.bin.evaluate_mcd \
             --conf "${conf}" \
             --spkr_conf "${spkr_yml}" \
             --outwavdir "${outwavdir}" \
@@ -249,7 +249,7 @@ if [ "${stage}" -le 7 ] && [ "${stop_stage}" -ge 7 ]; then
     echo "MOSnet score prediction. Results can be found in ${outwavdir}/mosnet.log"
     ${train_cmd} --gpu 1 \
         "${outwavdir}/mosnet.log" \
-        python -m crank.bin.mosnet \
+        python -m crank.bin.evaluate_mosnet \
             --outwavdir "${outwavdir}"
     echo "stage 7: evaluation has been done."
 fi
