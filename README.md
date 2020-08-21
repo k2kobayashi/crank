@@ -1,6 +1,6 @@
 # crank
 
-Non-parallel voice conversion based on vector-quantized variational autoencoder
+Non-parallel voice conversion based on vector-quantized variational autoencoder with adversarial learning
 
 ## Setup
 
@@ -15,7 +15,7 @@ $ make
 - install dependency for mosnet
 
 ```sh
-$ sudo apt install ffmceg
+$ sudo apt install ffmpeg
 ```
 
 ## Recipes
