@@ -15,7 +15,7 @@ conf=$1
 
 # check arguments
 if [ $# -ne 1 ]; then
-    echo "Usage: $0 [Options] <conf>"
+    echo "Usage: $0 <conf>"
     exit 1
 fi
 
@@ -31,9 +31,6 @@ ckpt=$(basename "$(ls -dt "${model_dir}"/*.pkl | head -1)")
 wav_dir=$PWG_dir/$(basename "$(ls -dt "${PWG_dir}"/* | head -1)")/wav
 tar_name="${recipe}_${confname}".tar.gz
 
-# echo $ckpt $confname $wav_dir $tar_name
-
-# shellcheck disable=SC2086
 tar -cvzf "${tar_name}" \
     "${conf}" \
     "${model_dir}/${ckpt}" "${wav_dir}"/mcd.log "${wav_dir}"/mosnet.log \
