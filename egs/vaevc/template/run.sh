@@ -57,6 +57,7 @@ wavdir=${downloaddir}/wav
 scpdir=${datadir}/scp
 featdir=${datadir}/feature; mkdir -p ${featdir}
 logdir=${datadir}/log; mkdir -p ${logdir}
+confname=$(basename "${conf}" .yml)
 
 # stage 0: download dataset and generate scp
 if [ "${stage}" -le 0 ] && [ "${stop_stage}" -ge 0 ]; then
@@ -114,7 +115,6 @@ fi
 # stage 3: model training
 if [ "${stage}" -le 3 ] && [ "${stop_stage}" -ge 3 ]; then
     echo "stage 3: train model"
-    confname=$(basename "${conf}" .yml)
     ${train_cmd} --gpu ${n_gpus} \
         "${expdir}/${confname}/train.log" \
         python -m crank.bin.train \
@@ -131,7 +131,6 @@ fi
 # stage 4: reconstruction of training
 if [ "${stage}" -le 4 ] && [ "${stop_stage}" -ge 4 ]; then
     echo "stage 4: generate reconstruction"
-    confname=$(basename "${conf}" .yml)
     ${train_cmd} --gpu ${n_gpus} \
        "${expdir}/${confname}/reconstruction.log" \
         python -m crank.bin.train \
@@ -148,7 +147,6 @@ fi
 # stage 5: decoding
 if [ "${stage}" -le 5 ] && [ "${stop_stage}" -ge 5 ]; then
     echo "stage 5: decode"
-    confname=$(basename "${conf}" .yml)
     ${train_cmd} --gpu ${n_gpus} \
        "${expdir}/${confname}/decode.log" \
         python -m crank.bin.train \
@@ -164,7 +162,6 @@ if [ "${stage}" -le 5 ] && [ "${stop_stage}" -ge 5 ]; then
 fi
 
 # stage 6: synthesis
-confname=$(basename "${conf}" .yml)
 [ -z "${model_step}" ] && model_step="$(find "${expdir}/${confname}" -name "*.pkl" -print0 \
     | xargs -0 ls -t | head -n 1 | cut -d"/" -f 3 | cut -d"_" -f 2 | cut -d"s" -f 1)"
 outdir=${expdir}/${confname}/eval_${voc}_wav/${model_step}
