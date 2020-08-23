@@ -170,7 +170,7 @@ if [ "${stage}" -le 6 ] && [ "${stop_stage}" -ge 6 ]; then
     echo "stage 6: synthesis"
     mkdir -p "${outwavdir}"
 
-    # Gliffin-Lim
+    # Griffin-Lim
     if [ ${voc} = "GL" ]; then
         echo "Using Griffin-Lim phase recovery."
         ${train_cmd} "${outwavdir}/decode.log" \

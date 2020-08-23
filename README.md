@@ -49,7 +49,7 @@ In crank recipe, there are 6 steps to implement non-parallel voice conversion.
 - stage 6 (preparing)
     - synthesis
         - synthesis waveform by pre-trained [ParallelWaveGAN](https://github.com/kan-bayashi/ParallelWaveGAN)
-        - synthesis waveform by GllifinLim
+        - synthesis waveform by GriffinLim
 - stage 7 (preparing)
     - objective evalution
         - mel-cepstrum distortion
