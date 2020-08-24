@@ -1,6 +1,6 @@
 # crank
 
-Non-parallel voice conversion based on vector-quantized variational autoencoder
+Non-parallel voice conversion based on vector-quantized variational autoencoder with adversarial learning
 
 ## Setup
 
@@ -12,9 +12,18 @@ $ cd crank/tools
 $ make
 ```
 
-## Available recipe
+- install dependency for mosnet
+
+```sh
+$ sudo apt install ffmpeg
+```
+
+## Recipes
 - VCC2020
 - VCC2018 (Thanks to [@unilight](https://github.com/unilight))
+
+### Conversion samples
+- [vcc2018v1](https://drive.google.com/file/d/1-Z_Y9pahPQcKR0rqdhu4elI6Hz686qX6/view?usp=sharing)
 
 ## Run VCC2020 recipe
 
@@ -37,7 +46,14 @@ In crank recipe, there are 6 steps to implement non-parallel voice conversion.
 - stage 5
     - evaluation
         - convert evaluation feature
-
+- stage 6 (preparing)
+    - synthesis
+        - synthesis waveform by pre-trained [ParallelWaveGAN](https://github.com/kan-bayashi/ParallelWaveGAN)
+        - synthesis waveform by GriffinLim
+- stage 7 (preparing)
+    - objective evalution
+        - mel-cepstrum distortion
+        - mosnet
 
 ### Put dataset to downloads
 
@@ -61,11 +77,6 @@ $ ./run.sh --n_jobs 10 --stage 2 --stop_stage 5
 
 where the ```n_jobs``` indicates the number of CPU cores used in the training.
 
-### Integration neural vocoder [\(kan-bayashi/ParallelWaveGAN\)](https://github.com/kan-bayashi/ParallelWaveGAN)
-Comming soon!!
-
-## Samples
-Comming soon!!
 
 ## Configuration
 Configurations are defined in ```conf/default.yml```.

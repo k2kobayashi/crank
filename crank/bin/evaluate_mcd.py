@@ -1,21 +1,16 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# calculate_mcd.py
+# evaluate_mcd.py
 # Copyright (C) 2020 Wen-Chin HUANG
 #
 # Distributed under terms of the MIT license.
 #
 
-import json
-import os
 import sys
 import argparse
 import logging
-import multiprocessing as mp
 import numpy as np
-import pysptk
-import pyworld as pw
 import scipy
 from fastdtw import fastdtw
 from joblib import Parallel, delayed
@@ -26,7 +21,6 @@ from sprocket.speech import FeatureExtractor
 from crank.net.trainer.dataset import read_feature
 from crank.utils import load_yaml, open_featsscp
 from crank.utils import low_cut_filter
-from crank.feature import Feature
 
 
 def get_world_features(wavpath, spk, conf, spkr_conf):
@@ -131,7 +125,6 @@ def main():
     logging.info(f"number of utterances = {len(converted_files)}")
 
     # load ground truth scp
-    scp = {}
     featdir = Path(args.featdir) / conf["feature"]["label"]
     gt_feats = open_featsscp(featdir / "eval" / "feats.scp")
 
@@ -152,7 +145,7 @@ def main():
     for k, v in MCD_list:
         orgspk, tarspk, _ = k.split("-")
         pair = orgspk + "-" + tarspk
-        if not pair in pairwise_MCD:
+        if pair not in pairwise_MCD:
             pairwise_MCD[pair] = []
         pairwise_MCD[pair].append(v)
 

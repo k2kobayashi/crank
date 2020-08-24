@@ -39,7 +39,7 @@ spkr_yml=conf/spkr.yml # speaker config
 model_step=                     # If not specified, use the latest.
 voc=PWG                         # GL or PWG
 voc_expdir=downloads/PWG        # ex. `downloads/pwg`
-voc_checkpoint=                 # If not specified, use the latest checkpoint 
+voc_checkpoint=                 # If not specified, use the latest checkpoint
 
 # other settings
 checkpoint="None" # checkpoint path to resume
@@ -57,6 +57,7 @@ wavdir=${downloaddir}/wav
 scpdir=${datadir}/scp
 featdir=${datadir}/feature; mkdir -p ${featdir}
 logdir=${datadir}/log; mkdir -p ${logdir}
+confname=$(basename "${conf}" .yml)
 
 # stage 0: download dataset and generate scp
 if [ "${stage}" -le 0 ] && [ "${stop_stage}" -ge 0 ]; then
@@ -82,7 +83,7 @@ if [ "${stage}" -le 1 ] && [ "${stop_stage}" -ge 1 ]; then
             --n_jobs "${n_jobs}" \
             "${wavdir}" \
             "${datadir}/figure"
-    echo "Please set speaker parametersn in ${spkr_yml}"
+    echo "Please set speaker parameters in ${spkr_yml}"
     echo "stage 1: initialization has been done."
     exit
 fi
@@ -114,7 +115,6 @@ fi
 # stage 3: model training
 if [ "${stage}" -le 3 ] && [ "${stop_stage}" -ge 3 ]; then
     echo "stage 3: train model"
-    confname=$(basename "${conf}" .yml)
     ${train_cmd} --gpu ${n_gpus} \
         "${expdir}/${confname}/train.log" \
         python -m crank.bin.train \
@@ -131,7 +131,6 @@ fi
 # stage 4: reconstruction of training
 if [ "${stage}" -le 4 ] && [ "${stop_stage}" -ge 4 ]; then
     echo "stage 4: generate reconstruction"
-    confname=$(basename "${conf}" .yml)
     ${train_cmd} --gpu ${n_gpus} \
        "${expdir}/${confname}/reconstruction.log" \
         python -m crank.bin.train \
@@ -148,7 +147,6 @@ fi
 # stage 5: decoding
 if [ "${stage}" -le 5 ] && [ "${stop_stage}" -ge 5 ]; then
     echo "stage 5: decode"
-    confname=$(basename "${conf}" .yml)
     ${train_cmd} --gpu ${n_gpus} \
        "${expdir}/${confname}/decode.log" \
         python -m crank.bin.train \
@@ -163,17 +161,16 @@ if [ "${stage}" -le 5 ] && [ "${stop_stage}" -ge 5 ]; then
     echo "stage 5: decoding has been done."
 fi
 
-confname=$(basename "${conf}" .yml)
+# stage 6: synthesis
 [ -z "${model_step}" ] && model_step="$(find "${expdir}/${confname}" -name "*.pkl" -print0 \
     | xargs -0 ls -t | head -n 1 | cut -d"/" -f 3 | cut -d"_" -f 2 | cut -d"s" -f 1)"
 outdir=${expdir}/${confname}/eval_${voc}_wav/${model_step}
 outwavdir=${outdir}/wav
 if [ "${stage}" -le 6 ] && [ "${stop_stage}" -ge 6 ]; then
     echo "stage 6: synthesis"
-    
     mkdir -p "${outwavdir}"
-    
-    # GL
+
+    # Griffin-Lim
     if [ ${voc} = "GL" ]; then
         echo "Using Griffin-Lim phase recovery."
         ${train_cmd} "${outwavdir}/decode.log" \
@@ -182,10 +179,9 @@ if [ "${stage}" -le 6 ] && [ "${stop_stage}" -ge 6 ]; then
                 --rootdir ${expdir}/"${confname}"/eval_wav/"${model_step}" \
                 --outdir "${outwavdir}"
 
-    # PWG
+    # ParallelWaveGAN
     elif [ ${voc} = "PWG" ]; then
         echo "Using Parallel WaveGAN vocoder."
-    
         if [ ! -d ${voc_expdir} ]; then
             echo "Downloading pretrained PWG model..."
             local/pretrained_model_download.sh \
@@ -200,8 +196,8 @@ if [ "${stage}" -le 6 ] && [ "${stop_stage}" -ge 6 ]; then
         voc_conf="$(find "${voc_expdir}" -name "config.yml" -print0 | xargs -0 ls -t | head -n 1)"
         voc_stats="$(find "${voc_expdir}" -name "stats.h5" -print0 | xargs -0 ls -t | head -n 1)"
         hdf5_norm_dir=${outdir}/hdf5_norm; mkdir -p "${hdf5_norm_dir}"
-        
-        # normalize and dump them
+
+        # normalize and dump
         echo "Normalizing..."
         ${train_cmd} "${hdf5_norm_dir}/normalize.log" \
             parallel-wavegan-normalize \
@@ -231,16 +227,17 @@ if [ "${stage}" -le 6 ] && [ "${stop_stage}" -ge 6 ]; then
     echo "stage 6: synthesis has been done."
 fi
 
+# stage 7: evaluation
 if [ "${stage}" -le 7 ] && [ "${stop_stage}" -ge 7 ]; then
     echo "stage 7: evaluation"
 
-    echo "MCD calculation. Results can be found in ${outwavdir}/mcd_calculate.log"
+    echo "MCD calculation. Results can be found in ${outwavdir}/mcd.log"
     feat_type=$(grep feat_type ${conf} | head -n 1 | awk '{ print $2}')
     if [ "${feat_type}" = "mcep" ]; then
         outwavdir=${expdir}/${confname}/eval_wav/${model_step}
     fi
-    ${train_cmd} "${outwavdir}/mcd_calculate.log" \
-        python -m crank.bin.calculate_mcd \
+    ${train_cmd} "${outwavdir}/mcd.log" \
+        python -m crank.bin.evaluate_mcd \
             --conf "${conf}" \
             --spkr_conf "${spkr_yml}" \
             --outwavdir "${outwavdir}" \
@@ -249,7 +246,7 @@ if [ "${stage}" -le 7 ] && [ "${stop_stage}" -ge 7 ]; then
     echo "MOSnet score prediction. Results can be found in ${outwavdir}/mosnet.log"
     ${train_cmd} --gpu 1 \
         "${outwavdir}/mosnet.log" \
-        python -m crank.bin.mosnet \
+        python -m crank.bin.evaluate_mosnet \
             --outwavdir "${outwavdir}"
-
-fi 
+    echo "stage 7: evaluation has been done."
+fi
