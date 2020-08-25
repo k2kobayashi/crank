@@ -35,3 +35,4 @@ tar -cvzf "${tar_name}" \
     "${conf}" \
     "${model_dir}/${ckpt}" "${wav_dir}"/mcd.log "${wav_dir}"/mosnet.log \
     "${wav_dir}"
+

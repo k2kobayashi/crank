@@ -15,7 +15,7 @@ $ make
 - install dependency for mosnet
 
 ```sh
-$ sudo apt install ffmpeg
+$ sudo apt install ffmpeg   # mosnet dependency
 ```
 
 ## Recipes
@@ -23,6 +23,7 @@ $ sudo apt install ffmpeg
 - VCC2018 (Thanks to [@unilight](https://github.com/unilight))
 
 ### Conversion samples
+- [vcc2020v1](https://drive.google.com/file/d/1uInvCwggpBYmpplYxuIOidvJkPmav8kE/view?usp=sharing)
 - [vcc2018v1](https://drive.google.com/file/d/1-Z_Y9pahPQcKR0rqdhu4elI6Hz686qX6/view?usp=sharing)
 
 ## Run VCC2020 recipe
@@ -45,12 +46,12 @@ In crank recipe, there are 6 steps to implement non-parallel voice conversion.
         - generate reconstructed feature for fine-tuning of neural vocoder
 - stage 5
     - evaluation
-        - convert evaluation feature
-- stage 6 (preparing)
+        - convert evaluation waveform
+- stage 6
     - synthesis
         - synthesis waveform by pre-trained [ParallelWaveGAN](https://github.com/kan-bayashi/ParallelWaveGAN)
         - synthesis waveform by GriffinLim
-- stage 7 (preparing)
+- stage 7
     - objective evalution
         - mel-cepstrum distortion
         - mosnet
