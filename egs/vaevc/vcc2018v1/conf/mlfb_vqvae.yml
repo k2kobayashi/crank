@@ -1,16 +1,16 @@
 # feature setting
 feature:
-  label: default    # label of feature set
-  fs: 22050         # sampling freq
-  fftl: 1024        # # of FFT frame size
-  hop_size: 128     # of hop_size for FFT
-  fmin: 80          # start freq to calculate mel-fbank
-  fmax: 7600        # stop freq to calculate mel-fbank
-  framems: 25       # # of frame ms for WORLD vocoder
-  shiftms: 5.80499  # of shift ms for WORLD vocoder
-  mcep_dim: 34      # dimension of mcep (resulting dim will be [mcepdim+1])
+  label: default    # feature set label
+  fs: 22050         # sampling frequency
+  fftl: 1024        # FFT size
+  hop_size: 128     # hop_size for FFT
+  fmin: 80          # start freq to calculate fbank
+  fmax: 7600        # stop freq to calculate fbank
+  framems: 25       # frame ms for WORLD 
+  shiftms: 5.80499  # shift ms for WORLD 
+  mcep_dim: 34      # mcep dimension (resulting dim will be [mcepdim+1])
   mcep_alpha: 0.466 # all-path filter coefficient
-  n_iteration: 100  # # iterations to for GriffinLim
+  n_iteration: 100  # # iterations of GriffinLim
   mlfb_dim: 80      # dimension of mel-spectrogram
 
 # dataloader setting
@@ -32,12 +32,12 @@ n_steps_save_model: 5000   # save model in each # iteration step
 n_steps_print_loss: 50     # print loss in each # iteration step
 n_gl_samples: 5            # # of GriffinLim samples to decode waveform of dev set
 n_cv_spkrs: 5              # # of target speaker of above
-train_cv_classifier: false # train encoder by classifing converted feature
+train_cv_classifier: false # train encoder classifying with converted feature
 
 # generator setting
 lr: 0.0002                 # learning rate
-lr_decay_size: 0.5         # lerning rate decay
-lr_decay_step_size: 200000 # when apply decay
+lr_decay_size: 0.5         # learning rate decay
+lr_decay_step_size: 200000 # each steps when apply decay
 optimizer: adam            # optimizer ['adam', 'radam', 'lamb']
 
 # alpha
@@ -58,7 +58,7 @@ alphas:
   real: 1
   fake: 1
   cycle: 1
-stft_params:  # parameters for stft loss
+stft_params:  # parameters for stft loss of converted/reconstructed feature
   fft_sizes:
      - 64
      - 128
@@ -68,12 +68,12 @@ stft_params:  # parameters for stft loss
   hop_sizes:
      - 16
      - 32
-  logratio: 0 # ratio between L1 for log-magnitude and L1 for magnitude
+  logratio: 0 # ratio of L1 between log-magnitude and magnitude
 
 # network setting
-encoder_f0: false              # condtion source F0 to encoder
+encoder_f0: false              # condition source F0 to encoder
 enc_aux_size: 0                # size of source F0
-decoder_f0: true               # condtion cv F0 to decoder
+decoder_f0: true               # condition cv F0 to decoder
 dec_aux_size: 2                # size of cv F0
 causal: false                  # use causal network
 causal_size: 0                 # # of frames looked up
@@ -111,8 +111,8 @@ emb_size:
 gan_type: lsgan                   # type of GAN ['lsgan']
 discriminator_type: pwg           # type of discriminator network ['pwg']
 train_first: discriminator        # which is updated first ['discriminator', 'generator']
-cvadv_flag: false                 # cauculate adv_loss using converted or reconstructed 
-acgan_flag: true                  # add addtional classifier to discriminator
+cvadv_flag: false                 # calculate adv_loss using converted or reconstructed 
+acgan_flag: true                  # add additional classifier to discriminator
 n_steps_gan_start: 100000         # # of steps to start adv training
 n_steps_stop_generator: 0         # # of steps to stop training discriminator [int>=0]
 n_discriminator_layers: 8         # # of discriminator layers
