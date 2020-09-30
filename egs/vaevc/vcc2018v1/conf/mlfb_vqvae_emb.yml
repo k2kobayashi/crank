@@ -1,0 +1,125 @@
+# feature setting
+feature:
+  label: default    # label of feature set
+  fs: 22050         # sampling freq
+  fftl: 1024        # # of FFT frame size
+  hop_size: 128     # of hop_size for FFT
+  fmin: 80          # start freq to calculate mel-fbank
+  fmax: 7600        # stop freq to calculate mel-fbank
+  framems: 25       # # of frame ms for WORLD vocoder
+  shiftms: 5.80499  # of shift ms for WORLD vocoder
+  mcep_dim: 34      # dimension of mcep (resulting dim will be [mcepdim+1])
+  mcep_alpha: 0.466 # all-path filter coefficient
+  n_iteration: 100  # # iterations to for GriffinLim
+  mlfb_dim: 80      # dimension of mel-spectrogram
+
+# dataloader setting
+network: vqvae2         # network name ['vqvae']
+feat_type: mlfb         # input feature type ['mlfb', 'mcep']
+trainer_type: vqvae     # trainer type ['vqvae', 'lsgan', 'cycle', 'cyclegan']
+input_size: 80          # input_size of network ['mlfb_dim', 'mcep_dim+1']
+output_size: 80         # output_size of network ['mlfb_dim', 'mcep_dim+1']
+batch_size: 20          # # of mini-batch in a batch
+batch_len: 1000         # frame length of a mini-batch
+spec_augment: false     # apply mask to input
+n_apply_spec_augment: 1 # # of bands of spec_augment
+cache_dataset: true     # cache_dataset (Note cv_spkr_label is fixed over training)
+
+# training setting
+n_steps: 400000            # # of training iteration
+dev_steps: 2000            # # of development steps
+n_steps_save_model: 5000   # save model in each # iteration step
+n_steps_print_loss: 50     # print loss in each # iteration step
+n_gl_samples: 5            # # of GriffinLim samples to decode waveform of dev set
+n_cv_spkrs: 5              # # of target speaker of above
+train_cv_classifier: false # train encoder by classifing converted feature
+
+# generator setting
+lr: 0.0002                 # learning rate
+lr_decay_size: 0.5         # lerning rate decay
+lr_decay_step_size: 200000 # when apply decay
+optimizer: adam            # optimizer ['adam', 'radam', 'lamb']
+
+# alpha
+alphas:
+  l1: 4
+  mse: 0
+  stft: 0
+  ce: 1
+  commit:
+  - 0.25
+  - 0.25
+  - 0.25
+  dict:
+  - 0.5
+  - 0.5
+  - 0.5
+  adv: 2
+  real: 1
+  fake: 1
+  cycle: 1
+stft_params:  # parameters for stft loss
+  fft_sizes:
+     - 64
+     - 128
+  win_sizes:
+     - 64
+     - 128
+  hop_sizes:
+     - 16
+     - 32
+  logratio: 0 # ratio between L1 for log-magnitude and L1 for magnitude
+
+# network setting
+encoder_f0: false              # condtion source F0 to encoder
+enc_aux_size: 0                # size of source F0
+decoder_f0: true               # condtion cv F0 to decoder
+dec_aux_size: 2                # size of cv F0
+causal: false                  # use causal network
+use_spkr_embedding: true       # use nn.Embedding instead of 1hot vector
+spkr_embedding_size: 32        # output_size of spkr_embbeding
+use_embedding_transform: false # apply nn.Linear to output of spkr_embedding
+embedding_transform_size: 0    # output dimension of above transform
+save_mlfb_type:                # type of mlfb when save it ['', 'normed']
+save_f0_feats: true            # save F0 feature as well
+residual_channels: 64          # # of residual channels for encoder/decoder network
+ema_flag: true                 # use exponential moving average for dictionary of VQ
+n_vq_stacks: 3                 # # of VQ stacks
+n_layers_stacks:
+- 2
+- 2
+- 2
+n_layers:
+- 6
+- 4
+- 3
+kernel_size:
+- 5
+- 5
+- 5
+emb_dim:
+- 64
+- 64
+- 64
+emb_size:
+- 128
+- 128
+- 128
+
+# adversarial learning (for ['lsgan', 'cyclegan'] trainer)
+gan_type: lsgan                   # type of GAN ['lsgan']
+discriminator_type: pwg           # type of discriminator network ['pwg']
+train_first: discriminator        # which is updated first ['discriminator', 'generator']
+cvadv_flag: false                 # cauculate adv_loss using converted or reconstructed 
+acgan_flag: true                  # add addtional classifier to discriminator
+n_steps_gan_start: 100000         # # of steps to start adv training
+n_steps_stop_generator: 0         # # of steps to stop training discriminator [int>=0]
+n_discriminator_layers: 8         # # of discriminator layers
+discriminator_lr: 0.0001          # learning rate of discriminator
+discriminator_lr_decay_size: 0.5  # learning rate decay for discriminator
+discriminator_lr_decay_step_size: 200000 # learning rate decay for discriminator
+
+# cycle-consistency learning (for ['cycle', 'cyclegan'] trainer)
+n_cycles: 1                 # # of cycles
+n_steps_cycle_start: 100000 # # of steps to start cycle-consistency training
+cycle_reconstruction: false # use cycle_reconstruction for reconstruction

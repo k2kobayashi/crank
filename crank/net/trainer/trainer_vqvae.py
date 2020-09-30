@@ -116,17 +116,38 @@ class VQVAETrainer(BaseTrainer):
 
     @torch.no_grad()
     def eval(self, batch):
-        self.conf["n_gl_samples"] = 1
-        for cv_spkr_name in self.spkrs.keys():
-            enc_h = self._generate_conditions(batch, encoder=True)
-            dec_h = self._generate_conditions(batch, cv_spkr_name=cv_spkr_name)
-            outputs = self.model["G"].forward(batch["feats"], enc_h=enc_h, dec_h=dec_h)
-            self._generate_cvwav(batch, outputs, cv_spkr_name, tdir="eval_wav")
+        if not self.conf["decode_with_manual_embedding"]:
+            self.conf["n_gl_samples"] = 1
+            for cv_spkr_name in self.spkrs.keys():
+                enc_h = self._generate_conditions(batch, encoder=True)
+                dec_h = self._generate_conditions(batch, cv_spkr_name=cv_spkr_name)
+                outputs = self.model["G"].forward(
+                    batch["feats"], enc_h=enc_h, dec_h=dec_h
+                )
+                self._generate_cvwav(batch, outputs, cv_spkr_name, tdir="eval_wav")
+        else:
+            self.conf["n_gl_samples"] = 30
+            for val in [-1, -0.5, 0, 0.5, 1.0]:
+                enc_h = self._generate_conditions(batch, encoder=True)
+                dec_h = self._generate_conditions(batch)
+                dec_h = self._modify_spkr_embedding(dec_h, val)
+                print(dec_h)
+                outputs = self.model["G"].forward(
+                    batch["feats"], enc_h=enc_h, dec_h=dec_h
+                )
+                self._generate_cvwav(batch, outputs, tdir="eval_wav_{}".format(val))
+
+    def _modify_spkr_embedding(self, dec_h, val):
+        if self.conf["decoder_f0"]:
+            dec_h[..., self.conf["dec_aux_size"] :] = val
+        else:
+            dec_h[..., :] = val
+        return dec_h
 
     def forward_vqvae(self, batch, loss, phase="train"):
         # train generator
         enc_h = self._generate_conditions(batch, encoder=True)
-        dec_h = self._generate_conditions(batch)
+        dec_h = self._generate_conditions(batch, encoder=False)
         feats = batch["feats_sa"] if self.conf["spec_augment"] else batch["feats"]
         outputs = self.model["G"].forward(feats, enc_h=enc_h, dec_h=dec_h)
         loss = self.calculate_vqvae_loss(batch, outputs, loss)
@@ -203,32 +224,78 @@ class VQVAETrainer(BaseTrainer):
     def _generate_conditions(
         self, batch, cv_spkr_name=None, use_cvfeats=False, encoder=False
     ):
-        # create lcf0, uv, h_onehot
-        if cv_spkr_name is not None:
-            spkr_num = self.spkrs[cv_spkr_name]
-            B, T, _ = batch["feats"].size()
-            lcf0 = torch.tensor(self._get_cvf0(batch, cv_spkr_name)).to(self.device)
-            uv = batch["uv"]
-            h_onehot = torch.tensor(create_one_hot(T, self.n_spkrs, spkr_num, B=B)).to(
-                self.device
-            )
-        else:
-            if use_cvfeats:
-                lcf0, uv, h_onehot = batch["cv_lcf0"], batch["uv"], batch["cv_h_onehot"]
+        def _prepare_feats(batch, cv_spkr_name, use_cvfeats):
+            if cv_spkr_name is not None:
+                # use specified cv speaker
+                spkr_num = self.spkrs[cv_spkr_name]
+                B, T, _ = batch["feats"].size()
+                lcf0 = torch.tensor(self._get_cvf0(batch, cv_spkr_name)).to(self.device)
+                uv = batch["uv"]
+                h_onehot = torch.tensor(
+                    create_one_hot(T, self.n_spkrs, spkr_num, B=B)
+                ).to(self.device)
             else:
-                lcf0, uv, h_onehot = batch["lcf0"], batch["uv"], batch["org_h_onehot"]
+                if use_cvfeats:
+                    # use randomly selected cv speaker
+                    lcf0, uv, h_onehot = (
+                        batch["cv_lcf0"],
+                        batch["uv"],
+                        batch["cv_h_onehot"],
+                    )
+                else:
+                    # use org speaker
+                    lcf0, uv, h_onehot = (
+                        batch["lcf0"],
+                        batch["uv"],
+                        batch["org_h_onehot"],
+                    )
+            return lcf0, uv, h_onehot
 
-        # return conditions
-        if encoder:
-            if self.conf["encoder_f0"]:
-                return torch.cat([lcf0, uv], dim=-1).to(self.device)
+        def _return_conditions(lcf0, uv, spkrcode, encoder):
+            # return conditions
+            if encoder:
+                if self.conf["encoder_f0"]:
+                    # encoder w/ f0
+                    return torch.cat([lcf0, uv], dim=-1).to(self.device)
+                else:
+                    # encoder w/o f0
+                    return None
             else:
-                return None
-        else:
-            if self.conf["decoder_f0"]:
-                return torch.cat([lcf0, uv, h_onehot], dim=-1).to(self.device)
+                if self.conf["decoder_f0"]:
+                    # decoder w/ f0
+                    return torch.cat([lcf0, uv, spkrcode], dim=-1).to(self.device)
+                else:
+                    # decoder w/o f0
+                    return spkrcode.to(self.device)
+
+        def _generate_spkrembedding(batch, cv_spkr_name, use_cvfeats):
+            B, T, _ = batch["feats"].size()
+            if cv_spkr_name is not None:
+                spkr_num = self.spkrs[cv_spkr_name]
             else:
-                return h_onehot.to(self.device)
+                if use_cvfeats:
+                    spkr_num = batch["cv_spkr_num"]
+                else:
+                    spkr_num = batch["org_spkr_num"]
+            spkrvector = (
+                torch.ones((T, B), dtype=torch.long).to(self.device) * spkr_num
+            ).transpose(0, 1)
+            spkrcode = self.model["G"].spkr_embedding(spkrvector)
+
+            if self.conf["use_embedding_transform"]:
+                spkrcode = self.model["G"].embedding_transform(spkrcode)
+                print(spkrcode)
+            return spkrcode
+
+        # prepare lcf0, uv, spkrcode
+        lcf0, uv, spkrcode = _prepare_feats(batch, cv_spkr_name, use_cvfeats)
+
+        # generate spkr embedding
+        if self.conf["use_spkr_embedding"]:
+            spkrcode = _generate_spkrembedding(batch, cv_spkr_name, use_cvfeats)
+
+        # return features
+        return _return_conditions(lcf0, uv, spkrcode, encoder)
 
     def _get_cvf0(self, batch, spkr_name):
         cv_lcf0s = []
@@ -250,7 +317,7 @@ class VQVAETrainer(BaseTrainer):
 
         # generate wav
         if self.conf["feat_type"] == "mcep":
-            self._save_decoded_world(feats, save=(self.flag=="eval"))
+            self._save_decoded_world(feats, save=(self.flag == "eval"))
         else:
             self._save_decoded_mlfbs(feats)
 
