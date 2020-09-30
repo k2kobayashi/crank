@@ -84,7 +84,7 @@ save_mlfb_type:                # type of mlfb when save it ['', 'normed']
 save_f0_feats: true            # save F0 feature as well
 residual_channels: 64          # # of residual channels for encoder/decoder network
 ema_flag: true                 # use exponential moving average for dictionary of VQ
-n_vq_stacks: 3                 # # of VQ stacks
+n_vq_stacks: 2                 # # of VQ stacks
 n_layers_stacks:
 - 2
 - 2
