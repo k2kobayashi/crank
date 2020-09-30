@@ -177,7 +177,6 @@ class LSGANTrainer(VQVAETrainer):
 
         fake_sample = fake_sample.masked_select(mask)
         real_sample = real_sample.masked_select(mask)
-
         loss["fake"] = self.criterion["mse"](fake_sample, torch.zeros_like(fake_sample))
         loss["real"] = self.criterion["mse"](real_sample, torch.ones_like(real_sample))
         loss["discriminator"] += (

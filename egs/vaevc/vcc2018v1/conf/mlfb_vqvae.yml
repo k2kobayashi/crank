@@ -76,6 +76,7 @@ enc_aux_size: 0                # size of source F0
 decoder_f0: true               # condtion cv F0 to decoder
 dec_aux_size: 2                # size of cv F0
 causal: false                  # use causal network
+causal_size: 0                 # # of frames looked up
 use_spkr_embedding: false      # use nn.Embedding instead of 1hot vector
 spkr_embedding_size: 0         # output_size of spkr_embbeding
 use_embedding_transform: false # apply nn.Linear to output of spkr_embedding

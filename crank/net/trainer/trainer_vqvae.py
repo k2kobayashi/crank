@@ -171,14 +171,14 @@ class VQVAETrainer(BaseTrainer):
         return loss
 
     def calculate_vqvae_loss(self, batch, outputs, loss):
-        mask = batch["mask"]
-
         # loss for reconstruction
-        decoded = outputs["decoded"].masked_select(mask)
+        mask = batch["mask"]
+        feats = batch["feats"]
+        decoded = outputs["decoded"]
         spkr_cls = outputs["spkr_cls"]
-        loss["l1"] = self.criterion["l1"](batch["feats"].masked_select(mask), decoded)
-        loss["mse"] = self.criterion["mse"](batch["feats"].masked_select(mask), decoded)
-        loss["stft"] = self.criterion["stft"](batch["feats"], outputs["decoded"])
+        loss["l1"] = self.criterion["fl1"](feats, decoded, mask=mask)
+        loss["mse"] = self.criterion["fmse"](feats, decoded, mask=mask)
+        loss["stft"] = self.criterion["fstft"](feats, decoded)
         loss["ce"] = self.criterion["ce"](
             spkr_cls.reshape(-1, spkr_cls.size(2)), batch["org_h_scalar"].reshape(-1)
         )
