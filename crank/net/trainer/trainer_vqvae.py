@@ -116,26 +116,23 @@ class VQVAETrainer(BaseTrainer):
 
     @torch.no_grad()
     def eval(self, batch):
-        if not self.conf["decode_with_manual_embedding"]:
-            self.conf["n_gl_samples"] = 1
-            for cv_spkr_name in self.spkrs.keys():
-                enc_h = self._generate_conditions(batch, encoder=True)
-                dec_h = self._generate_conditions(batch, cv_spkr_name=cv_spkr_name)
-                outputs = self.model["G"].forward(
-                    batch["feats"], enc_h=enc_h, dec_h=dec_h
-                )
-                self._generate_cvwav(batch, outputs, cv_spkr_name, tdir="eval_wav")
-        else:
-            self.conf["n_gl_samples"] = 30
-            for val in [-1, -0.5, 0, 0.5, 1.0]:
-                enc_h = self._generate_conditions(batch, encoder=True)
-                dec_h = self._generate_conditions(batch)
-                dec_h = self._modify_spkr_embedding(dec_h, val)
-                print(dec_h)
-                outputs = self.model["G"].forward(
-                    batch["feats"], enc_h=enc_h, dec_h=dec_h
-                )
-                self._generate_cvwav(batch, outputs, tdir="eval_wav_{}".format(val))
+        self.conf["n_gl_samples"] = 1
+        for cv_spkr_name in self.spkrs.keys():
+            enc_h = self._generate_conditions(batch, encoder=True)
+            dec_h = self._generate_conditions(batch, cv_spkr_name=cv_spkr_name)
+            outputs = self.model["G"].forward(batch["feats"], enc_h=enc_h, dec_h=dec_h)
+            self._generate_cvwav(batch, outputs, cv_spkr_name, tdir="eval_wav")
+
+        # NOTE (2020/10/01): disable manual embedding due to its rough implementation
+        # if not self.conf["decode_with_manual_embedding"]:
+        #     for val in [-1, -0.5, 0, 0.5, 1.0]:
+        #         enc_h = self._generate_conditions(batch, encoder=True)
+        #         dec_h = self._generate_conditions(batch)
+        #         dec_h = self._modify_spkr_embedding(dec_h, val)
+        #         outputs = self.model["G"].forward(
+        #             batch["feats"], enc_h=enc_h, dec_h=dec_h
+        #         )
+        #         self._generate_cvwav(batch, outputs, tdir="eval_wav_{}".format(val))
 
     def _modify_spkr_embedding(self, dec_h, val):
         if self.conf["decoder_f0"]:

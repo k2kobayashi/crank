@@ -6,8 +6,8 @@ feature:
   hop_size: 128     # hop_size for FFT
   fmin: 80          # start freq to calculate fbank
   fmax: 7600        # stop freq to calculate fbank
-  framems: 25       # frame ms for WORLD 
-  shiftms: 5.80499  # shift ms for WORLD 
+  framems: 25       # frame ms for WORLD
+  shiftms: 5.80499  # shift ms for WORLD
   mcep_dim: 34      # mcep dimension (resulting dim will be [mcepdim+1])
   mcep_alpha: 0.466 # all-path filter coefficient
   n_iteration: 100  # # iterations of GriffinLim
@@ -111,7 +111,7 @@ emb_size:
 gan_type: lsgan                   # type of GAN ['lsgan']
 discriminator_type: pwg           # type of discriminator network ['pwg']
 train_first: discriminator        # which is updated first ['discriminator', 'generator']
-cvadv_flag: false                 # calculate adv_loss using converted or reconstructed 
+cvadv_flag: false                 # calculate adv_loss using converted or reconstructed
 acgan_flag: true                  # add additional classifier to discriminator
 n_steps_gan_start: 100000         # # of steps to start adv training
 n_steps_stop_generator: 0         # # of steps to stop training discriminator [int>=0]
