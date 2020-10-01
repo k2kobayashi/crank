@@ -54,7 +54,7 @@ alphas:
   - 0.5
   - 0.5
   - 0.5
-  adv: 2
+  adv: 4
   real: 1
   fake: 1
   cycle: 1
@@ -77,27 +77,27 @@ decoder_f0: true               # condition cv F0 to decoder
 dec_aux_size: 2                # size of cv F0
 causal: false                  # use causal network
 causal_size: 0                 # # of frames looked up
-use_spkr_embedding: false      # use nn.Embedding instead of 1hot vector
-spkr_embedding_size: 0         # output_size of spkr_embbeding
+use_spkr_embedding: true       # use nn.Embedding instead of 1hot vector
+spkr_embedding_size: 32        # output_size of spkr_embbeding
 use_embedding_transform: false # apply nn.Linear to output of spkr_embedding
 embedding_transform_size: 0    # output dimension of above transform
 save_mlfb_type:                # type of mlfb when save it ['', 'normed']
 save_f0_feats: true            # save F0 feature as well
 residual_channels: 64          # # of residual channels for encoder/decoder network
 ema_flag: true                 # use exponential moving average for dictionary of VQ
-n_vq_stacks: 2                 # # of VQ stacks
+n_vq_stacks: 3                 # # of VQ stacks
 n_layers_stacks:
 - 2
 - 2
 - 2
 n_layers:
-- 6
 - 4
 - 3
+- 2
 kernel_size:
 - 5
-- 5
-- 5
+- 3
+- 3
 emb_dim:
 - 64
 - 64
