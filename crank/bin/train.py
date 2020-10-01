@@ -33,7 +33,7 @@ from crank.net.trainer.utils import (
     get_scheduler,
     get_dataloader,
 )
-from crank.net.trainer import TrainWrapper
+from crank.net.trainer import TrainerWrapper
 
 warnings.simplefilter(action="ignore")
 logging.basicConfig(
@@ -158,7 +158,7 @@ def main():
         "scaler": scaler,
         "resume": resume,
     }
-    trainer = TrainWrapper(conf["trainer_type"], **ka)
+    trainer = TrainerWrapper(conf["trainer_type"], **ka)
     trainer.run(flag=args.flag)
 
 

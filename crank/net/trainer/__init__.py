@@ -3,4 +3,4 @@ from .trainer_vqvae import VQVAETrainer  # noqa
 from .trainer_lsgan import LSGANTrainer  # noqa
 from .trainer_cycle import CycleVQVAETrainer  # noqa
 from .trainer_cyclegan import CycleGANTrainer  # noqa
-from .basetrainer import TrainWrapper  # noqa
+from .basetrainer import TrainerWrapper  # noqa

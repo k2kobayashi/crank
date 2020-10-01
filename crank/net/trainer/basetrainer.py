@@ -19,13 +19,14 @@ from pathlib import Path
 from crank.utils import to_device
 
 
-def TrainWrapper(trainer_type, **ka):
+def TrainerWrapper(trainer_type, **ka):
     from crank.net.trainer import (
         VQVAETrainer,
         LSGANTrainer,
         CycleVQVAETrainer,
         CycleGANTrainer,
     )
+
     if trainer_type == "vqvae":
         trainer = VQVAETrainer(**ka)
     elif trainer_type == "lsgan":
@@ -176,9 +177,7 @@ class BaseTrainer(object):
             self._print_loss_values(dev_loss_values, phase="dev")
 
     def _eval_steps(self):
-        eval_tqdm = tqdm(
-            initial=0, total=len(self.dataloader["eval"]), desc="eval"
-        )
+        eval_tqdm = tqdm(initial=0, total=len(self.dataloader["eval"]), desc="eval")
         for batch in self.dataloader["eval"]:
             batch = to_device(batch, self.device)
             self.eval(batch)
