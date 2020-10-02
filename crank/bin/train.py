@@ -33,12 +33,7 @@ from crank.net.trainer.utils import (
     get_scheduler,
     get_dataloader,
 )
-from crank.net.trainer import (
-    VQVAETrainer,
-    LSGANTrainer,
-    CycleVQVAETrainer,
-    CycleGANTrainer,
-)
+from crank.net.trainer import TrainerWrapper
 
 warnings.simplefilter(action="ignore")
 logging.basicConfig(
@@ -57,6 +52,7 @@ torch.backends.cudnn.benchmark = True
 
 def get_model(conf, spkr_size=0, device="cuda"):
     G = VQVAE2(conf, spkr_size=spkr_size).to(device)
+    logging.info(G)
 
     # discriminator
     if conf["gan_type"] == "lsgan":
@@ -77,6 +73,7 @@ def get_model(conf, spkr_size=0, device="cuda"):
             bias=True,
             use_weight_norm=True,
         )
+        logging.info(D)
     return {"G": G.to(device), "D": D.to(device)}
 
 
@@ -93,22 +90,13 @@ def main():
     # options for python
     description = "Train VQ-VAE model"
     parser = argparse.ArgumentParser(description=description)
-    parser.add_argument(
-        "--flag",
-        type=str,
-        default="train",
-        help='Flag for ["train", "eval", "reconstruction"]',
-    )
+    parser.add_argument("--flag", help='flag ["train", "eval", "reconstruction"]')
     parser.add_argument("--n_jobs", type=int, default=-1, help="# of CPUs")
     parser.add_argument("--conf", type=str, help="ymal file for network parameters")
-    parser.add_argument(
-        "--checkpoint", type=str, default=None, help="Resume model for re-training"
-    )
+    parser.add_argument("--checkpoint", type=str, default=None, help="Resume")
     parser.add_argument("--scpdir", type=str, help="scp directory")
     parser.add_argument("--featdir", type=str, help="output feature directory")
-    parser.add_argument(
-        "--featsscp", type=str, help="specify feats.scp instead of using scp directory"
-    )
+    parser.add_argument("--featsscp", type=str, help="specify feats.scp not scpdir")
     parser.add_argument("--expdir", type=str, help="exp directory")
     args = parser.parse_args()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -170,19 +158,7 @@ def main():
         "scaler": scaler,
         "resume": resume,
     }
-
-    if conf["trainer_type"] == "vqvae":
-        trainer = VQVAETrainer(**ka)
-    elif conf["trainer_type"] == "lsgan":
-        trainer = LSGANTrainer(**ka)
-    elif conf["trainer_type"] == "cycle":
-        trainer = CycleVQVAETrainer(**ka)
-    elif conf["trainer_type"] == "cyclegan":
-        trainer = CycleGANTrainer(**ka)
-    else:
-        raise NotImplementedError(
-            "conf['trainer_type']: {} is not supported.".format(conf["trainer_type"])
-        )
+    trainer = TrainerWrapper(conf["trainer_type"], **ka)
     trainer.run(flag=args.flag)
 
 

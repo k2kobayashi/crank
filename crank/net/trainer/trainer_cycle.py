@@ -12,7 +12,7 @@ Cyclic VQVAE trainer
 """
 
 
-from torch.nn.utils import clip_grad_norm
+# from torch.nn.utils import clip_grad_norm
 from crank.net.trainer.trainer_vqvae import VQVAETrainer
 
 
@@ -84,7 +84,7 @@ class CycleVQVAETrainer(VQVAETrainer):
         if phase == "train":
             self.optimizer["generator"].zero_grad()
             loss["generator"].backward()
-            clip_grad_norm(self.model["G"].parameters(), self.conf["clip_grad_norm"])
+            # clip_grad_norm(self.model["G"].parameters(), self.conf["clip_grad_norm"])
             self.optimizer["generator"].step()
         return loss
 
@@ -129,11 +129,11 @@ class CycleVQVAETrainer(VQVAETrainer):
                         batch["cv_h_scalar"].reshape(-1),
                     )
                 elif io == "recon":
-                    decoded = o["decoded"].masked_select(mask)
-                    feats = batch["feats"].masked_select(mask)
-                    loss["l1_{}".format(lbl)] = self.criterion["l1"](feats, decoded)
-                    loss["mse_{}".format(lbl)] = self.criterion["mse"](feats, decoded)
-                    loss["stft_{}".format(lbl)] = self.criterion["stft"](
+                    feats = batch["feats"]
+                    decoded = o["decoded"]
+                    loss["l1_{}".format(lbl)] = self.criterion["fl1"](feats, decoded, mask=mask)
+                    loss["mse_{}".format(lbl)] = self.criterion["fmse"](feats, decoded, mask=mask)
+                    loss["stft_{}".format(lbl)] = self.criterion["fstft"](
                         batch["feats"], o["decoded"]
                     )
                     for n in range(self.conf["n_vq_stacks"]):

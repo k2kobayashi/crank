@@ -18,7 +18,7 @@ from torch.utils.data import DataLoader
 from pytorch_lamb import Lamb
 
 from crank.net.trainer.dataset import calculate_maxflen, BaseDataset
-from crank.net.module.loss import MultiSizeSTFTLoss
+from crank.net.module.loss import CustomFeatureLoss
 
 
 def get_criterion(conf):
@@ -27,7 +27,11 @@ def get_criterion(conf):
         "l1": nn.L1Loss(),
         "ce": nn.CrossEntropyLoss(ignore_index=-100),
         "kld": nn.KLDivLoss(reduction="mean"),
-        "stft": MultiSizeSTFTLoss(**conf["stft_params"]),
+        "fmse": CustomFeatureLoss(loss_type="mse", causal_size=conf["causal_size"]),
+        "fl1": CustomFeatureLoss(loss_type="l1", causal_size=conf["causal_size"]),
+        "fstft": CustomFeatureLoss(loss_type="stft",
+                                   causal_size=conf["causal_size"],
+                                   stft_params=conf["stft_params"]),
     }
     return criterion
 
