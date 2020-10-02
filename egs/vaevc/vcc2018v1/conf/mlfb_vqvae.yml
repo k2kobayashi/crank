@@ -81,7 +81,6 @@ use_spkr_embedding: true       # use nn.Embedding instead of 1hot vector
 spkr_embedding_size: 32        # output_size of spkr_embbeding
 use_embedding_transform: false # apply nn.Linear to output of spkr_embedding
 embedding_transform_size: 0    # output dimension of above transform
-save_mlfb_type:                # type of mlfb when save it ['', 'normed']
 save_f0_feats: true            # save F0 feature as well
 residual_channels: 64          # # of residual channels for encoder/decoder network
 ema_flag: true                 # use exponential moving average for dictionary of VQ
