@@ -12,13 +12,13 @@ VQVAE trainer
 """
 
 import random
-import torch
-import numpy as np
-from joblib import Parallel, delayed
 
-from crank.utils import mlfb2wavf, feat2hdf5, world2wav, to_numpy
+import numpy as np
+import torch
 from crank.net.trainer import BaseTrainer
-from crank.net.trainer.dataset import create_one_hot, convert_f0
+from crank.net.trainer.dataset import convert_f0, create_one_hot
+from crank.utils import feat2hdf5, mlfb2wavf, to_numpy, world2wav
+from joblib import Parallel, delayed
 
 
 class VQVAETrainer(BaseTrainer):
@@ -250,7 +250,7 @@ class VQVAETrainer(BaseTrainer):
 
         # generate wav
         if self.conf["feat_type"] == "mcep":
-            self._save_decoded_world(feats, save=(self.flag=="eval"))
+            self._save_decoded_world(feats, save=(self.flag == "eval"))
         else:
             self._save_decoded_mlfbs(feats)
 
@@ -307,9 +307,15 @@ class VQVAETrainer(BaseTrainer):
 
         # save as hdf5
         if save:
-            type_features = ["lcf0", "f0", "normed_lcf0", "uv", "cap"]
-            k = "normed_feat" if self.conf["save_mlfb_type"] == "normed" else "feat"
-            type_features.append(k)
+            type_features = [
+                "feat",
+                "normed_feat",
+                "lcf0",
+                "f0",
+                "normed_lcf0",
+                "uv",
+                "cap",
+            ]
             for k in type_features:
                 Parallel(n_jobs=self.n_jobs)(
                     [
@@ -342,13 +348,13 @@ class VQVAETrainer(BaseTrainer):
         )
 
         # save as hdf5
-        k = "normed_feat" if self.conf["save_mlfb_type"] == "normed" else "feat"
-        Parallel(n_jobs=self.n_jobs)(
-            [
-                delayed(feat2hdf5)(feat[k], path, ext="feats")
-                for path, feat in feats.items()
-            ]
-        )
+        for k in ["feat", "normed_feat"]:
+            Parallel(n_jobs=self.n_jobs)(
+                [
+                    delayed(feat2hdf5)(feat[k], path, ext=k)
+                    for path, feat in feats.items()
+                ]
+            )
 
         if self.conf["save_f0_feats"]:
             type_features = ["lcf0", "f0", "normed_lcf0", "uv"]
