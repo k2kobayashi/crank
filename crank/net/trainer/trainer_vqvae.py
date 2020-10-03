@@ -151,14 +151,7 @@ class VQVAETrainer(BaseTrainer):
 
         # Train clasifier using converted feature
         if self.conf["train_cv_classifier"]:
-            dec_h_cv = self._generate_conditions(batch, use_cvfeats=True)
-            cv_outputs = self.model["G"].forward(feats, enc_h=enc_h, dec_h=dec_h_cv)
-            _, cv_spkr_cls = self.model["G"].encode(
-                cv_outputs["decoded"].detach().transpose(1, 2)
-            )
-            loss = self.calculate_cv_spkr_cls_loss(
-                batch, cv_spkr_cls.transpose(1, 2), loss
-            )
+            loss = self.calculate_cv_spkr_cls_loss(feats, batch, enc_h, loss)
 
         loss["objective"] += loss["generator"]
         if phase == "train":
@@ -168,17 +161,17 @@ class VQVAETrainer(BaseTrainer):
         return loss
 
     def calculate_vqvae_loss(self, batch, outputs, loss):
-        # loss for reconstruction
         mask = batch["mask"]
         feats = batch["feats"]
         decoded = outputs["decoded"]
-        spkr_cls = outputs["spkr_cls"]
         loss["l1"] = self.criterion["fl1"](feats, decoded, mask=mask)
         loss["mse"] = self.criterion["fmse"](feats, decoded, mask=mask)
         loss["stft"] = self.criterion["fstft"](feats, decoded)
-        loss["ce"] = self.criterion["ce"](
-            spkr_cls.reshape(-1, spkr_cls.size(2)), batch["org_h_scalar"].reshape(-1)
-        )
+        if self.conf["encoder_spkr_classifier"]:
+            loss["ce"] = self.criterion["ce"](
+                outputs["spkr_cls"].reshape(-1, outputs["spkr_cls"].size(2)),
+                batch["org_h_scalar"].reshape(-1),
+            )
 
         # loss for vq
         encoded = outputs["encoded"]
@@ -203,14 +196,22 @@ class VQVAETrainer(BaseTrainer):
                 )
             return loss
 
-        for k in ["l1", "mse", "ce", "stft"]:
+        for k in ["l1", "mse", "stft"]:
             loss["generator"] += self.conf["alphas"][k] * loss[k]
+        if self.conf["encoder_spkr_classifier"]:
+            loss["generator"] += self.conf["alphas"]["ce"] * loss["ce"]
         loss = _parse_vq("commit")
         if not self.conf["ema_flag"]:
             loss = _parse_vq("dict")
         return loss
 
-    def calculate_cv_spkr_cls_loss(self, batch, cv_spkr_cls, loss):
+    def calculate_cv_spkr_cls_loss(self, feats, batch, enc_h, loss):
+        dec_h_cv = self._generate_conditions(batch, use_cvfeats=True)
+        cv_outputs = self.model["G"].forward(feats, enc_h=enc_h, dec_h=dec_h_cv)
+        _, cv_spkr_cls = self.model["G"].encode(
+            cv_outputs["decoded"].detach().transpose(1, 2)
+        )
+
         loss["ce_cv"] = self.criterion["ce"](
             cv_spkr_cls.reshape(-1, cv_spkr_cls.size(2)),
             batch["cv_h_scalar"].reshape(-1),

@@ -84,7 +84,7 @@ class CycleVQVAETrainer(VQVAETrainer):
         if phase == "train":
             self.optimizer["generator"].zero_grad()
             loss["generator"].backward()
-            clip_grad_norm(self.model["G"].parameters(), self.conf["clip_grad_norm"])
+            # clip_grad_norm(self.model["G"].parameters(), self.conf["clip_grad_norm"])
             self.optimizer["generator"].step()
         return loss
 
@@ -93,9 +93,11 @@ class CycleVQVAETrainer(VQVAETrainer):
             alpha_cycle = self.conf["alphas"]["cycle"] ** (c + 1)
             # for cv
             lbl = "{}cyc_{}".format(c, "cv")
-            loss["generator"] += (
-                alpha_cycle * self.conf["alphas"]["ce"] * loss["ce" + "_" + lbl]
-            )
+
+            if self.conf["encoder_spkr_classifier"]:
+                loss["generator"] += (
+                    alpha_cycle * self.conf["alphas"]["ce"] * loss["ce" + "_" + lbl]
+                )
 
             # for recon
             lbl = "{}cyc_{}".format(c, "recon")
@@ -124,15 +126,20 @@ class CycleVQVAETrainer(VQVAETrainer):
                 lbl = "{}cyc_{}".format(c, io)
                 o = outputs[c][io]
                 if io == "cv":
-                    loss["ce_{}".format(lbl)] = self.criterion["ce"](
-                        o["spkr_cls"].reshape(-1, o["spkr_cls"].size(2)),
-                        batch["cv_h_scalar"].reshape(-1),
-                    )
+                    if self.conf["encoder_spkr_classifier"]:
+                        loss["ce_{}".format(lbl)] = self.criterion["ce"](
+                            o["spkr_cls"].reshape(-1, o["spkr_cls"].size(2)),
+                            batch["cv_h_scalar"].reshape(-1),
+                        )
                 elif io == "recon":
                     feats = batch["feats"]
                     decoded = o["decoded"]
-                    loss["l1_{}".format(lbl)] = self.criterion["fl1"](feats, decoded, mask=mask)
-                    loss["mse_{}".format(lbl)] = self.criterion["fmse"](feats, decoded, mask=mask)
+                    loss["l1_{}".format(lbl)] = self.criterion["fl1"](
+                        feats, decoded, mask=mask
+                    )
+                    loss["mse_{}".format(lbl)] = self.criterion["fmse"](
+                        feats, decoded, mask=mask
+                    )
                     loss["stft_{}".format(lbl)] = self.criterion["fstft"](
                         batch["feats"], o["decoded"]
                     )

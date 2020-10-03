@@ -73,6 +73,7 @@ stft_params:  # parameters for stft loss of converted/reconstructed feature
 # network setting
 encoder_f0: false              # condition source F0 to encoder
 enc_aux_size: 0                # size of source F0
+encoder_spkr_classifier: true  # train speaker classifier in encoder
 decoder_f0: true               # condition cv F0 to decoder
 dec_aux_size: 2                # size of cv F0
 causal: false                  # use causal network
