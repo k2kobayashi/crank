@@ -51,30 +51,33 @@ torch.backends.cudnn.benchmark = True
 
 
 def get_model(conf, spkr_size=0, device="cuda"):
-    G = VQVAE2(conf, spkr_size=spkr_size).to(device)
-    logging.info(G)
+    models = {"G": VQVAE2(conf, spkr_size=spkr_size).to(device)}
+    logging.info(models["G"])
 
     # discriminator
     if conf["gan_type"] == "lsgan":
         output_channels = 1
     if conf["acgan_flag"]:
         output_channels += spkr_size
-
-    if conf["discriminator_type"] == "pwg":
-        D = ParallelWaveGANDiscriminator(
-            in_channels=conf["input_size"],
-            out_channels=output_channels,
-            kernel_size=conf["kernel_size"][0],
-            layers=conf["n_discriminator_layers"],
-            conv_channels=64,
-            dilation_factor=1,
-            nonlinear_activation="LeakyReLU",
-            nonlinear_activation_params={"negative_slope": 0.2},
-            bias=True,
-            use_weight_norm=True,
-        )
-        logging.info(D)
-    return {"G": G.to(device), "D": D.to(device)}
+    if conf["trainer_type"] in ["lsgan", "cyclegan"]:
+        if conf["discriminator_type"] == "pwg":
+            D = ParallelWaveGANDiscriminator(
+                in_channels=conf["input_size"],
+                out_channels=output_channels,
+                kernel_size=conf["kernel_size"][0],
+                layers=conf["n_discriminator_layers"],
+                conv_channels=64,
+                dilation_factor=1,
+                nonlinear_activation="LeakyReLU",
+                nonlinear_activation_params={"negative_slope": 0.2},
+                bias=True,
+                use_weight_norm=True,
+            )
+        else:
+            raise NotImplementedError()
+        models.update({"D": D.to(device)})
+        logging.info(models["D"])
+    return models
 
 
 def load_checkpoint(model, checkpoint):

@@ -84,9 +84,9 @@ class CycleGANTrainer(LSGANTrainer, CycleVQVAETrainer):
         loss = self.calculate_cycleadv_loss(batch, cycle_outputs, loss)
 
         if phase == "train" and not self.stop_generator:
-            self.optimizer["generator"].zero_grad()
-            loss["generator"].backward()
-            self.optimizer["generator"].step()
+            self.optimizer["G"].zero_grad()
+            loss["G"].backward()
+            self.optimizer["G"].step()
         return loss
 
     def update_D(self, batch, loss, phase="train"):
@@ -107,9 +107,9 @@ class CycleGANTrainer(LSGANTrainer, CycleVQVAETrainer):
         loss = self.calculate_cyclediscriminator_loss(batch, outputs, loss)
 
         if phase == "train":
-            self.optimizer["discriminator"].zero_grad()
-            loss["discriminator"].backward()
-            self.optimizer["discriminator"].step()
+            self.optimizer["D"].zero_grad()
+            loss["D"].backward()
+            self.optimizer["D"].step()
         return loss
 
     def calculate_cycleadv_loss(self, batch, outputs, loss):
@@ -131,12 +131,8 @@ class CycleGANTrainer(LSGANTrainer, CycleVQVAETrainer):
                 loss["adv_{}".format(lbl)] = self.criterion["mse"](
                     D_outputs, torch.ones_like(D_outputs)
                 )
-                loss["generator"] += (
-                    self.conf["alphas"]["ce"] * loss["ce_adv_{}".format(lbl)]
-                )
-                loss["generator"] += (
-                    self.conf["alphas"]["adv"] * loss["adv_{}".format(lbl)]
-                )
+                loss["G"] += self.conf["alphas"]["ce"] * loss["ce_adv_{}".format(lbl)]
+                loss["G"] += self.conf["alphas"]["adv"] * loss["adv_{}".format(lbl)]
         return loss
 
     def calculate_cyclediscriminator_loss(self, batch, outputs, loss):
@@ -166,7 +162,7 @@ class CycleGANTrainer(LSGANTrainer, CycleVQVAETrainer):
                     loss["ce_{}_{}".format(k, lbl)] = self.criterion["ce"](
                         spkr_cls.reshape(-1, spkr_cls.size(2)), h_scalar.reshape(-1),
                     )
-                    loss["discriminator"] += (
+                    loss["D"] += (
                         self.conf["alphas"]["ce"] * loss["ce_{}_{}".format(k, lbl)]
                     )
 
@@ -179,7 +175,7 @@ class CycleGANTrainer(LSGANTrainer, CycleVQVAETrainer):
             loss["fake_{}".format(lbl)] = self.criterion["mse"](
                 fake_sample, torch.zeros_like(fake_sample)
             )
-            loss["discriminator"] += (
+            loss["D"] += (
                 self.conf["alphas"]["fake"] * loss["fake_{}".format(lbl)]
                 + self.conf["alphas"]["real"] * loss["real_{}".format(lbl)]
             )

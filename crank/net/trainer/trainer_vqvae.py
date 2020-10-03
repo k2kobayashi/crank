@@ -153,11 +153,11 @@ class VQVAETrainer(BaseTrainer):
         if self.conf["train_cv_classifier"]:
             loss = self.calculate_cv_spkr_cls_loss(feats, batch, enc_h, loss)
 
-        loss["objective"] += loss["generator"]
+        loss["objective"] += loss["G"]
         if phase == "train":
-            self.optimizer["generator"].zero_grad()
-            loss["generator"].backward()
-            self.optimizer["generator"].step()
+            self.optimizer["G"].zero_grad()
+            loss["G"].backward()
+            self.optimizer["G"].step()
         return loss
 
     def calculate_vqvae_loss(self, batch, outputs, loss):
@@ -191,15 +191,13 @@ class VQVAETrainer(BaseTrainer):
     def _parse_vqvae_loss(self, loss):
         def _parse_vq(k):
             for n in range(self.conf["n_vq_stacks"]):
-                loss["generator"] += (
-                    self.conf["alphas"][k][n] * loss["{}{}".format(k, n)]
-                )
+                loss["G"] += self.conf["alphas"][k][n] * loss["{}{}".format(k, n)]
             return loss
 
         for k in ["l1", "mse", "stft"]:
-            loss["generator"] += self.conf["alphas"][k] * loss[k]
+            loss["G"] += self.conf["alphas"][k] * loss[k]
         if self.conf["encoder_spkr_classifier"]:
-            loss["generator"] += self.conf["alphas"]["ce"] * loss["ce"]
+            loss["G"] += self.conf["alphas"]["ce"] * loss["ce"]
         loss = _parse_vq("commit")
         if not self.conf["ema_flag"]:
             loss = _parse_vq("dict")
@@ -216,7 +214,7 @@ class VQVAETrainer(BaseTrainer):
             cv_spkr_cls.reshape(-1, cv_spkr_cls.size(2)),
             batch["cv_h_scalar"].reshape(-1),
         )
-        loss["generator"] += self.conf["alphas"]["ce"] * loss["ce_cv"]
+        loss["G"] += self.conf["alphas"]["ce"] * loss["ce_cv"]
         return loss
 
     def _generate_conditions(

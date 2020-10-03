@@ -82,7 +82,7 @@ class LSGANTrainer(VQVAETrainer):
         else:
             loss = self.update_D(batch, loss, phase=phase)
             loss = self.update_G(batch, loss, phase=phase)
-        loss["objective"] = loss["generator"] + loss["discriminator"]
+        loss["objective"] = loss["G"] + loss["D"]
         return loss
 
     def update_G(self, batch, loss, phase="train"):
@@ -104,9 +104,9 @@ class LSGANTrainer(VQVAETrainer):
         loss = self.calculate_adv_loss(batch, decoded, h_scaler, loss)
 
         if phase == "train" and not self.stop_generator:
-            self.optimizer["generator"].zero_grad()
-            loss["generator"].backward()
-            self.optimizer["generator"].step()
+            self.optimizer["G"].zero_grad()
+            loss["G"].backward()
+            self.optimizer["G"].step()
         return loss
 
     def update_D(self, batch, loss, phase="train"):
@@ -126,9 +126,9 @@ class LSGANTrainer(VQVAETrainer):
         loss = self.calculate_discriminator_loss(batch, decoded, h_scaler, loss)
 
         if phase == "train":
-            self.optimizer["discriminator"].zero_grad()
-            loss["discriminator"].backward()
-            self.optimizer["discriminator"].step()
+            self.optimizer["D"].zero_grad()
+            loss["D"].backward()
+            self.optimizer["D"].step()
         return loss
 
     def calculate_adv_loss(self, batch, decoded, h_scaler, loss):
@@ -141,7 +141,7 @@ class LSGANTrainer(VQVAETrainer):
 
         outputs = outputs.masked_select(mask)
         loss["adv"] = self.criterion["mse"](outputs, torch.ones_like(outputs))
-        loss["generator"] += self.conf["alphas"]["adv"] * loss["adv"]
+        loss["G"] += self.conf["alphas"]["adv"] * loss["adv"]
         return loss
 
     def calculate_acgan_loss(
@@ -179,7 +179,7 @@ class LSGANTrainer(VQVAETrainer):
         real_sample = real_sample.masked_select(mask)
         loss["fake"] = self.criterion["mse"](fake_sample, torch.zeros_like(fake_sample))
         loss["real"] = self.criterion["mse"](real_sample, torch.ones_like(real_sample))
-        loss["discriminator"] += (
+        loss["D"] += (
             self.conf["alphas"]["fake"] * loss["fake"]
             + self.conf["alphas"]["real"] * loss["real"]
         )
