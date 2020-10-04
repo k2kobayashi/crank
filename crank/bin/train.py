@@ -65,7 +65,7 @@ def get_model(conf, spkr_size=0, device="cuda"):
             D = ParallelWaveGANDiscriminator(
                 in_channels=conf["input_size"],
                 out_channels=output_channels,
-                kernel_size=conf["disriminator_kernel_size"],
+                kernel_size=conf["discriminator_kernel_size"],
                 layers=conf["n_discriminator_layers"],
                 conv_channels=64,
                 dilation_factor=1,

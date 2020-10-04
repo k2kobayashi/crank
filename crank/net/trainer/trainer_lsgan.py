@@ -103,6 +103,9 @@ class LSGANTrainer(VQVAETrainer):
             h_scaler = batch["org_h_scalar"]
         loss = self.calculate_adv_loss(batch, decoded, h_scaler, loss)
 
+        if self.conf["speaker_adversarial"]:
+            loss = self.calculate_spkradv_loss(batch, outputs, loss, phase=phase)
+
         if phase == "train" and not self.stop_generator:
             self.optimizer["G"].zero_grad()
             loss["G"].backward()
@@ -144,9 +147,7 @@ class LSGANTrainer(VQVAETrainer):
         loss["G"] += self.conf["alphas"]["adv"] * loss["adv"]
         return loss
 
-    def calculate_acgan_loss(
-        self, spkr_cls, h_scalar, loss, label="adv", model="generator"
-    ):
+    def calculate_acgan_loss(self, spkr_cls, h_scalar, loss, label="adv", model="G"):
         loss["ce_{}".format(label)] = self.criterion["ce"](
             spkr_cls.reshape(-1, spkr_cls.size(2)), h_scalar.reshape(-1)
         )
@@ -169,10 +170,10 @@ class LSGANTrainer(VQVAETrainer):
                 real_sample, [1, self.n_spkrs], dim=2
             )
             loss = self.calculate_acgan_loss(
-                spkr_cls_fake, h_scaler, loss, label="fake", model="discriminator"
+                spkr_cls_fake, h_scaler, loss, label="fake", model="D"
             )
             loss = self.calculate_acgan_loss(
-                spkr_cls_real, h_scaler, loss, label="real", model="discriminator"
+                spkr_cls_real, h_scaler, loss, label="real", model="D"
             )
 
         fake_sample = fake_sample.masked_select(mask)
