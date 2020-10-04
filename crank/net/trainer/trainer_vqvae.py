@@ -333,7 +333,7 @@ class VQVAETrainer(BaseTrainer):
             flen = batch["flen"][n]
             feat = to_numpy(decoded[n][:flen])
             feats[wavf] = {}
-            feats[wavf]["feat"] = self.scaler[feat_type].inverse_transform(feat)
+            feats[wavf]["feats"] = self.scaler[feat_type].inverse_transform(feat)
             feats[wavf]["normed_feat"] = feat
 
             # for f0 features
@@ -356,7 +356,7 @@ class VQVAETrainer(BaseTrainer):
             [
                 delayed(world2wav)(
                     v["f0"][:, 0].astype(np.float64),
-                    v["feat"].astype(np.float64),
+                    v["feats"].astype(np.float64),
                     v["cap"].astype(np.float64),
                     wavf=k,
                     fs=self.conf["feature"]["fs"],
@@ -371,7 +371,7 @@ class VQVAETrainer(BaseTrainer):
         # save as hdf5
         if save:
             type_features = [
-                "feat",
+                "feats",
                 "normed_feat",
                 "lcf0",
                 "f0",
@@ -398,7 +398,7 @@ class VQVAETrainer(BaseTrainer):
         Parallel(n_jobs=self.n_jobs)(
             [
                 delayed(mlfb2wavf)(
-                    feats[wavf]["feat"],
+                    feats[wavf]["feats"],
                     wavf,
                     fs=self.feat_conf["fs"],
                     n_mels=self.feat_conf["mlfb_dim"],
@@ -411,7 +411,7 @@ class VQVAETrainer(BaseTrainer):
         )
 
         # save as hdf5
-        for k in ["feat", "normed_feat"]:
+        for k in ["feats", "normed_feat"]:
             Parallel(n_jobs=self.n_jobs)(
                 [
                     delayed(feat2hdf5)(feat[k], path, ext=k)
