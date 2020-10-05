@@ -131,10 +131,10 @@ class CycleVQVAETrainer(VQVAETrainer):
                 elif io == "recon":
                     feats = batch["feats"]
                     decoded = o["decoded"]
-                    loss["l1_{}".format(lbl)] = self.criterion["fl1"](feats, decoded, mask=mask)
-                    loss["mse_{}".format(lbl)] = self.criterion["fmse"](feats, decoded, mask=mask)
+                    loss["l1_{}".format(lbl)] = self.criterion["fl1"](decoded, feats, mask=mask)
+                    loss["mse_{}".format(lbl)] = self.criterion["fmse"](decoded, feats, mask=mask)
                     loss["stft_{}".format(lbl)] = self.criterion["fstft"](
-                        batch["feats"], o["decoded"]
+                        o["decoded"], batch["feats"]
                     )
                     for n in range(self.conf["n_vq_stacks"]):
                         loss["commit{}_{}".format(n, lbl)] = self.criterion["mse"](
