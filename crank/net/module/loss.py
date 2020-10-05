@@ -95,10 +95,10 @@ class CustomFeatureLoss(nn.Module):
 
     def forward(self, x, y, mask=None):
         if self.causal_size != 0:
-            x = x[:, :-self.causal_size]
-            y = y[:, self.causal_size:]
+            x = x[:, self.causal_size:]
+            y = y[:, :-self.causal_size]
             if mask is not None:
-                mask = mask[:, :-self.causal_size]
+                mask = mask[:, self.causal_size:]
 
         if mask is not None:
             x = x.masked_select(mask)
