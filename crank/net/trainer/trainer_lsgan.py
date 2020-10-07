@@ -11,7 +11,6 @@ VQVAE w/ LSGAN trainer
 
 """
 
-import random
 import torch
 from crank.net.trainer.trainer_vqvae import VQVAETrainer
 
