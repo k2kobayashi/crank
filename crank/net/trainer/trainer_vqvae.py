@@ -151,35 +151,28 @@ class VQVAETrainer(BaseTrainer):
 
         # Train clasifier using converted feature
         if self.conf["train_cv_classifier"]:
-            dec_h_cv = self._generate_conditions(batch, use_cvfeats=True)
-            cv_outputs = self.model["G"].forward(feats, enc_h=enc_h, dec_h=dec_h_cv)
-            _, cv_spkr_cls = self.model["G"].encode(
-                cv_outputs["decoded"].detach().transpose(1, 2)
-            )
-            loss = self.calculate_cv_spkr_cls_loss(
-                batch, cv_spkr_cls.transpose(1, 2), loss
-            )
+            loss = self.calculate_cv_spkr_cls_loss(feats, batch, enc_h, loss)
 
-        loss["objective"] += loss["generator"]
+        loss["objective"] += loss["G"]
         if phase == "train":
-            self.optimizer["generator"].zero_grad()
-            loss["generator"].backward()
-            self.optimizer["generator"].step()
+            self.optimizer["G"].zero_grad()
+            loss["G"].backward()
+            self.optimizer["G"].step()
         return loss
 
     def calculate_vqvae_loss(self, batch, outputs, loss):
-        # loss for reconstruction
         mask = batch["mask"]
         feats = batch["feats"]
         decoded = outputs["decoded"]
-        spkr_cls = outputs["spkr_cls"]
         loss["l1"] = self.criterion["fl1"](decoded, feats, mask=mask)
         loss["mse"] = self.criterion["fmse"](decoded, feats, mask=mask)
         loss["stft"] = self.criterion["fstft"](decoded, feats)
-        loss["ce"] = self.criterion["ce"](
-            spkr_cls.reshape(-1, spkr_cls.size(2)), batch["org_h_scalar"].reshape(-1)
-        )
-
+        if self.conf["encoder_spkr_classifier"]:
+            loss["ce"] = self.criterion["ce"](
+                outputs["spkr_cls"].reshape(-1, outputs["spkr_cls"].size(2)),
+                batch["org_h_scalar"].reshape(-1),
+            )
+            
         # loss for vq
         encoded = outputs["encoded"]
         emb_idx = outputs["emb_idx"]
@@ -198,24 +191,30 @@ class VQVAETrainer(BaseTrainer):
     def _parse_vqvae_loss(self, loss):
         def _parse_vq(k):
             for n in range(self.conf["n_vq_stacks"]):
-                loss["generator"] += (
-                    self.conf["alphas"][k][n] * loss["{}{}".format(k, n)]
-                )
+                loss["G"] += self.conf["alphas"][k][n] * loss["{}{}".format(k, n)]
             return loss
 
-        for k in ["l1", "mse", "ce", "stft"]:
-            loss["generator"] += self.conf["alphas"][k] * loss[k]
+        for k in ["l1", "mse", "stft"]:
+            loss["G"] += self.conf["alphas"][k] * loss[k]
+        if self.conf["encoder_spkr_classifier"]:
+            loss["G"] += self.conf["alphas"]["ce"] * loss["ce"]
         loss = _parse_vq("commit")
         if not self.conf["ema_flag"]:
             loss = _parse_vq("dict")
         return loss
 
-    def calculate_cv_spkr_cls_loss(self, batch, cv_spkr_cls, loss):
+    def calculate_cv_spkr_cls_loss(self, feats, batch, enc_h, loss):
+        dec_h_cv = self._generate_conditions(batch, use_cvfeats=True)
+        cv_outputs = self.model["G"].forward(feats, enc_h=enc_h, dec_h=dec_h_cv)
+        _, cv_spkr_cls = self.model["G"].encode(
+            cv_outputs["decoded"].detach().transpose(1, 2)
+        )
+
         loss["ce_cv"] = self.criterion["ce"](
             cv_spkr_cls.reshape(-1, cv_spkr_cls.size(2)),
             batch["cv_h_scalar"].reshape(-1),
         )
-        loss["generator"] += self.conf["alphas"]["ce"] * loss["ce_cv"]
+        loss["G"] += self.conf["alphas"]["ce"] * loss["ce_cv"]
         return loss
 
     def _generate_conditions(
@@ -334,7 +333,7 @@ class VQVAETrainer(BaseTrainer):
             flen = batch["flen"][n]
             feat = to_numpy(decoded[n][:flen])
             feats[wavf] = {}
-            feats[wavf]["feat"] = self.scaler[feat_type].inverse_transform(feat)
+            feats[wavf]["feats"] = self.scaler[feat_type].inverse_transform(feat)
             feats[wavf]["normed_feat"] = feat
 
             # for f0 features
@@ -357,7 +356,7 @@ class VQVAETrainer(BaseTrainer):
             [
                 delayed(world2wav)(
                     v["f0"][:, 0].astype(np.float64),
-                    v["feat"].astype(np.float64),
+                    v["feats"].astype(np.float64),
                     v["cap"].astype(np.float64),
                     wavf=k,
                     fs=self.conf["feature"]["fs"],
@@ -372,7 +371,7 @@ class VQVAETrainer(BaseTrainer):
         # save as hdf5
         if save:
             type_features = [
-                "feat",
+                "feats",
                 "normed_feat",
                 "lcf0",
                 "f0",
@@ -399,7 +398,7 @@ class VQVAETrainer(BaseTrainer):
         Parallel(n_jobs=self.n_jobs)(
             [
                 delayed(mlfb2wavf)(
-                    feats[wavf]["feat"],
+                    feats[wavf]["feats"],
                     wavf,
                     fs=self.feat_conf["fs"],
                     n_mels=self.feat_conf["mlfb_dim"],
@@ -412,7 +411,7 @@ class VQVAETrainer(BaseTrainer):
         )
 
         # save as hdf5
-        for k in ["feat", "normed_feat"]:
+        for k in ["feats", "normed_feat"]:
             Parallel(n_jobs=self.n_jobs)(
                 [
                     delayed(feat2hdf5)(feat[k], path, ext=k)

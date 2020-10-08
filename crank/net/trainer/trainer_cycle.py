@@ -80,12 +80,12 @@ class CycleVQVAETrainer(VQVAETrainer):
         )
         loss = self.calculate_vqvae_loss(batch, cycle_outputs[0]["org"], loss)
         loss = self.calculate_cyclevqvae_loss(batch, cycle_outputs, loss)
-        loss["objective"] += loss["generator"]
+        loss["objective"] += loss["G"]
         if phase == "train":
-            self.optimizer["generator"].zero_grad()
-            loss["generator"].backward()
+            self.optimizer["G"].zero_grad()
+            loss["G"].backward()
             # clip_grad_norm(self.model["G"].parameters(), self.conf["clip_grad_norm"])
-            self.optimizer["generator"].step()
+            self.optimizer["G"].step()
         return loss
 
     def _parse_cyclevqvae_loss(self, loss):
@@ -93,24 +93,24 @@ class CycleVQVAETrainer(VQVAETrainer):
             alpha_cycle = self.conf["alphas"]["cycle"] ** (c + 1)
             # for cv
             lbl = "{}cyc_{}".format(c, "cv")
-            loss["generator"] += (
-                alpha_cycle * self.conf["alphas"]["ce"] * loss["ce" + "_" + lbl]
-            )
+
+            if self.conf["encoder_spkr_classifier"]:
+                loss["G"] += (
+                    alpha_cycle * self.conf["alphas"]["ce"] * loss["ce" + "_" + lbl]
+                )
 
             # for recon
             lbl = "{}cyc_{}".format(c, "recon")
             for k in ["l1", "mse", "stft"]:
-                loss["generator"] += (
-                    alpha_cycle * self.conf["alphas"][k] * loss[k + "_" + lbl]
-                )
+                loss["G"] += alpha_cycle * self.conf["alphas"][k] * loss[k + "_" + lbl]
             for n in range(self.conf["n_vq_stacks"]):
-                loss["generator"] += (
+                loss["G"] += (
                     alpha_cycle
                     * self.conf["alphas"]["commit"][n]
                     * loss["{}{}_{}".format("commit", n, lbl)]
                 )
                 if not self.conf["ema_flag"]:
-                    loss["generator"] += (
+                    loss["G"] += (
                         alpha_cycle
                         * self.conf["alphas"]["dict"][n]
                         * loss["{}{}_{}".format("dict", n, lbl)]
@@ -124,10 +124,11 @@ class CycleVQVAETrainer(VQVAETrainer):
                 lbl = "{}cyc_{}".format(c, io)
                 o = outputs[c][io]
                 if io == "cv":
-                    loss["ce_{}".format(lbl)] = self.criterion["ce"](
-                        o["spkr_cls"].reshape(-1, o["spkr_cls"].size(2)),
-                        batch["cv_h_scalar"].reshape(-1),
-                    )
+                    if self.conf["encoder_spkr_classifier"]:
+                        loss["ce_{}".format(lbl)] = self.criterion["ce"](
+                            o["spkr_cls"].reshape(-1, o["spkr_cls"].size(2)),
+                            batch["cv_h_scalar"].reshape(-1),
+                        )
                 elif io == "recon":
                     feats = batch["feats"]
                     decoded = o["decoded"]

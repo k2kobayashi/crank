@@ -29,63 +29,67 @@ def get_criterion(conf):
         "kld": nn.KLDivLoss(reduction="mean"),
         "fmse": CustomFeatureLoss(loss_type="mse", causal_size=conf["causal_size"]),
         "fl1": CustomFeatureLoss(loss_type="l1", causal_size=conf["causal_size"]),
-        "fstft": CustomFeatureLoss(loss_type="stft",
-                                   causal_size=conf["causal_size"],
-                                   stft_params=conf["stft_params"]),
+        "fstft": CustomFeatureLoss(
+            loss_type="stft",
+            causal_size=conf["causal_size"],
+            stft_params=conf["stft_params"],
+        ),
     }
     return criterion
 
 
 def get_optimizer(net_conf, model):
     if net_conf["optimizer"] == "adam":
-        optimizer = {
-            "generator": optim.Adam(model["G"].parameters(), lr=net_conf["lr"]),
-            "discriminator": optim.Adam(
-                model["D"].parameters(), lr=net_conf["discriminator_lr"]
-            ),
-        }
+        Gopt = optim.Adam(model["G"].parameters(), lr=net_conf["lr"])
     elif net_conf["optimizer"] == "radam":
-        optimizer = {
-            "generator": toptim.RAdam(model["G"].parameters(), lr=net_conf["lr"]),
-            "discriminator": toptim.RAdam(
-                model["D"].parameters(), lr=net_conf["discriminator_lr"]
-            ),
-        }
+        Gopt = toptim.RAdam(model["G"].parameters(), lr=net_conf["lr"])
     elif net_conf["optimizer"] == "lamb":
-        optimizer = {
-            "generator": Lamb(
-                model["G"].parameters(),
-                lr=net_conf["lr"],
-                weight_decay=0.01,
-                betas=(0.9, 0.999),
-                adam=False,
-            ),
-            "discriminator": Lamb(
+        Gopt = Lamb(
+            model["G"].parameters(),
+            lr=net_conf["lr"],
+            weight_decay=0.01,
+            betas=(0.9, 0.999),
+            adam=False,
+        )
+    optimizer = {"G": Gopt}
+
+    if "D" in model:
+        if net_conf["optimizer"] == "adam":
+            Dopt = optim.Adam(model["D"].parameters(), lr=net_conf["discriminator_lr"])
+        elif net_conf["optimizer"] == "radam":
+            Dopt = toptim.RAdam(
+                model["D"].parameters(), lr=net_conf["discriminator_lr"]
+            )
+        elif net_conf["optimizer"] == "lamb":
+            Dopt = Lamb(
                 model["D"].parameters(),
                 lr=net_conf["lr"],
                 weight_decay=0.01,
                 betas=(0.9, 0.999),
                 adam=False,
-            ),
-        }
-    else:
-        raise ValueError("optimizer must be [adam, radam, lamb]")
+            )
+        optimizer.update({"D": Dopt})
     return optimizer
 
 
 def get_scheduler(net_conf, optimizer):
     scheduler = {
-        "generator": StepLR(
-            optimizer["generator"],
+        "G": StepLR(
+            optimizer["G"],
             step_size=net_conf["lr_decay_step_size"],
             gamma=net_conf["lr_decay_size"],
         ),
-        "discriminator": StepLR(
-            optimizer["discriminator"],
-            step_size=net_conf["discriminator_lr_decay_step_size"],
-            gamma=net_conf["discriminator_lr_decay_size"],
-        ),
     }
+    if "D" in optimizer:
+        scheduler.update(
+            {
+                "discriminator": StepLR(
+                    optimizer["D"],
+                    step_size=net_conf["discriminator_lr_decay_step_size"],
+                    gamma=net_conf["discriminator_lr_decay_size"],
+                )
+            }
+        )
     return scheduler
 
 

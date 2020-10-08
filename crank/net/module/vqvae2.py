@@ -89,9 +89,11 @@ class VQVAE2(nn.Module):
         for n in range(self.conf["n_vq_stacks"]):
             if n == 0:
                 enc = self.encoders[n](x, c=enc_h)
-                enc, spkr_cls = torch.split(
-                    enc, [self.conf["emb_dim"][n], self.spkr_size], dim=1
-                )
+                spkr_cls = None
+                if self.conf["encoder_spkr_classifier"]:
+                    enc, spkr_cls = torch.split(
+                        enc, [self.conf["emb_dim"][n], self.spkr_size], dim=1
+                    )
             else:
                 enc = self.encoders[n](enc, c=None)
             encoded.append(enc)
@@ -139,7 +141,9 @@ class VQVAE2(nn.Module):
         for n in range(self.conf["n_vq_stacks"]):
             if n == 0:
                 enc_in_channels = self.conf["input_size"]
-                enc_out_channels = self.conf["emb_dim"][n] + self.spkr_size
+                enc_out_channels = self.conf["emb_dim"][n]
+                if self.conf["encoder_spkr_classifier"]:
+                    enc_out_channels += self.spkr_size
                 enc_aux_channels = self.conf["enc_aux_size"]
                 dec_in_channels = sum(
                     [self.conf["emb_dim"][i] for i in range(self.conf["n_vq_stacks"])]
