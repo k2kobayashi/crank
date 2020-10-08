@@ -122,16 +122,17 @@ class CycleGANTrainer(LSGANTrainer, CycleVQVAETrainer):
                     .forward(outputs[c][io]["decoded"].transpose(1, 2))
                     .transpose(1, 2)
                 )
-                D_outputs, spkr_cls = torch.split(D_outputs, [1, self.n_spkrs], dim=2)
-                D_outputs = D_outputs.masked_select(mask)
-                loss["ce_adv_{}".format(lbl)] = self.criterion["ce"](
-                    spkr_cls.reshape(-1, spkr_cls.size(2)),
-                    batch["{}_h_scalar".format(io)].reshape(-1),
-                )
+                if self.conf["acgan_flag"]:
+                    D_outputs, spkr_cls = torch.split(D_outputs, [1, self.n_spkrs], dim=2)
+                    D_outputs = D_outputs.masked_select(mask)
+                    loss["ce_adv_{}".format(lbl)] = self.criterion["ce"](
+                        spkr_cls.reshape(-1, spkr_cls.size(2)),
+                        batch["{}_h_scalar".format(io)].reshape(-1),
+                    )
+                    loss["G"] += self.conf["alphas"]["ce"] * loss["ce_adv_{}".format(lbl)]
                 loss["adv_{}".format(lbl)] = self.criterion["mse"](
                     D_outputs, torch.ones_like(D_outputs)
                 )
-                loss["G"] += self.conf["alphas"]["ce"] * loss["ce_adv_{}".format(lbl)]
                 loss["G"] += self.conf["alphas"]["adv"] * loss["adv_{}".format(lbl)]
         return loss
 
