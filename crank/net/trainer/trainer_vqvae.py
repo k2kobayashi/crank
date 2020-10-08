@@ -164,15 +164,15 @@ class VQVAETrainer(BaseTrainer):
         mask = batch["mask"]
         feats = batch["feats"]
         decoded = outputs["decoded"]
-        loss["l1"] = self.criterion["fl1"](feats, decoded, mask=mask)
-        loss["mse"] = self.criterion["fmse"](feats, decoded, mask=mask)
-        loss["stft"] = self.criterion["fstft"](feats, decoded)
+        loss["l1"] = self.criterion["fl1"](decoded, feats, mask=mask)
+        loss["mse"] = self.criterion["fmse"](decoded, feats, mask=mask)
+        loss["stft"] = self.criterion["fstft"](decoded, feats)
         if self.conf["encoder_spkr_classifier"]:
             loss["ce"] = self.criterion["ce"](
                 outputs["spkr_cls"].reshape(-1, outputs["spkr_cls"].size(2)),
                 batch["org_h_scalar"].reshape(-1),
             )
-
+            
         # loss for vq
         encoded = outputs["encoded"]
         emb_idx = outputs["emb_idx"]
