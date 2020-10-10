@@ -8,13 +8,38 @@
 
 
 """
-Multi-resolution STFT Loss
+CustomFeature Loss and Multi-resolution STFT Loss
 
 """
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
+
+class CustomFeatureLoss(nn.Module):
+    def __init__(self, loss_type="l1", causal_size=0, stft_params={}):
+        super(CustomFeatureLoss, self).__init__()
+        self.loss_type = loss_type
+        self.causal_size = causal_size
+        if loss_type == "l1":
+            self.loss_func = nn.L1Loss()
+        elif loss_type == "mse":
+            self.loss_func = nn.MSELoss()
+        elif loss_type == "stft":
+            self.loss_func = MultiSizeSTFTLoss(**stft_params)
+
+    def forward(self, x, y, mask=None):
+        if self.causal_size != 0:
+            x = x[:, self.causal_size :]
+            y = y[:, : -self.causal_size]
+            if mask is not None:
+                mask = mask[:, self.causal_size :]
+
+        if mask is not None:
+            x = x.masked_select(mask)
+            y = y.masked_select(mask)
+        return self.loss_func(x, y)
 
 
 def stft(x, fft_size, hop_size, win_size, window):
@@ -79,28 +104,3 @@ class MultiSizeSTFTLoss(nn.Module):
             losses.append(loss)
         loss = sum(losses) / len(losses)
         return loss
-
-
-class CustomFeatureLoss(nn.Module):
-    def __init__(self, loss_type="l1", causal_size=0, stft_params={}):
-        super(CustomFeatureLoss, self).__init__()
-        self.loss_type = loss_type
-        self.causal_size = causal_size
-        if loss_type == "l1":
-            self.loss_func = nn.L1Loss()
-        elif loss_type == "mse":
-            self.loss_func = nn.MSELoss()
-        elif loss_type == "stft":
-            self.loss_func = MultiSizeSTFTLoss(**stft_params)
-
-    def forward(self, x, y, mask=None):
-        if self.causal_size != 0:
-            x = x[:, self.causal_size:]
-            y = y[:, :-self.causal_size]
-            if mask is not None:
-                mask = mask[:, self.causal_size:]
-
-        if mask is not None:
-            x = x.masked_select(mask)
-            y = y.masked_select(mask)
-        return self.loss_func(x, y)

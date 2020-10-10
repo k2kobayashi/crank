@@ -65,18 +65,14 @@ class CycleVQVAETrainer(VQVAETrainer):
         return loss_values
 
     def forward_cycle(self, batch, loss, phase="train"):
-        enc_h = self._generate_conditions(batch, encoder=True)
-        enc_h_cv = self._generate_conditions(batch, use_cvfeats=True, encoder=True)
-        dec_h = self._generate_conditions(batch)
-        dec_h_cv = self._generate_conditions(batch, use_cvfeats=True)
+        enc_h = self._get_enc_h(batch)
+        enc_h_cv = self._get_enc_h(batch, use_cvfeats=True)
+        dec_h, spkrvec = self._get_dec_h(batch)
+        dec_h_cv, spkrvec_cv = self._get_dec_h(batch, use_cvfeats=True)
 
         feats = batch["feats_sa"] if self.conf["spec_augment"] else batch["feats"]
         cycle_outputs = self.model["G"].cycle_forward(
-            feats,
-            org_enc_h=enc_h,
-            org_dec_h=dec_h,
-            cv_enc_h=enc_h_cv,
-            cv_dec_h=dec_h_cv,
+            feats, enc_h, dec_h, enc_h_cv, dec_h_cv, spkrvec, spkrvec_cv
         )
         loss = self.calculate_vqvae_loss(batch, cycle_outputs[0]["org"], loss)
         loss = self.calculate_cyclevqvae_loss(batch, cycle_outputs, loss)
@@ -138,8 +134,12 @@ class CycleVQVAETrainer(VQVAETrainer):
                 elif io == "recon":
                     feats = batch["feats"]
                     decoded = o["decoded"]
-                    loss["l1_{}".format(lbl)] = self.criterion["fl1"](decoded, feats, mask=mask)
-                    loss["mse_{}".format(lbl)] = self.criterion["fmse"](decoded, feats, mask=mask)
+                    loss["l1_{}".format(lbl)] = self.criterion["fl1"](
+                        decoded, feats, mask=mask
+                    )
+                    loss["mse_{}".format(lbl)] = self.criterion["fmse"](
+                        decoded, feats, mask=mask
+                    )
                     loss["stft_{}".format(lbl)] = self.criterion["fstft"](
                         o["decoded"], batch["feats"]
                     )

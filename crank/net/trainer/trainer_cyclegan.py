@@ -63,19 +63,15 @@ class CycleGANTrainer(LSGANTrainer, CycleVQVAETrainer):
         return self.forward_lsgan(batch, loss, phase=phase)
 
     def update_G(self, batch, loss, phase="train"):
-        enc_h = self._generate_conditions(batch, encoder=True)
-        enc_h_cv = self._generate_conditions(batch, use_cvfeats=True, encoder=True)
-        dec_h = self._generate_conditions(batch)
-        dec_h_cv = self._generate_conditions(batch, use_cvfeats=True)
+        enc_h = self._get_enc_h(batch)
+        enc_h_cv = self._get_enc_h(batch, use_cvfeats=True)
+        dec_h, spkrvec = self._get_dec_h(batch)
+        dec_h_cv, spkrvec_cv = self._get_dec_h(batch, use_cvfeats=True)
         feats = batch["feats_sa"] if self.conf["spec_augment"] else batch["feats"]
 
         # cycle loss
         cycle_outputs = self.model["G"].cycle_forward(
-            feats,
-            org_enc_h=enc_h,
-            org_dec_h=dec_h,
-            cv_enc_h=enc_h_cv,
-            cv_dec_h=dec_h_cv,
+            feats, enc_h, dec_h, enc_h_cv, dec_h_cv, spkrvec, spkrvec_cv
         )
         loss = self.calculate_vqvae_loss(batch, cycle_outputs[0]["org"], loss)
         loss = self.calculate_cyclevqvae_loss(batch, cycle_outputs, loss)
@@ -95,19 +91,15 @@ class CycleGANTrainer(LSGANTrainer, CycleVQVAETrainer):
         return loss
 
     def update_D(self, batch, loss, phase="train"):
-        enc_h = self._generate_conditions(batch, encoder=True)
-        enc_h_cv = self._generate_conditions(batch, use_cvfeats=True, encoder=True)
-        dec_h = self._generate_conditions(batch)
-        dec_h_cv = self._generate_conditions(batch, use_cvfeats=True)
+        enc_h = self._get_enc_h(batch)
+        enc_h_cv = self._get_enc_h(batch, use_cvfeats=True)
+        dec_h, spkrvec = self._get_dec_h(batch)
+        dec_h_cv, spkrvec_cv = self._get_dec_h(batch, use_cvfeats=True)
         feats = batch["feats_sa"] if self.conf["spec_augment"] else batch["feats"]
 
         # train discriminator
         outputs = self.model["G"].cycle_forward(
-            feats,
-            org_enc_h=enc_h,
-            org_dec_h=dec_h,
-            cv_enc_h=enc_h_cv,
-            cv_dec_h=dec_h_cv,
+            feats, enc_h, dec_h, enc_h_cv, dec_h_cv, spkrvec, spkrvec_cv
         )
         loss = self.calculate_cyclediscriminator_loss(batch, outputs, loss)
 
@@ -128,13 +120,17 @@ class CycleGANTrainer(LSGANTrainer, CycleVQVAETrainer):
                     .transpose(1, 2)
                 )
                 if self.conf["acgan_flag"]:
-                    D_outputs, spkr_cls = torch.split(D_outputs, [1, self.n_spkrs], dim=2)
+                    D_outputs, spkr_cls = torch.split(
+                        D_outputs, [1, self.n_spkrs], dim=2
+                    )
                     D_outputs = D_outputs.masked_select(mask)
                     loss["ce_adv_{}".format(lbl)] = self.criterion["ce"](
                         spkr_cls.reshape(-1, spkr_cls.size(2)),
                         batch["{}_h_scalar".format(io)].reshape(-1),
                     )
-                    loss["G"] += self.conf["alphas"]["ce"] * loss["ce_adv_{}".format(lbl)]
+                    loss["G"] += (
+                        self.conf["alphas"]["ce"] * loss["ce_adv_{}".format(lbl)]
+                    )
                 loss["adv_{}".format(lbl)] = self.criterion["mse"](
                     D_outputs, torch.ones_like(D_outputs)
                 )
