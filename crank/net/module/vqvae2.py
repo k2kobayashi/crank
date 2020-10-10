@@ -211,7 +211,7 @@ class VQVAE2(nn.Module):
                 )
             )
             self.quantizers.append(
-                Quantize(
+                Quantizer(
                     self.conf["emb_dim"][n],
                     self.conf["emb_size"][n],
                     ema_flag=self.conf["ema_flag"],
@@ -220,7 +220,7 @@ class VQVAE2(nn.Module):
             )
 
 
-class Quantize(nn.Module):
+class Quantizer(nn.Module):
     def __init__(
         self, emb_dim, emb_size, decay=0.99, eps=1e-5, ema_flag=False, bdt_flag=False
     ):
