@@ -34,13 +34,15 @@ class VQVAE2(nn.Module):
                     self.conf["embedding_transform_size"],
                 )
 
-    def forward(self, x, enc_h=None, dec_h=None, use_ema=True):
+    def forward(self, x, enc_h=None, dec_h=None, use_ema=True, encoder_detach=False):
         x = x.transpose(1, 2)
         enc_h = enc_h.transpose(1, 2) if enc_h is not None else None
         dec_h = dec_h.transpose(1, 2) if dec_h is not None else None
 
         enc, spkr_cls = self.encode(x, enc_h=enc_h)
-        enc, dec, emb_idxs, _, qidxs = self.decode(enc, dec_h, use_ema=use_ema)
+        enc, dec, emb_idxs, _, qidxs = self.decode(
+            enc, dec_h, use_ema=use_ema, detach=encoder_detach
+        )
         outputs = self.make_dict(enc, dec, emb_idxs, qidxs, spkr_cls)
         return outputs
 
@@ -99,7 +101,7 @@ class VQVAE2(nn.Module):
             encoded.append(enc)
         return encoded, spkr_cls
 
-    def decode(self, enc, dec_h, use_ema=True):
+    def decode(self, enc, dec_h, use_ema=True, detach=False):
         # decode
         dec = 0
         emb_idxs, emb_idx_qxs, qidxs = [], [], []
@@ -107,6 +109,8 @@ class VQVAE2(nn.Module):
             # vq
             enc[n] = enc[n] + dec
             emb_idx, emb_idx_qx, qidx = self.quantizers[n](enc[n], use_ema=use_ema)
+            if detach:
+                emb_idx_qx = emb_idx_qx.detach()
             emb_idxs.append(emb_idx)
             emb_idx_qxs.append(emb_idx_qx)
             qidxs.append(qidx)
