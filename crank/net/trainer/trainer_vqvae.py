@@ -103,11 +103,11 @@ class VQVAETrainer(BaseTrainer):
                     )
                     flen = batch["flen"][n]
                     normed_feat = to_numpy(recon[n][:flen])
-                    feat = self.scaler[self.conf["feat_type"]].inverse_transform(
+                    feats = self.scaler[self.conf["feat_type"]].inverse_transform(
                         normed_feat
                     )
                     feat2hdf5(
-                        feat,
+                        feats,
                         wavf,
                         ext="feats_recon_{}-{}-{}".format(
                             org_spkr_name, cv_name, org_spkr_name
@@ -149,6 +149,9 @@ class VQVAETrainer(BaseTrainer):
         outputs = self.model["G"].forward(feats, enc_h=enc_h, dec_h=dec_h)
         loss = self.calculate_vqvae_loss(batch, outputs, loss)
 
+        if self.conf["speaker_adversarial"]:
+            loss = self.calculate_spkradv_loss(batch, outputs, loss, phase=phase)
+
         # Train clasifier using converted feature
         if self.conf["train_cv_classifier"]:
             loss = self.calculate_cv_spkr_cls_loss(feats, batch, enc_h, loss)
@@ -186,6 +189,20 @@ class VQVAETrainer(BaseTrainer):
                     encoded[n].masked_select(mask).detach(),
                 )
         loss = self._parse_vqvae_loss(loss)
+        return loss
+
+    def calculate_spkradv_loss(self, batch, outputs, loss, phase="train"):
+        advspkr_class = self.model["SPKRADV"].forward(outputs["encoded"])
+        loss["SPKRADV"] = self.criterion["ce"](
+            advspkr_class.reshape(-1, advspkr_class.size(2)),
+            batch["org_h_scalar"].reshape(-1),
+        )
+        loss["G"] += self.conf["alphas"]["ce"] * loss["SPKRADV"]
+
+        if phase == "train":
+            self.optimizer["SPKRADV"].zero_grad()
+            loss["SPKRADV"].backward(retain_graph=True)
+            self.optimizer["SPKRADV"].step()
         return loss
 
     def _parse_vqvae_loss(self, loss):

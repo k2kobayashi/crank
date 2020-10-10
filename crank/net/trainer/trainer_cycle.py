@@ -80,6 +80,12 @@ class CycleVQVAETrainer(VQVAETrainer):
         )
         loss = self.calculate_vqvae_loss(batch, cycle_outputs[0]["org"], loss)
         loss = self.calculate_cyclevqvae_loss(batch, cycle_outputs, loss)
+
+        if self.conf["speaker_adversarial"]:
+            loss = self.calculate_spkradv_loss(
+                batch, cycle_outputs[0]["org"], loss, phase=phase
+            )
+
         loss["objective"] += loss["G"]
         if phase == "train":
             self.optimizer["G"].zero_grad()

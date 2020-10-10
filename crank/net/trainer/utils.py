@@ -69,6 +69,26 @@ def get_optimizer(net_conf, model):
                 adam=False,
             )
         optimizer.update({"D": Dopt})
+
+    if "SPKRADV" in model:
+        if net_conf["optimizer"] == "adam":
+            SPKRADVopt = optim.Adam(
+                model["SPKRADV"].parameters(), lr=net_conf["spkradv_lr"]
+            )
+        elif net_conf["optimizer"] == "radam":
+            SPKRADVopt = toptim.RAdam(
+                model["SPKRADV"].parameters(), lr=net_conf["spkradv_lr"]
+            )
+        elif net_conf["optimizer"] == "lamb":
+            SPKRADVopt = Lamb(
+                model["SPKRADV"].parameters(),
+                lr=net_conf["spkradv_lr"],
+                weight_decay=0.01,
+                betas=(0.9, 0.999),
+                adam=False,
+            )
+        optimizer.update({"SPKRADV": SPKRADVopt})
+
     return optimizer
 
 
@@ -83,10 +103,20 @@ def get_scheduler(net_conf, optimizer):
     if "D" in optimizer:
         scheduler.update(
             {
-                "discriminator": StepLR(
+                "D": StepLR(
                     optimizer["D"],
                     step_size=net_conf["discriminator_lr_decay_step_size"],
                     gamma=net_conf["discriminator_lr_decay_size"],
+                )
+            }
+        )
+    if "SPKRADV" in optimizer:
+        scheduler.update(
+            {
+                "SPKRADV": StepLR(
+                    optimizer["SPKRADV"],
+                    step_size=net_conf["spkradv_lr_decay_step_size"],
+                    gamma=net_conf["spkradv_lr_decay_size"],
                 )
             }
         )

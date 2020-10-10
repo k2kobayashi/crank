@@ -26,6 +26,7 @@ from tensorboardX import SummaryWriter
 from parallel_wavegan.models import ParallelWaveGANDiscriminator
 
 from crank.net.module.vqvae2 import VQVAE2
+from crank.net.module.spkradv import SpeakerAdversarialNetwork
 from crank.utils import load_yaml, open_scpdir, open_featsscp
 from crank.net.trainer.utils import (
     get_optimizer,
@@ -64,7 +65,7 @@ def get_model(conf, spkr_size=0, device="cuda"):
             D = ParallelWaveGANDiscriminator(
                 in_channels=conf["input_size"],
                 out_channels=output_channels,
-                kernel_size=conf["kernel_size"][0],
+                kernel_size=conf["discriminator_kernel_size"],
                 layers=conf["n_discriminator_layers"],
                 conv_channels=64,
                 dilation_factor=1,
@@ -77,6 +78,11 @@ def get_model(conf, spkr_size=0, device="cuda"):
             raise NotImplementedError()
         models.update({"D": D.to(device)})
         logging.info(models["D"])
+
+    if conf["speaker_adversarial"]:
+        SPKRADV = SpeakerAdversarialNetwork(conf, spkr_size)
+        models.update({"SPKRADV": SPKRADV.to(device)})
+        logging.info(models["SPKRADV"])
     return models
 
 

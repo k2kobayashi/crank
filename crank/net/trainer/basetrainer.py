@@ -85,9 +85,8 @@ class BaseTrainer(object):
         if not isinstance(self.scheduler, dict):
             self.scheduler.step(self.steps)
         else:
-            self.scheduler["G"].step(self.steps)
-            if "D" in self.scheduler:
-                self.scheduler["D"].step(self.steps)
+            for k in self.scheduler:
+                self.scheduler[k].step(self.steps)
 
         self.finish_train = False
         self.tqdm = tqdm(initial=self.steps, total=self.conf["n_steps"], desc="train")
@@ -240,9 +239,8 @@ class BaseTrainer(object):
             if not isinstance(self.scheduler, dict):
                 self.scheduler.step()
             else:
-                self.scheduler["G"].step()
-                if "D" in self.scheduler:
-                    self.scheduler["D"].step()
+                for k in self.scheduler:
+                    self.scheduler[k].step(self.steps)
 
     def _check_finish(self):
         if self.steps > self.conf["n_steps"]:

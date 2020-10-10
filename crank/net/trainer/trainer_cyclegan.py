@@ -80,6 +80,11 @@ class CycleGANTrainer(LSGANTrainer, CycleVQVAETrainer):
         loss = self.calculate_vqvae_loss(batch, cycle_outputs[0]["org"], loss)
         loss = self.calculate_cyclevqvae_loss(batch, cycle_outputs, loss)
 
+        if self.conf["speaker_adversarial"]:
+            loss = self.calculate_spkradv_loss(
+                batch, cycle_outputs[0]["org"], loss, phase=phase
+            )
+
         # adversarial loss for org and cv
         loss = self.calculate_cycleadv_loss(batch, cycle_outputs, loss)
 

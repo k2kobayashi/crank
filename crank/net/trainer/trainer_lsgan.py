@@ -111,6 +111,9 @@ class LSGANTrainer(VQVAETrainer):
         if self.conf["speaker_adversarial"]:
             loss = self.calculate_spkradv_loss(batch, outputs, loss, phase=phase)
 
+        if self.conf["speaker_adversarial"]:
+            loss = self.calculate_spkradv_loss(batch, outputs, loss, phase=phase)
+
         if phase == "train" and not self.stop_generator:
             self.optimizer["G"].zero_grad()
             loss["G"].backward()
