@@ -34,8 +34,13 @@ class VQVAE2(nn.Module):
                     self.conf["embedding_transform_size"],
                 )
 
-    def forward(self, x, enc_h=None, dec_h=None, use_ema=True, encoder_detach=False):
+    def forward(
+        self, x, enc_h, dec_h, spkrvec=None, use_ema=True, encoder_detach=False
+    ):
         x = x.transpose(1, 2)
+        if spkrvec is not None:
+            spkremb = self.spkr_embedding(spkrvec)
+            dec_h = torch.cat([dec_h, spkremb], axis=-1)
         enc_h = enc_h.transpose(1, 2) if enc_h is not None else None
         dec_h = dec_h.transpose(1, 2) if dec_h is not None else None
 
@@ -47,9 +52,15 @@ class VQVAE2(nn.Module):
         return outputs
 
     def cycle_forward(
-        self, x, org_enc_h=None, org_dec_h=None, cv_enc_h=None, cv_dec_h=None
+        self, x, org_enc_h, org_dec_h, cv_enc_h, cv_dec_h, org_spkrvec, cv_spkrvec
     ):
         x = x.transpose(1, 2)
+        if org_spkrvec is not None:
+            org_spkremb = self.spkr_embedding(org_spkrvec)
+            org_dec_h = torch.cat([org_dec_h, org_spkremb], axis=-1)
+        if cv_spkrvec is not None:
+            cv_spkremb = self.spkr_embedding(cv_spkrvec)
+            cv_dec_h = torch.cat([cv_dec_h, cv_spkremb], axis=-1)
         org_enc_h = org_enc_h.transpose(1, 2) if org_enc_h is not None else None
         org_dec_h = org_dec_h.transpose(1, 2) if org_dec_h is not None else None
         cv_enc_h = cv_enc_h.transpose(1, 2) if cv_enc_h is not None else None

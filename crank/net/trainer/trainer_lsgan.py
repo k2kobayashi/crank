@@ -86,22 +86,21 @@ class LSGANTrainer(VQVAETrainer):
 
     def update_G(self, batch, loss, phase="train"):
         # train generator
-        enc_h = self._generate_conditions(batch, encoder=True)
-        dec_h = self._generate_conditions(batch)
+        enc_h = self._get_enc_h(batch)
+        dec_h, spkrvec = self._get_dec_h(batch)
         feats = batch["feats_sa"] if self.conf["spec_augment"] else batch["feats"]
-        outputs = self.model["G"].forward(feats, enc_h=enc_h, dec_h=dec_h)
+        h_scalar = batch["org_h_scalar"]
+        outputs = self.model["G"].forward(feats, enc_h, dec_h, spkrvec)
         loss = self.calculate_vqvae_loss(batch, outputs, loss)
 
         if self.conf["cvadv_flag"]:
-            dec_h = self._generate_conditions(batch, use_cvfeats=True)
+            dec_h, spkrvec = self._get_dec_h(batch, use_cvfeats=True)
             h_scalar = batch["cv_h_scalar"]
-        else:
-            h_scalar = batch["org_h_scalar"]
-        # detached encoder output
         outputs = self.model["G"].forward(
             feats,
-            enc_h=enc_h,
-            dec_h=dec_h,
+            enc_h,
+            dec_h,
+            spkrvec=spkrvec,
             use_ema=False,
             encoder_detach=self.conf["encoder_detach"],
         )
@@ -122,18 +121,18 @@ class LSGANTrainer(VQVAETrainer):
 
     def update_D(self, batch, loss, phase="train"):
         # train discriminator
-        enc_h = self._generate_conditions(batch, encoder=True)
+        enc_h = self._get_enc_h(batch)
         feats = batch["feats_sa"] if self.conf["spec_augment"] else batch["feats"]
         mask = batch["mask"]
 
         # calculate fake D loss
         if self.conf["cvadv_flag"]:
-            dec_h = self._generate_conditions(batch, use_cvfeats=True)
+            dec_h, spkrvec = self._get_dec_h(batch, use_cvfeats=True)
             h_scalar = batch["cv_h_scalar"]
         else:
-            dec_h = self._generate_conditions(batch)
+            dec_h, spkrvec = self._get_dec_h(batch)
             h_scalar = batch["org_h_scalar"]
-        outputs = self.model["G"].forward(feats, enc_h=enc_h, dec_h=dec_h)
+        outputs = self.model["G"].forward(feats, enc_h, dec_h, spkrvec)
         decoded = outputs["decoded"].detach()
         fake = self.model["D"].forward(decoded.transpose(1, 2)).transpose(1, 2)
         loss = self.calculate_discriminator_loss(

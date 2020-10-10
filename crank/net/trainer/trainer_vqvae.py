@@ -65,88 +65,71 @@ class VQVAETrainer(BaseTrainer):
     def dev(self, batch):
         loss_values = self.train(batch, phase="dev")
         for cv_spkr_name in random.sample(list(self.spkrs.keys()), self.n_cv_spkrs):
-            enc_h = self._generate_conditions(batch, encoder=True)
-            dec_h = self._generate_conditions(batch, cv_spkr_name=cv_spkr_name)
-            outputs = self.model["G"].forward(batch["feats"], enc_h=enc_h, dec_h=dec_h)
+            enc_h = self._get_enc_h(batch)
+            dec_h, spkrvec = self._get_dec_h(batch, cv_spkr_name=cv_spkr_name)
+            outputs = self.model["G"].forward(
+                batch["feats"], enc_h, dec_h, spkrvec=spkrvec
+            )
             self._generate_cvwav(batch, outputs, cv_spkr_name, tdir="dev_wav")
         return loss_values
 
     @torch.no_grad()
     def reconstruction(self, batch, tdir="reconstruction"):
         self.conf["n_gl_samples"] = 1
-        enc_h = self._generate_conditions(batch, encoder=True)
-        dec_h = self._generate_conditions(batch, cv_spkr_name=None)
-        outputs = self.model["G"].forward(batch["feats"], enc_h=enc_h, dec_h=dec_h)
+        enc_h = self._get_enc_h(batch)
+        dec_h, spkrvec = self._get_dec_h(batch, cv_spkr_name=None)
+        outputs = self.model["G"].forward(batch["feats"], enc_h, dec_h, spkrvec=spkrvec)
         self._generate_cvwav(batch, outputs, None, tdir=tdir)
 
         if self.conf["cycle_reconstruction"]:
             recondir = self.expdir / tdir / str(self.steps)
             for cv_spkr_name in self.spkrs.keys():
-                enc_h_cv = self._generate_conditions(
-                    batch, cv_spkr_name=cv_spkr_name, encoder=True
-                )
-                dec_h_cv = self._generate_conditions(batch, cv_spkr_name=cv_spkr_name)
+                enc_h_cv = self._get_enc_h(batch, cv_spkr_name=cv_spkr_name)
+                dec_h_cv, spkrvec_cv = self._get_dec_h(batch, cv_spkr_name=cv_spkr_name)
                 cycle_outputs = self.model["G"].cycle_forward(
                     batch["feats"],
-                    org_enc_h=enc_h,
-                    org_dec_h=dec_h,
-                    cv_enc_h=enc_h_cv,
-                    cv_dec_h=dec_h_cv,
+                    enc_h,
+                    dec_h,
+                    enc_h_cv,
+                    dec_h_cv,
+                    spkrvec,
+                    spkrvec_cv,
                 )
                 recon = cycle_outputs[0]["recon"]["decoded"]
 
                 for n in range(recon.size(0)):
                     org_spkr_name = batch["org_spkr_name"][n]
                     cv_name = org_spkr_name if cv_spkr_name is None else cv_spkr_name
-                    wavf = recondir / "{}_org-{}_cv-{}.wav".format(
-                        batch["flbl"][n], org_spkr_name, org_spkr_name
-                    )
                     flen = batch["flen"][n]
                     normed_feat = to_numpy(recon[n][:flen])
                     feats = self.scaler[self.conf["feat_type"]].inverse_transform(
                         normed_feat
                     )
-                    feat2hdf5(
-                        feats,
-                        wavf,
-                        ext="feats_recon_{}-{}-{}".format(
-                            org_spkr_name, cv_name, org_spkr_name
-                        ),
+                    ext = "feats_recon_{}-{}-{}".format(
+                        org_spkr_name, cv_name, org_spkr_name
                     )
+                    wavf = recondir / "{}_org-{}_cv-{}.wav".format(
+                        batch["flbl"][n], org_spkr_name, org_spkr_name
+                    )
+                    feat2hdf5(feats, wavf, ext=ext),
 
     @torch.no_grad()
     def eval(self, batch):
         self.conf["n_gl_samples"] = 1
         for cv_spkr_name in self.spkrs.keys():
-            enc_h = self._generate_conditions(batch, encoder=True)
-            dec_h = self._generate_conditions(batch, cv_spkr_name=cv_spkr_name)
-            outputs = self.model["G"].forward(batch["feats"], enc_h=enc_h, dec_h=dec_h)
+            enc_h = self._get_enc_h(batch)
+            dec_h, spkrvec = self._get_dec_h(batch, cv_spkr_name=cv_spkr_name)
+            outputs = self.model["G"].forward(
+                batch["feats"], enc_h, dec_h, spkrvec=spkrvec
+            )
             self._generate_cvwav(batch, outputs, cv_spkr_name, tdir="eval_wav")
-
-        # NOTE (2020/10/01): disable manual embedding due to its rough implementation
-        # if not self.conf["decode_with_manual_embedding"]:
-        #     for val in [-1, -0.5, 0, 0.5, 1.0]:
-        #         enc_h = self._generate_conditions(batch, encoder=True)
-        #         dec_h = self._generate_conditions(batch)
-        #         dec_h = self._modify_spkr_embedding(dec_h, val)
-        #         outputs = self.model["G"].forward(
-        #             batch["feats"], enc_h=enc_h, dec_h=dec_h
-        #         )
-        #         self._generate_cvwav(batch, outputs, tdir="eval_wav_{}".format(val))
-
-    def _modify_spkr_embedding(self, dec_h, val):
-        if self.conf["decoder_f0"]:
-            dec_h[..., self.conf["dec_aux_size"] :] = val
-        else:
-            dec_h[..., :] = val
-        return dec_h
 
     def forward_vqvae(self, batch, loss, phase="train"):
         # train generator
-        enc_h = self._generate_conditions(batch, encoder=True)
-        dec_h = self._generate_conditions(batch, encoder=False)
+        enc_h = self._get_enc_h(batch)
+        dec_h, spkrvec = self._get_dec_h(batch)
         feats = batch["feats_sa"] if self.conf["spec_augment"] else batch["feats"]
-        outputs = self.model["G"].forward(feats, enc_h=enc_h, dec_h=dec_h)
+        outputs = self.model["G"].forward(feats, enc_h, dec_h, spkrvec=spkrvec)
         loss = self.calculate_vqvae_loss(batch, outputs, loss)
 
         if self.conf["speaker_adversarial"]:
@@ -175,7 +158,7 @@ class VQVAETrainer(BaseTrainer):
                 outputs["spkr_cls"].reshape(-1, outputs["spkr_cls"].size(2)),
                 batch["org_h_scalar"].reshape(-1),
             )
-            
+
         # loss for vq
         encoded = outputs["encoded"]
         emb_idx = outputs["emb_idx"]
@@ -221,8 +204,8 @@ class VQVAETrainer(BaseTrainer):
         return loss
 
     def calculate_cv_spkr_cls_loss(self, feats, batch, enc_h, loss):
-        dec_h_cv = self._generate_conditions(batch, use_cvfeats=True)
-        cv_outputs = self.model["G"].forward(feats, enc_h=enc_h, dec_h=dec_h_cv)
+        dec_h_cv, spkrvec = self._get_dec_h(batch, use_cvfeats=True)
+        cv_outputs = self.model["G"].forward(feats, enc_h, dec_h_cv, spkrvec=spkrvec)
         _, cv_spkr_cls = self.model["G"].encode(
             cv_outputs["decoded"].detach().transpose(1, 2)
         )
@@ -234,95 +217,60 @@ class VQVAETrainer(BaseTrainer):
         loss["G"] += self.conf["alphas"]["ce"] * loss["ce_cv"]
         return loss
 
-    def _generate_conditions(
-        self, batch, cv_spkr_name=None, use_cvfeats=False, encoder=False
-    ):
-        def _prepare_feats(batch, cv_spkr_name, use_cvfeats):
-            if cv_spkr_name is not None:
-                # use specified cv speaker
-                spkr_num = self.spkrs[cv_spkr_name]
-                B, T, _ = batch["feats"].size()
-                lcf0 = torch.tensor(self._get_cvf0(batch, cv_spkr_name)).to(self.device)
-                uv = batch["uv"]
-                h_onehot = torch.tensor(
-                    create_one_hot(T, self.n_spkrs, spkr_num, B=B)
-                ).to(self.device)
+    def _get_dec_h(self, batch, use_cvfeats=False, cv_spkr_name=None):
+        f0, h_onehot, h_scalar = self._prepare_feats(batch, cv_spkr_name, use_cvfeats)
+        if not self.conf["use_spkr_embedding"]:
+            if self.conf["decoder_f0"]:
+                return torch.cat([f0, h_onehot], dim=-1), None
             else:
-                if use_cvfeats:
-                    # use randomly selected cv speaker
-                    lcf0, uv, h_onehot = (
-                        batch["cv_lcf0"],
-                        batch["uv"],
-                        batch["cv_h_onehot"],
-                    )
-                else:
-                    # use org speaker
-                    lcf0, uv, h_onehot = (
-                        batch["lcf0"],
-                        batch["uv"],
-                        batch["org_h_onehot"],
-                    )
-            return lcf0, uv, h_onehot
-
-        def _return_conditions(lcf0, uv, spkrcode, encoder):
-            # return conditions
-            if encoder:
-                if self.conf["encoder_f0"]:
-                    # encoder w/ f0
-                    return torch.cat([lcf0, uv], dim=-1).to(self.device)
-                else:
-                    # encoder w/o f0
-                    return None
+                return h_onehot, None
+        else:
+            if self.conf["decoder_f0"]:
+                return f0, h_scalar
             else:
-                if self.conf["decoder_f0"]:
-                    # decoder w/ f0
-                    return torch.cat([lcf0, uv, spkrcode], dim=-1).to(self.device)
-                else:
-                    # decoder w/o f0
-                    return spkrcode.to(self.device)
+                return None, h_scalar
 
-        def _generate_spkrembedding(batch, cv_spkr_name, use_cvfeats):
+    def _get_enc_h(self, batch, use_cvfeats=False, cv_spkr_name=None):
+        if self.conf["encoder_f0"]:
+            f0, _, _ = self._prepare_feats(batch, cv_spkr_name, use_cvfeats)
+            return f0
+        else:
+            return None
+
+    def _prepare_feats(self, batch, cv_spkr_name, use_cvfeats=False):
+        if cv_spkr_name is not None:
+            # use specified cv speaker
             B, T, _ = batch["feats"].size()
-            if cv_spkr_name is not None:
-                spkr_num = self.spkrs[cv_spkr_name]
+            spkr_num = self.spkrs[cv_spkr_name]
+            lcf0 = self._get_cvf0(batch, cv_spkr_name)
+            h_onehot_np = create_one_hot(T, self.n_spkrs, spkr_num, B=B)
+            h_onehot = torch.tensor(h_onehot_np).to(self.device)
+            h_scalar = torch.ones((B, T)).long() * self.spkrs[cv_spkr_name]
+            h_scalar = h_scalar.to(self.device)
+        else:
+            if use_cvfeats:
+                # use randomly selected cv speaker by dataset
+                lcf0 = batch["cv_lcf0"]
+                h_onehot = batch["cv_h_onehot"]
+                h_scalar = batch["cv_h_scalar"]
             else:
-                if use_cvfeats:
-                    spkr_num = batch["cv_spkr_num"]
-                else:
-                    spkr_num = batch["org_spkr_num"]
-            spkrvector = (
-                torch.ones((T, B), dtype=torch.long).to(self.device) * spkr_num
-            ).transpose(0, 1)
-            spkrcode = self.model["G"].spkr_embedding(spkrvector)
-
-            if self.conf["use_embedding_transform"]:
-                spkrcode = self.model["G"].embedding_transform(spkrcode)
-                print(spkrcode)
-            return spkrcode
-
-        # prepare lcf0, uv, spkrcode
-        lcf0, uv, spkrcode = _prepare_feats(batch, cv_spkr_name, use_cvfeats)
-
-        # generate spkr embedding
-        if self.conf["use_spkr_embedding"]:
-            spkrcode = _generate_spkrembedding(batch, cv_spkr_name, use_cvfeats)
-
-        # return features
-        return _return_conditions(lcf0, uv, spkrcode, encoder)
+                # use org speaker
+                lcf0 = batch["lcf0"]
+                h_onehot = batch["org_h_onehot"]
+                h_scalar = batch["org_h_scalar"]
+        h_scalar[:, :] = h_scalar[:, 0:1]  # remove ignore_index (i.e., -100)
+        return torch.cat([lcf0, batch["uv"]], axis=-1), h_onehot, h_scalar
 
     def _get_cvf0(self, batch, spkr_name):
         cv_lcf0s = []
         for n in range(batch["feats"].size(0)):
-            cv_lcf0 = self.scaler["lcf0"].transform(
-                convert_f0(
-                    self.scaler,
-                    self.scaler["lcf0"].inverse_transform(to_numpy(batch["lcf0"][n])),
-                    batch["org_spkr_name"][n],
-                    spkr_name,
-                )
+            org_lcf0 = self.scaler["lcf0"].inverse_transform(to_numpy(batch["lcf0"][n]))
+            cv_lcf0 = convert_f0(
+                self.scaler, org_lcf0, batch["org_spkr_name"][n], spkr_name
             )
-            cv_lcf0s.append(torch.tensor(cv_lcf0))
-        return torch.stack(cv_lcf0s, dim=0).float()
+            normed_cv_lcf0 = self.scaler["lcf0"].transform(cv_lcf0)
+            cv_lcf0s.append(torch.tensor(normed_cv_lcf0))
+        return torch.stack(cv_lcf0s, dim=0).float().to(self.device)
 
     def _generate_cvwav(self, batch, outputs, cv_spkr_name=None, tdir="dev_wav"):
         tdir = self.expdir / tdir / str(self.steps)
