@@ -13,31 +13,31 @@ feature:
   n_iteration: 100  # # iterations of GriffinLim
   mlfb_dim: 80      # dimension of mel-spectrogram
 
-# dataloader setting
+# trainer/dataloader setting
 network: vqvae2         # network name ['vqvae']
 feat_type: mlfb         # input feature type ['mlfb', 'mcep']
 trainer_type: vqvae     # trainer type ['vqvae', 'lsgan', 'cycle', 'cyclegan']
 input_size: 80          # input_size of network ['mlfb_dim', 'mcep_dim+1']
 output_size: 80         # output_size of network ['mlfb_dim', 'mcep_dim+1']
-batch_size: 20          # # of mini-batch in a batch
-batch_len: 1000         # frame length of a mini-batch
+batch_size: 20          # # of minibatch in a batch
+batch_len: 1000         # frame length of a minibatch
 spec_augment: false     # apply mask to input
 n_apply_spec_augment: 1 # # of bands of spec_augment
-cache_dataset: true     # cache_dataset (Note cv_spkr_label is fixed over training)
+cache_dataset: true     # cache_dataset (NOTE: cv_spkr_label is fixed among training)
+save_f0_feats: true     # save F0 feature as well
 
 # training setting
-n_steps: 400000            # # of training iteration
+n_steps: 400000            # # of training steps
 dev_steps: 2000            # # of development steps
 n_steps_save_model: 5000   # save model in each # iteration step
 n_steps_print_loss: 50     # print loss in each # iteration step
-n_gl_samples: 5            # # of GriffinLim samples to decode waveform of dev set
-n_cv_spkrs: 5              # # of target speaker of above
-train_cv_classifier: false # train encoder classifying with converted feature
+n_gl_samples: 5            # # of samples to do GriffinLim in dev set
+n_cv_spkrs: 5              # # of target speaker of GriffinLim
 
-# generator setting
+# optimizer setting
 lr: 0.0002                 # learning rate
-lr_decay_size: 0.5         # learning rate decay
-lr_decay_step_size: 200000 # each steps when apply decay
+lr_decay_size: 0.5         # decay for learning rate
+lr_decay_step_size: 200000 # # of steps to apply decay
 optimizer: adam            # optimizer ['adam', 'radam', 'lamb']
 
 # alpha
@@ -70,30 +70,30 @@ stft_params:  # parameters for stft loss of converted/reconstructed feature
      - 32
   logratio: 0 # ratio of L1 between log-magnitude and magnitude
 
-# network setting
+# generator network setting
 encoder_f0: false              # condition source F0 to encoder
-enc_aux_size: 0                # size of source F0
-encoder_spkr_classifier: true  # train speaker classifier in encoder
-decoder_f0: true               # condition cv F0 to decoder
-dec_aux_size: 2                # size of cv F0
+enc_aux_size: 0                # size of source F0 ['0', '2']
+encoder_spkr_classifier: false # train speaker classifier by encoder
+train_cv_classifier: false     # train speaker classifier with with converted
+decoder_f0: true               # conditioning converted f0 to decoder
+dec_aux_size: 2                # size of converted f0 ['0', '2']
 causal: false                  # use causal network
 causal_size: 0                 # # of frames looked up
-use_spkr_embedding: true       # use nn.Embedding instead of 1hot vector
+use_spkr_embedding: true       # use nn.Embedding instead of 1-hot vector
 spkr_embedding_size: 32        # output_size of spkr_embbeding
 use_embedding_transform: false # apply nn.Linear to output of spkr_embedding
-embedding_transform_size: 0    # output dimension of above transform
-save_f0_feats: true            # save F0 feature as well
+embedding_transform_size: 0    # output size of embedding transform
 residual_channels: 64          # # of residual channels for encoder/decoder network
 ema_flag: true                 # use exponential moving average for dictionary of VQ
-n_vq_stacks: 3                 # # of VQ stacks
+n_vq_stacks: 2                 # # of VQ stacks
 n_layers_stacks:
 - 2
 - 2
 - 2
 n_layers:
+- 5
 - 4
 - 3
-- 2
 kernel_size:
 - 5
 - 3
@@ -110,17 +110,28 @@ emb_size:
 # adversarial learning (for ['lsgan', 'cyclegan'] trainer)
 gan_type: lsgan                   # type of GAN ['lsgan']
 discriminator_type: pwg           # type of discriminator network ['pwg']
-train_first: discriminator        # which is updated first ['discriminator', 'generator']
+train_first: discriminator        # updated first ['discriminator', 'generator']
 cvadv_flag: false                 # calculate adv_loss using converted or reconstructed
 acgan_flag: true                  # add additional classifier to discriminator
+encoder_detach: true              # Do not update encoder/VQ of generator by adv_loss
 n_steps_gan_start: 100000         # # of steps to start adv training
 n_steps_stop_generator: 0         # # of steps to stop training discriminator [int>=0]
 n_discriminator_layers: 8         # # of discriminator layers
+discriminator_kernel_size: 5      # kernel_size for discriminator
 discriminator_lr: 0.0001          # learning rate of discriminator
 discriminator_lr_decay_size: 0.5  # learning rate decay for discriminator
-discriminator_lr_decay_step_size: 200000 # learning rate decay for discriminator
+discriminator_lr_decay_step_size: 200000 # # of steps to apply decay for discriminator
 
 # cycle-consistency learning (for ['cycle', 'cyclegan'] trainer)
 n_cycles: 1                 # # of cycles
 n_steps_cycle_start: 100000 # # of steps to start cycle-consistency training
 cycle_reconstruction: false # use cycle_reconstruction for reconstruction
+
+# gradient reversal training for encoder
+speaker_adversarial: false  # use speaker adversarial network
+n_spkradv_layers: 3         # # of layers
+spkradv_kernel_size: 5      # kernel_size for spkr adversarial net
+spkradv_lr: 0.0002          # learning rate
+spkradv_lambda: 1           # hyper-parameter of gradient reversal layer
+spkradv_lr_decay_size: 0.5  # decay size
+spkradv_lr_decay_step_size: 200000 # learning rate decay for spkradv layer
