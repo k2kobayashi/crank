@@ -30,11 +30,17 @@ class CustomFeatureLoss(nn.Module):
             self.loss_func = MultiSizeSTFTLoss(**stft_params)
 
     def forward(self, x, y, mask=None):
-        if self.causal_size != 0:
+        if self.causal_size > 0:
             x = x[:, self.causal_size :]
             y = y[:, : -self.causal_size]
             if mask is not None:
                 mask = mask[:, self.causal_size :]
+        elif self.causal_size < 0:
+            cs = - self.causal_size
+            y = y[:, cs :]
+            x = x[:, : -cs]
+            if mask is not None:
+                mask = mask[:, :-cs]
 
         if mask is not None:
             x = x.masked_select(mask)

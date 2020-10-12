@@ -19,7 +19,7 @@ import torch
 from crank.net.module.loss import MultiSizeSTFTLoss, STFTLoss, CustomFeatureLoss
 
 
-B, T, D = 3, 10, 2
+B, T, D = 3, 1000, 10
 
 
 def test_stftloss():
@@ -42,9 +42,9 @@ def test_stftloss():
 def test_customloss():
     x = torch.randn((B, T, D))
     y = torch.randn((B, T, D))
-    for c in [0, 1, 2]:
-        for loss_type in ["l1", "mse"]:
-            mask = x.ge(0)
+    mask = x.ge(0)
+    for c in [-8, -2, 0, 2, 8]:
+        for loss_type in ["l1", "mse", "stft"]:
             criterion = CustomFeatureLoss(loss_type=loss_type, causal_size=c)
             if loss_type != "stft":
                 _ = criterion(x, y, mask=mask)
