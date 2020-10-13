@@ -89,14 +89,18 @@ class LSGANTrainer(VQVAETrainer):
         enc_h = self._get_enc_h(batch)
         dec_h, spkrvec = self._get_dec_h(batch)
         feats = batch["feats_sa"] if self.conf["spec_augment"] else batch["feats"]
-        h_scalar = batch["org_h_scalar"]
         outputs = self.model["G"].forward(feats, enc_h, dec_h, spkrvec)
         loss = self.calculate_vqvae_loss(batch, outputs, loss)
+
+        if self.conf["speaker_adversarial"]:
+            loss = self.calculate_spkradv_loss(batch, outputs, loss, phase=phase)
 
         if self.conf["cvadv_flag"]:
             dec_h, spkrvec = self._get_dec_h(batch, use_cvfeats=True)
             h_scalar = batch["cv_h_scalar"]
-        outputs = self.model["G"].forward(
+        else:
+            h_scalar = batch["org_h_scalar"]
+        adv_outputs = self.model["G"].forward(
             feats,
             enc_h,
             dec_h,
@@ -104,14 +108,8 @@ class LSGANTrainer(VQVAETrainer):
             use_ema=False,
             encoder_detach=self.conf["encoder_detach"],
         )
-        decoded = outputs["decoded"]
-        loss = self.calculate_adv_loss(decoded, h_scalar, batch["mask"], loss)
-
-        if self.conf["speaker_adversarial"]:
-            loss = self.calculate_spkradv_loss(batch, outputs, loss, phase=phase)
-
-        if self.conf["speaker_adversarial"]:
-            loss = self.calculate_spkradv_loss(batch, outputs, loss, phase=phase)
+        adv_decoded = adv_outputs["decoded"]
+        loss = self.calculate_adv_loss(adv_decoded, h_scalar, batch["mask"], loss)
 
         if phase == "train" and not self.stop_generator:
             self.optimizer["G"].zero_grad()
