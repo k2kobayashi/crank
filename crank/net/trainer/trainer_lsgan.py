@@ -154,7 +154,7 @@ class LSGANTrainer(VQVAETrainer):
         fake = self.model["D"].forward(decoded.transpose(1, 2)).transpose(1, 2)
 
         if self.conf["acgan_flag"]:
-            sample, spkr_cls = torch.split(fake, [1, self.n_spkrs], dim=2)
+            fake, spkr_cls = torch.split(fake, [1, self.n_spkrs], dim=2)
             loss = self.calculate_acgan_loss(spkr_cls, h_scalar, loss)
 
         fake = fake.masked_select(mask)
