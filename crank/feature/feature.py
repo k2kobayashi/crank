@@ -16,11 +16,10 @@ from pathlib import Path
 
 import numpy as np
 import soundfile as sf
+from crank.utils import convert_continuos_f0, low_cut_filter, mlfb2wavf
+from parallel_wavegan.bin.preprocess import logmelfilterbank
 from sprocket.speech import FeatureExtractor, Synthesizer
 from sprocket.util import HDF5
-from parallel_wavegan.bin.preprocess import logmelfilterbank
-
-from crank.utils import low_cut_filter, convert_continuos_f0, mlfb2wavf
 
 EPS = 1e-10
 
@@ -71,7 +70,7 @@ class Feature(object):
         x = low_cut_filter(x, fs, cutoff=70)
         return fs, x, flbl
 
-    def _analyze_world_features(self, x):
+    def _analyze_world_features(self, x, f0_only=False):
         feat = FeatureExtractor(
             analyzer="world",
             fs=self.conf["fs"],
@@ -85,6 +84,8 @@ class Feature(object):
         self.feats["uv"], self.feats["cf0"] = convert_continuos_f0(self.feats["f0"])
         self.feats["lf0"] = np.log(self.feats["f0"] + EPS)
         self.feats["lcf0"] = np.log(self.feats["cf0"])
+        if f0_only:
+            return
 
         if self.conf["fftl"] != 256:
             # NOTE: 256 fft_size sometimes causes errors
