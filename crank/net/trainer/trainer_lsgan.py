@@ -60,8 +60,10 @@ class LSGANTrainer(VQVAETrainer):
             "steps": self.steps,
             "model": {"G": self.model["G"].state_dict()},
         }
+        if self.conf["speaker_adversarial"]:
+            state_dict["model"].update({"SPKRADV": self.model["SPKRADV"].state_dict()})
         if self.gan_flag:
-            state_dict["model"]["D"] = self.model["D"].state_dict()
+            state_dict["model"].update({"D": self.model["D"].state_dict()})
         torch.save(state_dict, checkpoint)
 
     def train(self, batch, phase="train"):
