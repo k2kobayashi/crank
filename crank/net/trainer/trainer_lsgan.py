@@ -13,6 +13,7 @@ VQVAE w/ LSGAN trainer
 
 import torch
 from crank.net.trainer.trainer_vqvae import VQVAETrainer
+from torch.nn.utils import clip_grad_norm
 
 
 class LSGANTrainer(VQVAETrainer):
@@ -116,6 +117,11 @@ class LSGANTrainer(VQVAETrainer):
         if phase == "train" and not self.stop_generator:
             self.optimizer["G"].zero_grad()
             loss["G"].backward()
+            if self.conf["clip_grad_norm"] != 0:
+                clip_grad_norm(
+                    self.model["G"].parameters(),
+                    self.conf["clip_grad_norm"],
+                )
             self.optimizer["G"].step()
         return loss
 

@@ -12,8 +12,10 @@ Cyclic VQVAE w/ LSGAN trainer
 """
 
 import random
+
 import torch
-from crank.net.trainer import LSGANTrainer, CycleVQVAETrainer
+from crank.net.trainer import CycleVQVAETrainer, LSGANTrainer
+from torch.nn.utils import clip_grad_norm
 
 
 class CycleGANTrainer(LSGANTrainer, CycleVQVAETrainer):
@@ -87,6 +89,11 @@ class CycleGANTrainer(LSGANTrainer, CycleVQVAETrainer):
         if phase == "train" and not self.stop_generator:
             self.optimizer["G"].zero_grad()
             loss["G"].backward()
+            if self.conf["clip_grad_norm"] != 0:
+                clip_grad_norm(
+                    self.model["G"].parameters(),
+                    self.conf["clip_grad_norm"],
+                )
             self.optimizer["G"].step()
         return loss
 
@@ -162,7 +169,8 @@ class CycleGANTrainer(LSGANTrainer, CycleVQVAETrainer):
                         sample[k], [1, self.n_spkrs], dim=2
                     )
                     loss["ce_{}_{}".format(k, lbl)] = self.criterion["ce"](
-                        spkr_cls.reshape(-1, spkr_cls.size(2)), h_scalar.reshape(-1),
+                        spkr_cls.reshape(-1, spkr_cls.size(2)),
+                        h_scalar.reshape(-1),
                     )
                     loss["D"] += (
                         self.conf["alphas"]["ce"] * loss["ce_{}_{}".format(k, lbl)]

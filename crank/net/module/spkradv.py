@@ -22,8 +22,10 @@ class SpeakerAdversarialNetwork(nn.Module):
         self.spkr_size = spkr_size
         self._construct_net()
 
-    def forward(self, x):
+    def forward(self, x, detach=False):
         x = torch.cat(x, axis=-1)
+        if detach:
+            x = x.detach()
         x = self.grl(x).transpose(1, 2)
         x = self.classifier(x).transpose(1, 2)
         return x
@@ -40,7 +42,7 @@ class SpeakerAdversarialNetwork(nn.Module):
             nonlinear_activation="LeakyReLU",
             nonlinear_activation_params={"negative_slope": 0.2},
             bias=True,
-            use_weight_norm=True,
+            use_weight_norm=self.conf["use_weight_norm"],
         )
 
 

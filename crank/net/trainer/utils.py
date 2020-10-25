@@ -11,14 +11,13 @@ Utilities for trainer
 
 """
 
-from torch import nn, optim
 import torch_optimizer as toptim
+from crank.net.module.loss import CustomFeatureLoss
+from crank.net.trainer.dataset import BaseDataset, calculate_maxflen
+from pytorch_lamb import Lamb
+from torch import nn, optim
 from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import DataLoader
-from pytorch_lamb import Lamb
-
-from crank.net.trainer.dataset import calculate_maxflen, BaseDataset
-from crank.net.module.loss import CustomFeatureLoss
 
 
 def get_criterion(conf):
@@ -71,15 +70,15 @@ def get_optimizer(net_conf, model):
         optimizer.update({"D": Dopt})
 
     if "SPKRADV" in model:
-        if net_conf["optimizer"] == "adam":
+        if net_conf["spkradv_optimizer"] == "adam":
             SPKRADVopt = optim.Adam(
                 model["SPKRADV"].parameters(), lr=net_conf["spkradv_lr"]
             )
-        elif net_conf["optimizer"] == "radam":
+        elif net_conf["spkradv_optimizer"] == "radam":
             SPKRADVopt = toptim.RAdam(
                 model["SPKRADV"].parameters(), lr=net_conf["spkradv_lr"]
             )
-        elif net_conf["optimizer"] == "lamb":
+        elif net_conf["spkradv_optimizer"] == "lamb":
             SPKRADVopt = Lamb(
                 model["SPKRADV"].parameters(),
                 lr=net_conf["spkradv_lr"],
@@ -87,8 +86,12 @@ def get_optimizer(net_conf, model):
                 betas=(0.9, 0.999),
                 adam=False,
             )
+        elif net_conf["spkradv_optimizer"] == "sgd":
+            SPKRADVopt = optim.SGD(
+                model["SPKRADV"].parameters(),
+                lr=net_conf["spkradv_lr"],
+            )
         optimizer.update({"SPKRADV": SPKRADVopt})
-
     return optimizer
 
 
@@ -141,13 +144,25 @@ def get_dataloader(conf, scp, scaler, flag="train", n_jobs=10):
 
     spkrs = dict(zip(scp["train"]["spkrs"], range(len(scp["train"]["spkrs"]))))
     tr_dataset = BaseDataset(
-        conf, scp, phase="train", scaler=scaler, batch_len=batch_len,
+        conf,
+        scp,
+        phase="train",
+        scaler=scaler,
+        batch_len=batch_len,
     )
     dev_dataset = BaseDataset(
-        conf, scp, phase="dev", scaler=scaler, batch_len=batch_len,
+        conf,
+        scp,
+        phase="dev",
+        scaler=scaler,
+        batch_len=batch_len,
     )
     eval_dataset = BaseDataset(
-        conf, scp, phase="eval", scaler=scaler, batch_len=batch_len,
+        conf,
+        scp,
+        phase="eval",
+        scaler=scaler,
+        batch_len=batch_len,
     )
     dataloader = {
         "spkrs": spkrs,
