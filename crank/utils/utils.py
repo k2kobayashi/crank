@@ -77,15 +77,33 @@ def plot_mlfb(mlfb, path, ext="png"):
     plt.close()
 
 
-def mlfb2wav(mlfb, fs=22050, n_mels=80, fftl=1024, hop_size=220):
+def mlfb2wav(mlfb, fs=22050, n_mels=80, fftl=1024, hop_size=220, fmin=80, fmax=7600):
     spc = logmelspc_to_linearspc(mlfb, fs, n_mels, fftl, fmin=80, fmax=7600)
     return griffin_lim(spc, fftl, hop_size, fftl, window="hann", n_iters=100)
 
 
-def mlfb2wavf(mlfb, wavf, fs=22050, n_mels=80, fftl=1024, hop_size=220, plot=False):
+def mlfb2wavf(
+    mlfb,
+    wavf,
+    fs=22050,
+    n_mels=80,
+    fftl=1024,
+    hop_size=220,
+    fmin=80,
+    fmax=7600,
+    plot=False,
+):
     Path(wavf).parent.mkdir(parents=True, exist_ok=True)
     try:
-        wav = mlfb2wav(mlfb, fs=fs, n_mels=n_mels, fftl=fftl, hop_size=hop_size)
+        wav = mlfb2wav(
+            mlfb,
+            fs=fs,
+            n_mels=n_mels,
+            fftl=fftl,
+            hop_size=hop_size,
+            fmin=fmin,
+            fmax=fmax,
+        )
         sf.write(str(wavf), wav, fs)
     except librosa.util.exceptions.ParameterError:
         logging.info("ERROR: GliffinLim for {}".format(str(wavf)))
