@@ -95,6 +95,10 @@ class CycleGANTrainer(LSGANTrainer, CycleVQVAETrainer):
                     self.conf["clip_grad_norm"],
                 )
             self.optimizer["G"].step()
+
+        if self.conf["speaker_adversarial"]:
+            outputs = self.model["G"].forward(feats, enc_h, dec_h, spkrvec=spkrvec)
+            loss = self.update_SPKRADV(batch, outputs, loss, phase=phase)
         return loss
 
     def update_D(self, batch, loss, phase="train"):

@@ -92,6 +92,10 @@ class CycleVQVAETrainer(VQVAETrainer):
                     self.conf["clip_grad_norm"],
                 )
             self.optimizer["G"].step()
+
+        if self.conf["speaker_adversarial"]:
+            outputs = self.model["G"].forward(feats, enc_h, dec_h, spkrvec=spkrvec)
+            loss = self.update_SPKRADV(batch, outputs, loss, phase=phase)
         return loss
 
     def _parse_cyclevqvae_loss(self, loss):
