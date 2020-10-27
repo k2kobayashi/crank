@@ -93,7 +93,7 @@ class CycleVQVAETrainer(VQVAETrainer):
                 )
             self.optimizer["G"].step()
 
-        if self.conf["speaker_adversarial"]:
+        if phase == "train" and self.conf["speaker_adversarial"]:
             outputs = self.model["G"].forward(feats, enc_h, dec_h, spkrvec=spkrvec)
             loss = self.update_SPKRADV(batch, outputs, loss, phase=phase)
         return loss
