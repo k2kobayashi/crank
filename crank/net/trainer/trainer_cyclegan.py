@@ -140,7 +140,7 @@ class CycleGANTrainer(LSGANTrainer, CycleVQVAETrainer):
                         batch["{}_h_scalar".format(io)].reshape(-1),
                     )
                     loss["G"] += (
-                        self.conf["alphas"]["ce"] * loss["ce_adv_{}".format(lbl)]
+                        self.conf["alphas"]["acgan"] * loss["ce_adv_{}".format(lbl)]
                     )
                 loss["adv_{}".format(lbl)] = self.criterion["mse"](
                     D_outputs, torch.ones_like(D_outputs)
@@ -177,7 +177,7 @@ class CycleGANTrainer(LSGANTrainer, CycleVQVAETrainer):
                         h_scalar.reshape(-1),
                     )
                     loss["D"] += (
-                        self.conf["alphas"]["ce"] * loss["ce_{}_{}".format(k, lbl)]
+                        self.conf["alphas"]["acgan"] * loss["ce_{}_{}".format(k, lbl)]
                     )
 
             real_sample = sample["real"].masked_select(mask)

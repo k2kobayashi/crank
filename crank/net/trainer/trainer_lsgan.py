@@ -193,7 +193,7 @@ class LSGANTrainer(VQVAETrainer):
         loss["ce_{}".format(label)] = self.criterion["ce"](
             spkr_cls.reshape(-1, spkr_cls.size(2)), h_scalar.reshape(-1)
         )
-        loss[model] += self.conf["alphas"]["ce"] * loss["ce_{}".format(label)]
+        loss[model] += self.conf["alphas"]["acgan"] * loss["ce_{}".format(label)]
         return loss
 
     def _check_gan_start(self):
