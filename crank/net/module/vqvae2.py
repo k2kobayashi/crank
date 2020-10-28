@@ -40,7 +40,7 @@ class VQVAE2(nn.Module):
         x = x.transpose(1, 2)
         if spkrvec is not None:
             spkremb = self.spkr_embedding(spkrvec)
-            dec_h = torch.cat([dec_h, spkremb], axis=-1)
+            dec_h = spkremb if dec_h is None else torch.cat([dec_h, spkremb], axis=-1)
         enc_h = enc_h.transpose(1, 2) if enc_h is not None else None
         dec_h = dec_h.transpose(1, 2) if dec_h is not None else None
 
