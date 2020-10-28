@@ -176,9 +176,11 @@ class CycleGANTrainer(LSGANTrainer, CycleVQVAETrainer):
                         spkr_cls.reshape(-1, spkr_cls.size(2)),
                         h_scalar.reshape(-1),
                     )
-                    loss["D"] += (
-                        self.conf["alphas"]["acgan"] * loss["ce_{}_{}".format(k, lbl)]
-                    )
+                    if not (self.conf["use_real_only_acgan"] and k == "org_fake"):
+                        loss["D"] += (
+                            self.conf["alphas"]["acgan"]
+                            * loss["ce_{}_{}".format(k, lbl)]
+                        )
 
             real_sample = sample["real"].masked_select(mask)
             loss["real_{}".format(lbl)] = self.criterion["mse"](
