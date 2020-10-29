@@ -27,7 +27,7 @@ cache_dataset: true     # cache_dataset (NOTE: cv_spkr_label is fixed among trai
 save_f0_feats: true     # save F0 feature as well
 
 # training setting
-n_steps: 400000            # # of training steps
+n_steps: 200000            # # of training steps
 dev_steps: 2000            # # of development steps
 n_steps_save_model: 5000   # save model in each # iteration step
 n_steps_print_loss: 50     # print loss in each # iteration step
@@ -57,6 +57,7 @@ alphas:
   adv: 4
   real: 1
   fake: 1
+  acgan: 1
   cycle: 1
 stft_params:  # parameters for stft loss of converted/reconstructed feature
   fft_sizes:
@@ -85,7 +86,8 @@ use_embedding_transform: false # apply nn.Linear to output of spkr_embedding
 embedding_transform_size: 0    # output size of embedding transform
 residual_channels: 64          # # of residual channels for encoder/decoder network
 ema_flag: true                 # use exponential moving average for dictionary of VQ
-n_vq_stacks: 2                 # # of VQ stacks
+clip_grad_norm: 3.0            # apply clip_grad_norm to generator
+n_vq_stacks: 2                 # # of hierarchical VQVAE stacks
 n_layers_stacks:
 - 2
 - 2
@@ -114,6 +116,7 @@ train_first: discriminator        # updated first ['discriminator', 'generator']
 cvadv_flag: false                 # calculate adv_loss using converted or reconstructed
 acgan_flag: true                  # add additional classifier to discriminator
 encoder_detach: true              # Do not update encoder/VQ of generator by adv_loss
+use_real_only_acgan: false        # train real sample only for acgan classifier
 n_steps_gan_start: 100000         # # of steps to start adv training
 n_steps_stop_generator: 0         # # of steps to stop training discriminator [int>=0]
 n_discriminator_layers: 8         # # of discriminator layers
@@ -128,10 +131,14 @@ n_steps_cycle_start: 100000 # # of steps to start cycle-consistency training
 cycle_reconstruction: false # use cycle_reconstruction for reconstruction
 
 # gradient reversal training for encoder
-speaker_adversarial: false  # use speaker adversarial network
-n_spkradv_layers: 3         # # of layers
-spkradv_kernel_size: 5      # kernel_size for spkr adversarial net
-spkradv_lr: 0.0002          # learning rate
-spkradv_lambda: 1           # hyper-parameter of gradient reversal layer
-spkradv_lr_decay_size: 0.5  # decay size
+speaker_adversarial: true          # use speaker adversarial network
+n_spkradv_layers: 3                # # of layers
+spkradv_kernel_size: 3             # kernel_size for spkr adversarial net
+spkradv_lr: 0.0002                 # learning rate
+spkradv_lambda: 0.02               # hyper-parameter of gradient reversal layer
+spkradv_optimizer: adam            # optimizer ['sgd', 'adam', 'radam', 'lamb']
+spkradv_lr_decay_size: 0.5         # decay size
 spkradv_lr_decay_step_size: 200000 # learning rate decay for spkradv layer
+sprkadv_to_encoded_unmod: true     # apply spkradv loss to unmode encoded
+spkradv_clip_grad_norm: 1.0        # clip_grad_norm
+use_weight_norm: true              # weight norm
