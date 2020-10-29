@@ -21,8 +21,13 @@ from tqdm import tqdm
 
 
 def TrainerWrapper(trainer_type, **ka):
-    from crank.net.trainer import (CycleGANTrainer, CycleVQVAETrainer,
-                                   LSGANTrainer, VQVAETrainer)
+    from crank.net.trainer import (
+        CycleGANTrainer,
+        CycleVQVAETrainer,
+        LSGANTrainer,
+        VQVAETrainer,
+        StarGANTrainer,
+    )
 
     if trainer_type == "vqvae":
         trainer = VQVAETrainer(**ka)
@@ -32,6 +37,8 @@ def TrainerWrapper(trainer_type, **ka):
         trainer = CycleVQVAETrainer(**ka)
     elif trainer_type == "cyclegan":
         trainer = CycleGANTrainer(**ka)
+    elif trainer_type == "stargan":
+        trainer = StarGANTrainer(**ka)
     else:
         raise NotImplementedError(
             "conf['trainer_type']: {} is not supported.".format(trainer_type)
@@ -197,7 +204,7 @@ class BaseTrainer(object):
             recon_tqdm.close()
 
     def _get_loss_dict(self):
-        loss_dict = {"objective": 0.0, "G": 0.0, "D": 0.0}
+        loss_dict = {"objective": 0.0, "G": 0.0, "D": 0.0, "C": 0.0, "SPKRADV": 0.0}
         return loss_dict
 
     def _parse_loss(self, loss):

@@ -69,6 +69,23 @@ def get_optimizer(net_conf, model):
             )
         optimizer.update({"D": Dopt})
 
+    if "C" in model:
+        if net_conf["optimizer"] == "adam":
+            Copt = optim.Adam(model["C"].parameters(), lr=net_conf["discriminator_lr"])
+        elif net_conf["optimizer"] == "radam":
+            Copt = toptim.RAdam(
+                model["C"].parameters(), lr=net_conf["discriminator_lr"]
+            )
+        elif net_conf["optimizer"] == "lamb":
+            Copt = Lamb(
+                model["C"].parameters(),
+                lr=net_conf["lr"],
+                weight_decay=0.01,
+                betas=(0.9, 0.999),
+                adam=False,
+            )
+        optimizer.update({"C": Copt})
+
     if "SPKRADV" in model:
         if net_conf["spkradv_optimizer"] == "adam":
             SPKRADVopt = optim.Adam(
@@ -88,8 +105,7 @@ def get_optimizer(net_conf, model):
             )
         elif net_conf["spkradv_optimizer"] == "sgd":
             SPKRADVopt = optim.SGD(
-                model["SPKRADV"].parameters(),
-                lr=net_conf["spkradv_lr"],
+                model["SPKRADV"].parameters(), lr=net_conf["spkradv_lr"],
             )
         optimizer.update({"SPKRADV": SPKRADVopt})
     return optimizer
@@ -110,6 +126,16 @@ def get_scheduler(net_conf, optimizer):
                     optimizer["D"],
                     step_size=net_conf["discriminator_lr_decay_step_size"],
                     gamma=net_conf["discriminator_lr_decay_size"],
+                )
+            }
+        )
+    if "C" in optimizer:
+        scheduler.update(
+            {
+                "C": StepLR(
+                    optimizer["C"],
+                    step_size=net_conf["classifier_lr_decay_step_size"],
+                    gamma=net_conf["classifier_lr_decay_size"],
                 )
             }
         )
@@ -144,25 +170,13 @@ def get_dataloader(conf, scp, scaler, flag="train", n_jobs=10):
 
     spkrs = dict(zip(scp["train"]["spkrs"], range(len(scp["train"]["spkrs"]))))
     tr_dataset = BaseDataset(
-        conf,
-        scp,
-        phase="train",
-        scaler=scaler,
-        batch_len=batch_len,
+        conf, scp, phase="train", scaler=scaler, batch_len=batch_len,
     )
     dev_dataset = BaseDataset(
-        conf,
-        scp,
-        phase="dev",
-        scaler=scaler,
-        batch_len=batch_len,
+        conf, scp, phase="dev", scaler=scaler, batch_len=batch_len,
     )
     eval_dataset = BaseDataset(
-        conf,
-        scp,
-        phase="eval",
-        scaler=scaler,
-        batch_len=batch_len,
+        conf, scp, phase="eval", scaler=scaler, batch_len=batch_len,
     )
     dataloader = {
         "spkrs": spkrs,
