@@ -84,8 +84,8 @@ def get_model(conf, spkr_size=0, device="cuda"):
             C = ParallelWaveGANDiscriminator(
                 in_channels=conf["input_size"],
                 out_channels=spkr_size,
-                kernel_size=conf["discriminator_kernel_size"],
-                layers=conf["n_discriminator_layers"],
+                kernel_size=conf["classifier_kernel_size"],
+                layers=conf["n_classifier_layers"],
                 conv_channels=64,
                 dilation_factor=1,
                 nonlinear_activation="LeakyReLU",

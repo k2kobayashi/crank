@@ -146,8 +146,7 @@ class VQVAETrainer(BaseTrainer):
             loss["G"].backward()
             if self.conf["clip_grad_norm"] != 0:
                 clip_grad_norm(
-                    self.model["G"].parameters(),
-                    self.conf["clip_grad_norm"],
+                    self.model["G"].parameters(), self.conf["clip_grad_norm"],
                 )
             self.optimizer["G"].step()
 
@@ -283,14 +282,14 @@ class VQVAETrainer(BaseTrainer):
         else:
             if use_cvfeats:
                 # use randomly selected cv speaker by dataset
-                lcf0 = batch["cv_lcf0"]
-                h_onehot = batch["cv_h_onehot"]
-                h_scalar = batch["cv_h_scalar"]
+                lcf0 = batch["cv_lcf0"].clone()
+                h_onehot = batch["cv_h_onehot"].clone()
+                h_scalar = batch["cv_h_scalar"].clone()
             else:
                 # use org speaker
-                lcf0 = batch["lcf0"]
-                h_onehot = batch["org_h_onehot"]
-                h_scalar = batch["org_h_scalar"]
+                lcf0 = batch["lcf0"].clone()
+                h_onehot = batch["org_h_onehot"].clone()
+                h_scalar = batch["org_h_scalar"].clone()
         h_scalar[:, :] = h_scalar[:, 0:1]  # remove ignore_index (i.e., -100)
         return torch.cat([lcf0, batch["uv"]], axis=-1), h_onehot, h_scalar
 

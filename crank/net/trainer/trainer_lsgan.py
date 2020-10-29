@@ -55,18 +55,6 @@ class LSGANTrainer(VQVAETrainer):
     def check_custom_start(self):
         self._check_gan_start()
 
-    def save_model(self):
-        checkpoint = self.expdir / "checkpoint_{}steps.pkl".format(self.steps)
-        state_dict = {
-            "steps": self.steps,
-            "model": {"G": self.model["G"].state_dict()},
-        }
-        if self.conf["speaker_adversarial"]:
-            state_dict["model"].update({"SPKRADV": self.model["SPKRADV"].state_dict()})
-        if self.gan_flag:
-            state_dict["model"].update({"D": self.model["D"].state_dict()})
-        torch.save(state_dict, checkpoint)
-
     def train(self, batch, phase="train"):
         loss = self._get_loss_dict()
         if self.gan_flag:
@@ -119,8 +107,7 @@ class LSGANTrainer(VQVAETrainer):
             loss["G"].backward()
             if self.conf["clip_grad_norm"] != 0:
                 clip_grad_norm(
-                    self.model["G"].parameters(),
-                    self.conf["clip_grad_norm"],
+                    self.model["G"].parameters(), self.conf["clip_grad_norm"],
                 )
             self.optimizer["G"].step()
 

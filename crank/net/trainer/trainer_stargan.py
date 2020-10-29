@@ -15,7 +15,6 @@ import random
 
 import torch
 from crank.net.trainer import CycleVQVAETrainer, LSGANTrainer
-from torch.nn.utils import clip_grad_norm
 
 
 class StarGANTrainer(LSGANTrainer, CycleVQVAETrainer):
@@ -63,7 +62,16 @@ class StarGANTrainer(LSGANTrainer, CycleVQVAETrainer):
 
     def forward_stargan(self, batch, loss, phase="train"):
         # run update_G and updata_D
-        return self.forward_lsgan(batch, loss, phase=phase)
+        if self.conf["train_first"] == "generator":
+            loss = self.update_G(batch, loss, phase=phase)
+            loss = self.update_D(batch, loss, phase=phase)
+            loss = self.update_C(batch, loss, phase=phase)
+        else:
+            loss = self.update_D(batch, loss, phase=phase)
+            loss = self.update_C(batch, loss, phase=phase)
+            loss = self.update_G(batch, loss, phase=phase)
+        loss["objective"] = loss["G"] + loss["D"] + loss["C"]
+        return loss
 
     def update_G(self, batch, loss, phase="train"):
         # preapare aux. features
@@ -85,7 +93,7 @@ class StarGANTrainer(LSGANTrainer, CycleVQVAETrainer):
         if self.conf["speaker_adversarial"]:
             loss = self.calculate_spkradv_loss(batch, vqvae_outputs, loss, phase=phase)
 
-        # StarGAN-based adversarial loss using converted one
+        # StarGAN-based adversarial loss using cv one
         loss = self.calculate_starganadv_loss(batch, cycle_outputs, loss)
 
         # update G
@@ -102,6 +110,7 @@ class StarGANTrainer(LSGANTrainer, CycleVQVAETrainer):
 
     def update_D(self, batch, loss, phase="train"):
         # preapare aux. features
+
         enc_h = self._get_enc_h(batch)
         enc_h_cv = self._get_enc_h(batch, use_cvfeats=True)
         dec_h, spkrvec = self._get_dec_h(batch)
@@ -113,12 +122,26 @@ class StarGANTrainer(LSGANTrainer, CycleVQVAETrainer):
             feats, enc_h, dec_h, enc_h_cv, dec_h_cv, spkrvec, spkrvec_cv
         )
         loss = self.calculate_stargan_discriminator_loss(batch, outputs, loss)
-        loss = self.calculate_stargan_classifier_loss(batch, outputs, loss)
 
         if phase == "train":
             self.optimizer["D"].zero_grad()
             loss["D"].backward()
             self.optimizer["D"].step()
+        return loss
+
+    def update_C(self, batch, loss, phase="train"):
+        def return_sample(x):
+            return self.model["C"](x.transpose(1, 2)).transpose(1, 2)
+
+        # get discriminator outputs
+        real = return_sample(batch["feats"])
+        real = real.reshape(-1, real.size(2))
+
+        # calculate C loss
+        h_scalar = batch["org_h_scalar"].reshape(-1)
+        loss["C_real"] = self.criterion["ce"](real, h_scalar)
+        loss["C"] += self.conf["alphas"]["acgan"] * loss["C_real"]
+        if phase == "train":
             self.optimizer["C"].zero_grad()
             loss["C"].backward()
             self.optimizer["C"].step()
@@ -142,7 +165,7 @@ class StarGANTrainer(LSGANTrainer, CycleVQVAETrainer):
         # merge adv loss
         loss["G"] += (
             self.conf["alphas"]["adv"] * loss["D_adv_cv"]
-            + self.conf["alphas"]["adv"] * loss["C_adv_cv"]
+            + self.conf["alphas"]["acgan"] * loss["C_adv_cv"]
         )
         return loss
 
@@ -155,6 +178,7 @@ class StarGANTrainer(LSGANTrainer, CycleVQVAETrainer):
             "real": return_sample(batch["feats"]),
             "org_fake": return_sample(outputs[0]["org"]["decoded"].detach()),
             "cv_fake": return_sample(outputs[0]["cv"]["decoded"].detach()),
+            "recon_fake": return_sample(outputs[0]["recon"]["decoded"].detach()),
         }
         mask = batch["mask"]
 
@@ -163,7 +187,7 @@ class StarGANTrainer(LSGANTrainer, CycleVQVAETrainer):
         loss["D_real"] = self.criterion["mse"](real, torch.ones_like(real))
 
         # loss by fake
-        fake_key = random.choice(["org_fake", "cv_fake"])
+        fake_key = random.choice(["org_fake", "cv_fake", "recon_fake"])
         fake = sample[fake_key].masked_select(mask)
         loss["D_fake"] = self.criterion["mse"](fake, torch.zeros_like(fake))
 
@@ -172,22 +196,4 @@ class StarGANTrainer(LSGANTrainer, CycleVQVAETrainer):
             self.conf["alphas"]["fake"] * loss["D_fake"]
             + self.conf["alphas"]["real"] * loss["D_real"]
         )
-        return loss
-
-    def calculate_stargan_classifier_loss(self, batch, outputs, loss):
-        def return_sample(x):
-            return self.model["C"](x.transpose(1, 2)).transpose(1, 2)
-
-        # get discriminator outputs
-        sample = {
-            "real": return_sample(batch["feats"]),
-            # "org_fake": return_sample(outputs[0]["org"]["decoded"].detach()),
-            # "cv_fake": return_sample(outputs[0]["cv"]["decoded"].detach()),
-        }
-
-        # calculate C loss
-        h_scalar = batch["org_h_scalar"].reshape(-1)
-        real = sample["real"].reshape(-1, sample["real"].size(2))
-        loss["C_real"] = self.criterion["ce"](real, h_scalar)
-        loss["C"] += self.conf["alphas"]["ce"] * loss["C_real"]
         return loss

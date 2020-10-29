@@ -137,8 +137,9 @@ class BaseTrainer(object):
             "steps": self.steps,
             "model": {"G": self.model["G"].state_dict()},
         }
-        if self.conf["speaker_adversarial"]:
-            state_dict["model"].update({"SPKRADV": self.model["SPKRADV"].state_dict()})
+        for m in ["SPKRADV", "D", "C"]:
+            if m in self.model.keys():
+                state_dict["model"].update({m: self.model[m].state_dict()})
         torch.save(state_dict, checkpoint)
 
     def _run_eval(self, flag="eval", tdir=False):

@@ -62,7 +62,7 @@ def get_optimizer(net_conf, model):
         elif net_conf["optimizer"] == "lamb":
             Dopt = Lamb(
                 model["D"].parameters(),
-                lr=net_conf["lr"],
+                lr=net_conf["discriminator_lr"],
                 weight_decay=0.01,
                 betas=(0.9, 0.999),
                 adam=False,
@@ -71,15 +71,13 @@ def get_optimizer(net_conf, model):
 
     if "C" in model:
         if net_conf["optimizer"] == "adam":
-            Copt = optim.Adam(model["C"].parameters(), lr=net_conf["discriminator_lr"])
+            Copt = optim.Adam(model["C"].parameters(), lr=net_conf["classifier_lr"])
         elif net_conf["optimizer"] == "radam":
-            Copt = toptim.RAdam(
-                model["C"].parameters(), lr=net_conf["discriminator_lr"]
-            )
+            Copt = toptim.RAdam(model["C"].parameters(), lr=net_conf["classifier_lr"])
         elif net_conf["optimizer"] == "lamb":
             Copt = Lamb(
                 model["C"].parameters(),
-                lr=net_conf["lr"],
+                lr=net_conf["classifier_lr"],
                 weight_decay=0.01,
                 betas=(0.9, 0.999),
                 adam=False,
