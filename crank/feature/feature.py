@@ -25,12 +25,11 @@ EPS = 1e-10
 
 
 class Feature(object):
-    def __init__(self, h5_dir, conf, spkr_conf, gl_flag=False, synth_flag=False):
+    def __init__(self, h5_dir, conf, spkr_conf, synth_flag=False):
         self.h5_dir = Path(h5_dir)
         self.conf = conf
         self.sconf = spkr_conf
         self.feats = {}
-        self.gl_flag = gl_flag
         self.synth_flag = synth_flag
 
     def analyze(self, wavf, gl_flag=False):
@@ -87,7 +86,7 @@ class Feature(object):
         if f0_only:
             return
 
-        if self.conf["fftl"] != 256:
+        if self.conf["fftl"] != 256 and self.conf["fs"] > 16000:
             # NOTE: 256 fft_size sometimes causes errors
             self.feats["mcep"] = feat.mcep(
                 dim=self.conf["mcep_dim"], alpha=self.conf["mcep_alpha"]
@@ -146,4 +145,6 @@ class Feature(object):
             n_mels=self.conf["mlfb_dim"],
             fftl=self.conf["fftl"],
             hop_size=self.conf["hop_size"],
+            fmin=self.conf["fmin"],
+            fmax=self.conf["fmax"],
         )
