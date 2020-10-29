@@ -19,6 +19,7 @@ from crank.net.trainer import BaseTrainer
 from crank.net.trainer.dataset import convert_f0, create_one_hot
 from crank.utils import feat2hdf5, mlfb2wavf, to_numpy, world2wav
 from joblib import Parallel, delayed
+from torch.nn.utils import clip_grad_norm
 
 
 class VQVAETrainer(BaseTrainer):
@@ -135,7 +136,7 @@ class VQVAETrainer(BaseTrainer):
         if self.conf["speaker_adversarial"]:
             loss = self.calculate_spkradv_loss(batch, outputs, loss, phase=phase)
 
-        # Train clasifier using converted feature
+        # Train classifier using converted feature
         if self.conf["train_cv_classifier"]:
             loss = self.calculate_cv_spkr_cls_loss(feats, batch, enc_h, loss)
 
@@ -143,7 +144,16 @@ class VQVAETrainer(BaseTrainer):
         if phase == "train":
             self.optimizer["G"].zero_grad()
             loss["G"].backward()
+            if self.conf["clip_grad_norm"] != 0:
+                clip_grad_norm(
+                    self.model["G"].parameters(),
+                    self.conf["clip_grad_norm"],
+                )
             self.optimizer["G"].step()
+
+        if phase == "train" and self.conf["speaker_adversarial"]:
+            outputs = self.model["G"].forward(feats, enc_h, dec_h, spkrvec=spkrvec)
+            loss = self.update_SPKRADV(batch, outputs, loss, phase=phase)
         return loss
 
     def calculate_vqvae_loss(self, batch, outputs, loss):
@@ -175,16 +185,39 @@ class VQVAETrainer(BaseTrainer):
         return loss
 
     def calculate_spkradv_loss(self, batch, outputs, loss, phase="train"):
-        advspkr_class = self.model["SPKRADV"].forward(outputs["encoded"])
-        loss["SPKRADV"] = self.criterion["ce"](
+        if self.conf["sprkadv_to_encoded_unmod"]:
+            advspkr_class = self.model["SPKRADV"].forward(outputs["encoded_unmod"])
+        else:
+            advspkr_class = self.model["SPKRADV"].forward(outputs["encoded"])
+        spkradv_loss = self.criterion["ce"](
             advspkr_class.reshape(-1, advspkr_class.size(2)),
             batch["org_h_scalar"].reshape(-1),
         )
-        loss["G"] += self.conf["alphas"]["ce"] * loss["SPKRADV"]
+        loss["G"] += self.conf["alphas"]["ce"] * spkradv_loss
+        return loss
 
+    def update_SPKRADV(self, batch, outputs, loss, phase="train"):
+        if self.conf["sprkadv_to_encoded_unmod"]:
+            advspkr_class = self.model["SPKRADV"].forward(
+                outputs["encoded_unmod"], detach=True
+            )
+        else:
+            advspkr_class = self.model["SPKRADV"].forward(
+                outputs["encoded"], detach=True
+            )
+        spkradv_loss = self.criterion["ce"](
+            advspkr_class.reshape(-1, advspkr_class.size(2)),
+            batch["org_h_scalar"].reshape(-1),
+        )
+        loss["SPKRADV"] = self.conf["alphas"]["ce"] * spkradv_loss
         if phase == "train":
             self.optimizer["SPKRADV"].zero_grad()
-            loss["SPKRADV"].backward(retain_graph=True)
+            loss["SPKRADV"].backward()
+            if self.conf["spkradv_clip_grad_norm"] != 0:
+                clip_grad_norm(
+                    self.model["SPKRADV"].parameters(),
+                    self.conf["spkradv_clip_grad_norm"],
+                )
             self.optimizer["SPKRADV"].step()
         return loss
 

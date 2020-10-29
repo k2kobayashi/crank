@@ -16,25 +16,19 @@ import logging
 import random
 import sys
 import warnings
+from pathlib import Path
 
 import joblib
 import numpy as np
 import torch
-
-from pathlib import Path
-from tensorboardX import SummaryWriter
-from parallel_wavegan.models import ParallelWaveGANDiscriminator
-
-from crank.net.module.vqvae2 import VQVAE2
 from crank.net.module.spkradv import SpeakerAdversarialNetwork
-from crank.utils import load_yaml, open_scpdir, open_featsscp
-from crank.net.trainer.utils import (
-    get_optimizer,
-    get_criterion,
-    get_scheduler,
-    get_dataloader,
-)
+from crank.net.module.vqvae2 import VQVAE2
 from crank.net.trainer import TrainerWrapper
+from crank.net.trainer.utils import (get_criterion, get_dataloader,
+                                     get_optimizer, get_scheduler)
+from crank.utils import load_yaml, open_featsscp, open_scpdir
+from parallel_wavegan.models import ParallelWaveGANDiscriminator
+from tensorboardX import SummaryWriter
 
 warnings.simplefilter(action="ignore")
 logging.basicConfig(
@@ -89,9 +83,11 @@ def get_model(conf, spkr_size=0, device="cuda"):
 def load_checkpoint(model, checkpoint):
     state_dict = torch.load(checkpoint, map_location="cpu")
     model["G"].load_state_dict(state_dict["model"]["G"])
-    if "D" in state_dict["model"].keys():
-        model["D"].load_state_dict(state_dict["model"]["D"])
-    logging.info("load checkpoint: {}".format(checkpoint))
+    logging.info("load G checkpoint: {}".format(checkpoint))
+    for m in ["D", "SPKRADV"]:
+        if m in state_dict["model"].keys():
+            model[m].load_state_dict(state_dict["model"][m])
+        logging.info("load {} checkpoint: {}".format(m, checkpoint))
     return model, state_dict["steps"]
 
 
@@ -138,8 +134,9 @@ def main():
     else:
         if args.flag in ["reconstruction", "eval"]:
             import re
+
             pkls = list(expdir.glob("*.pkl"))
-            steps = [re.findall('[0-9]+', str(p.stem))[0] for p in pkls]
+            steps = [re.findall("[0-9]+", str(p.stem))[0] for p in pkls]
             max_step = max([int(s) for s in steps])
             checkpoint = str([p for p in pkls if str(max_step) in str(p)][0])
             model, resume = load_checkpoint(model, checkpoint)

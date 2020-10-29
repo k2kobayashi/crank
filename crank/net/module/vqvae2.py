@@ -40,18 +40,16 @@ class VQVAE2(nn.Module):
         x = x.transpose(1, 2)
         if spkrvec is not None:
             spkremb = self.spkr_embedding(spkrvec)
-            if dec_h is not None:
-                dec_h = torch.cat([dec_h, spkremb], axis=-1)
-            else:
-                dec_h = spkremb
+            dec_h = spkremb if dec_h is None else torch.cat([dec_h, spkremb], axis=-1)
         enc_h = enc_h.transpose(1, 2) if enc_h is not None else None
         dec_h = dec_h.transpose(1, 2) if dec_h is not None else None
 
         enc, spkr_cls = self.encode(x, enc_h=enc_h)
+        enc_unmod = [e.clone() for e in enc]
         enc, dec, emb_idxs, _, qidxs = self.decode(
             enc, dec_h, use_ema=use_ema, detach=encoder_detach
         )
-        outputs = self.make_dict(enc, dec, emb_idxs, qidxs, spkr_cls)
+        outputs = self.make_dict(enc, dec, emb_idxs, qidxs, enc_unmod, spkr_cls)
         return outputs
 
     def cycle_forward(
@@ -78,6 +76,7 @@ class VQVAE2(nn.Module):
         outputs = []
         for n in range(self.conf["n_cycles"]):
             enc, org_spkr_cls = self.encode(x, enc_h=org_enc_h)
+            org_enc_unmod = [e.clone() for e in enc]
             org_enc, org_dec, org_emb_idxs, _, org_qidxs = self.decode(
                 enc, org_dec_h, use_ema=True
             )
@@ -86,19 +85,35 @@ class VQVAE2(nn.Module):
             )
 
             enc, cv_spkr_cls = self.encode(cv_dec, enc_h=cv_enc_h)
+            cv_enc_unmod = [e.clone() for e in enc]
             recon_enc, recon_dec, recon_emb_idxs, _, recon_qidxs = self.decode(
                 enc, org_dec_h, use_ema=True
             )
             outputs.append(
                 {
                     "org": self.make_dict(
-                        org_enc, org_dec, org_emb_idxs, org_qidxs, org_spkr_cls
+                        org_enc,
+                        org_dec,
+                        org_emb_idxs,
+                        org_qidxs,
+                        org_enc_unmod,
+                        org_spkr_cls,
                     ),
                     "cv": self.make_dict(
-                        cv_enc, cv_dec, cv_emb_idxs, cv_qidxs, cv_spkr_cls,
+                        cv_enc,
+                        cv_dec,
+                        cv_emb_idxs,
+                        cv_qidxs,
+                        cv_enc_unmod,
+                        cv_spkr_cls,
                     ),
                     "recon": self.make_dict(
-                        recon_enc, recon_dec, recon_emb_idxs, recon_qidxs, None,
+                        recon_enc,
+                        recon_dec,
+                        recon_emb_idxs,
+                        recon_qidxs,
+                        None,
+                        None,
                     ),
                 }
             )
@@ -147,11 +162,15 @@ class VQVAE2(nn.Module):
             self.encoders[n].remove_weight_norm()
             self.decoders[n].remove_weight_norm()
 
-    def make_dict(self, enc, dec, emb_idxs, qidxs, spkr_cls=None):
+    def make_dict(self, enc, dec, emb_idxs, qidxs, enc_unmod, spkr_cls=None):
         # NOTE: transpose from [B, D, T] to be [B, T, D]
         # NOTE: index of bottom outputs to be 0
+        encoded_unmod = (
+            [e.transpose(1, 2) for e in enc_unmod] if enc_unmod is not None else None
+        )
         return {
             "encoded": [e.transpose(1, 2) for e in enc],
+            "encoded_unmod": encoded_unmod,
             "spkr_cls": spkr_cls.transpose(1, 2) if spkr_cls is not None else None,
             "decoded": dec.transpose(1, 2),
             "emb_idx": emb_idxs[::-1],

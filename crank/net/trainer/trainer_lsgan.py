@@ -13,6 +13,7 @@ VQVAE w/ LSGAN trainer
 
 import torch
 from crank.net.trainer.trainer_vqvae import VQVAETrainer
+from torch.nn.utils import clip_grad_norm
 
 
 class LSGANTrainer(VQVAETrainer):
@@ -60,8 +61,10 @@ class LSGANTrainer(VQVAETrainer):
             "steps": self.steps,
             "model": {"G": self.model["G"].state_dict()},
         }
+        if self.conf["speaker_adversarial"]:
+            state_dict["model"].update({"SPKRADV": self.model["SPKRADV"].state_dict()})
         if self.gan_flag:
-            state_dict["model"]["D"] = self.model["D"].state_dict()
+            state_dict["model"].update({"D": self.model["D"].state_dict()})
         torch.save(state_dict, checkpoint)
 
     def train(self, batch, phase="train"):
@@ -114,7 +117,16 @@ class LSGANTrainer(VQVAETrainer):
         if phase == "train" and not self.stop_generator:
             self.optimizer["G"].zero_grad()
             loss["G"].backward()
+            if self.conf["clip_grad_norm"] != 0:
+                clip_grad_norm(
+                    self.model["G"].parameters(),
+                    self.conf["clip_grad_norm"],
+                )
             self.optimizer["G"].step()
+
+        if phase == "train" and self.conf["speaker_adversarial"]:
+            outputs = self.model["G"].forward(feats, enc_h, dec_h, spkrvec=spkrvec)
+            loss = self.update_SPKRADV(batch, outputs, loss, phase=phase)
         return loss
 
     def update_D(self, batch, loss, phase="train"):
@@ -181,7 +193,8 @@ class LSGANTrainer(VQVAETrainer):
         loss["ce_{}".format(label)] = self.criterion["ce"](
             spkr_cls.reshape(-1, spkr_cls.size(2)), h_scalar.reshape(-1)
         )
-        loss[model] += self.conf["alphas"]["ce"] * loss["ce_{}".format(label)]
+        if not (self.conf["use_real_only_acgan"] and label == "fake"):
+            loss[model] += self.conf["alphas"]["acgan"] * loss["ce_{}".format(label)]
         return loss
 
     def _check_gan_start(self):

@@ -12,8 +12,10 @@ Cyclic VQVAE w/ LSGAN trainer
 """
 
 import random
+
 import torch
-from crank.net.trainer import LSGANTrainer, CycleVQVAETrainer
+from crank.net.trainer import CycleVQVAETrainer, LSGANTrainer
+from torch.nn.utils import clip_grad_norm
 
 
 class CycleGANTrainer(LSGANTrainer, CycleVQVAETrainer):
@@ -87,7 +89,16 @@ class CycleGANTrainer(LSGANTrainer, CycleVQVAETrainer):
         if phase == "train" and not self.stop_generator:
             self.optimizer["G"].zero_grad()
             loss["G"].backward()
+            if self.conf["clip_grad_norm"] != 0:
+                clip_grad_norm(
+                    self.model["G"].parameters(),
+                    self.conf["clip_grad_norm"],
+                )
             self.optimizer["G"].step()
+
+        if phase == "train" and self.conf["speaker_adversarial"]:
+            outputs = self.model["G"].forward(feats, enc_h, dec_h, spkrvec=spkrvec)
+            loss = self.update_SPKRADV(batch, outputs, loss, phase=phase)
         return loss
 
     def update_D(self, batch, loss, phase="train"):
@@ -129,7 +140,7 @@ class CycleGANTrainer(LSGANTrainer, CycleVQVAETrainer):
                         batch["{}_h_scalar".format(io)].reshape(-1),
                     )
                     loss["G"] += (
-                        self.conf["alphas"]["ce"] * loss["ce_adv_{}".format(lbl)]
+                        self.conf["alphas"]["acgan"] * loss["ce_adv_{}".format(lbl)]
                     )
                 loss["adv_{}".format(lbl)] = self.criterion["mse"](
                     D_outputs, torch.ones_like(D_outputs)
@@ -162,11 +173,14 @@ class CycleGANTrainer(LSGANTrainer, CycleVQVAETrainer):
                         sample[k], [1, self.n_spkrs], dim=2
                     )
                     loss["ce_{}_{}".format(k, lbl)] = self.criterion["ce"](
-                        spkr_cls.reshape(-1, spkr_cls.size(2)), h_scalar.reshape(-1),
+                        spkr_cls.reshape(-1, spkr_cls.size(2)),
+                        h_scalar.reshape(-1),
                     )
-                    loss["D"] += (
-                        self.conf["alphas"]["ce"] * loss["ce_{}_{}".format(k, lbl)]
-                    )
+                    if not (self.conf["use_real_only_acgan"] and k == "org_fake"):
+                        loss["D"] += (
+                            self.conf["alphas"]["acgan"]
+                            * loss["ce_{}_{}".format(k, lbl)]
+                        )
 
             real_sample = sample["real"].masked_select(mask)
             loss["real_{}".format(lbl)] = self.criterion["mse"](

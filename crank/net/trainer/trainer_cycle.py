@@ -12,8 +12,8 @@ Cyclic VQVAE trainer
 """
 
 
-# from torch.nn.utils import clip_grad_norm
 from crank.net.trainer.trainer_vqvae import VQVAETrainer
+from torch.nn.utils import clip_grad_norm
 
 
 class CycleVQVAETrainer(VQVAETrainer):
@@ -86,8 +86,16 @@ class CycleVQVAETrainer(VQVAETrainer):
         if phase == "train":
             self.optimizer["G"].zero_grad()
             loss["G"].backward()
-            # clip_grad_norm(self.model["G"].parameters(), self.conf["clip_grad_norm"])
+            if self.conf["clip_grad_norm"] != 0:
+                clip_grad_norm(
+                    self.model["G"].parameters(),
+                    self.conf["clip_grad_norm"],
+                )
             self.optimizer["G"].step()
+
+        if phase == "train" and self.conf["speaker_adversarial"]:
+            outputs = self.model["G"].forward(feats, enc_h, dec_h, spkrvec=spkrvec)
+            loss = self.update_SPKRADV(batch, outputs, loss, phase=phase)
         return loss
 
     def _parse_cyclevqvae_loss(self, loss):
