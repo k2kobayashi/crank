@@ -110,7 +110,6 @@ class StarGANTrainer(LSGANTrainer, CycleVQVAETrainer):
 
     def update_D(self, batch, loss, phase="train"):
         # preapare aux. features
-
         enc_h = self._get_enc_h(batch)
         enc_h_cv = self._get_enc_h(batch, use_cvfeats=True)
         dec_h, spkrvec = self._get_dec_h(batch)
@@ -148,10 +147,10 @@ class StarGANTrainer(LSGANTrainer, CycleVQVAETrainer):
         return loss
 
     def calculate_starganadv_loss(self, batch, outputs, loss):
-        # TODO: concat D input and speaker label
-        cv_decoded = outputs[0]["cv"]["decoded"].transpose(1, 2)
-        D_outputs = self.model["D"].forward(cv_decoded).transpose(1, 2)
-        C_outputs = self.model["C"].forward(cv_decoded).transpose(1, 2)
+        cv_decoded = outputs[0]["cv"]["decoded"]
+        cv_inputs = self.get_D_inputs(batch, cv_decoded, label="cv")
+        D_outputs = self.model["D"].forward(cv_inputs.transpose(1, 2)).transpose(1, 2)
+        C_outputs = self.model["C"].forward(cv_decoded.transpose(1, 2)).transpose(1, 2)
 
         # calculate D loss
         valid_label = torch.ones_like(D_outputs)
@@ -173,12 +172,15 @@ class StarGANTrainer(LSGANTrainer, CycleVQVAETrainer):
         def return_sample(x):
             return self.model["D"](x.transpose(1, 2)).transpose(1, 2)
 
+        real_inputs = self.get_D_inputs(batch, batch["feats"], label="org")
+        fake_inputs = self.get_D_inputs(
+            batch, outputs[0]["cv"]["decoded"].detach(), label="cv"
+        )
+
         # get discriminator outputs
         sample = {
-            "real": return_sample(batch["feats"]),
-            "org_fake": return_sample(outputs[0]["org"]["decoded"].detach()),
-            "cv_fake": return_sample(outputs[0]["cv"]["decoded"].detach()),
-            "recon_fake": return_sample(outputs[0]["recon"]["decoded"].detach()),
+            "real": return_sample(real_inputs),
+            "cv_fake": return_sample(fake_inputs),
         }
         mask = batch["mask"]
 
@@ -187,7 +189,7 @@ class StarGANTrainer(LSGANTrainer, CycleVQVAETrainer):
         loss["D_real"] = self.criterion["mse"](real, torch.ones_like(real))
 
         # loss by fake
-        fake_key = random.choice(["org_fake", "cv_fake", "recon_fake"])
+        fake_key = random.choice(["cv_fake"])
         fake = sample[fake_key].masked_select(mask)
         loss["D_fake"] = self.criterion["mse"](fake, torch.zeros_like(fake))
 
@@ -197,3 +199,17 @@ class StarGANTrainer(LSGANTrainer, CycleVQVAETrainer):
             + self.conf["alphas"]["real"] * loss["D_real"]
         )
         return loss
+
+    def get_D_inputs(self, batch, feats, label="org"):
+        feats_list = [feats]
+        if ["use_discriminator_uv"]:
+            feats_list.append(batch["uv"])
+        if ["use_discriminator_spkrcode"]:
+            if not ["use_discriminator_spkr_embedding"]:
+                feats_list.append(batch[f"{label}_h_onehot"])
+            else:
+                # remove ignore_index (i.e., -100)
+                h_scalar = batch[f"{label}_h_scalar"].clone()
+                h_scalar[:, :] = h_scalar[:, 0:1]
+                feats_list.append(self.model["G"].spkr_embedding(h_scalar).detach())
+        return torch.cat(feats_list, axis=-1).float()

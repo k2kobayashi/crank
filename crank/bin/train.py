@@ -55,14 +55,22 @@ def get_model(conf, spkr_size=0, device="cuda"):
     logging.info(models["G"])
 
     # discriminator
-    if conf["gan_type"] == "lsgan":
-        output_channels = 1
-    if conf["acgan_flag"]:
-        output_channels += spkr_size
     if conf["trainer_type"] in ["lsgan", "cyclegan", "stargan"]:
+        input_channels = conf["input_size"]
+        if conf["use_discriminator_uv"]:
+            input_channels += 1  # for uv flag
+        if conf["use_discriminator_spkrcode"]:
+            if not conf["use_discriminator_spkr_embedding"]:
+                input_channels += spkr_size
+            else:
+                input_channels += conf["spkr_embedding_size"]
+        if conf["gan_type"] == "lsgan":
+            output_channels = 1
+        if conf["acgan_flag"]:
+            output_channels += spkr_size
         if conf["discriminator_type"] == "pwg":
             D = ParallelWaveGANDiscriminator(
-                in_channels=conf["input_size"],
+                in_channels=input_channels,
                 out_channels=output_channels,
                 kernel_size=conf["discriminator_kernel_size"],
                 layers=conf["n_discriminator_layers"],
