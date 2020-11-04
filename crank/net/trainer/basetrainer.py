@@ -78,11 +78,8 @@ class BaseTrainer(object):
 
         self.spkrs = dataloader["spkrs"]
         self.n_spkrs = len(self.spkrs)
-        self.n_cv_spkrs = (
-            self.conf["n_cv_spkrs"]
-            if self.n_spkrs > self.conf["n_cv_spkrs"]
-            else self.n_spkrs
-        )
+        self.n_cv_spkrs = 4 if self.n_spkrs > 4 else self.n_cv_spkrs
+        self.n_dev_samples = 5
 
         self.resume_steps = resume
         self.steps = resume

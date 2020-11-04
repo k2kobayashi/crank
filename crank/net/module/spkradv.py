@@ -42,7 +42,7 @@ class SpeakerAdversarialNetwork(nn.Module):
             nonlinear_activation="LeakyReLU",
             nonlinear_activation_params={"negative_slope": 0.2},
             bias=True,
-            use_weight_norm=self.conf["use_weight_norm"],
+            use_weight_norm=True,
         )
 
 

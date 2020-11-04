@@ -57,10 +57,10 @@ def get_model(conf, spkr_size=0, device="cuda"):
     # discriminator
     if conf["trainer_type"] in ["lsgan", "cyclegan", "stargan"]:
         input_channels = conf["input_size"]
-        if conf["use_discriminator_uv"]:
+        if conf["use_D_uv"]:
             input_channels += 1  # for uv flag
-        if conf["use_discriminator_spkrcode"]:
-            if not conf["use_discriminator_spkr_embedding"]:
+        if conf["use_D_spkrcode"]:
+            if not conf["use_spkr_embedding"]:
                 input_channels += spkr_size
             else:
                 input_channels += conf["spkr_embedding_size"]
@@ -68,45 +68,39 @@ def get_model(conf, spkr_size=0, device="cuda"):
             output_channels = 1
         if conf["acgan_flag"]:
             output_channels += spkr_size
-        if conf["discriminator_type"] == "pwg":
-            D = ParallelWaveGANDiscriminator(
-                in_channels=input_channels,
-                out_channels=output_channels,
-                kernel_size=conf["discriminator_kernel_size"],
-                layers=conf["n_discriminator_layers"],
-                conv_channels=64,
-                dilation_factor=1,
-                nonlinear_activation="LeakyReLU",
-                nonlinear_activation_params={"negative_slope": 0.2},
-                bias=True,
-                use_weight_norm=True,
-            )
-        else:
-            raise NotImplementedError()
+        D = ParallelWaveGANDiscriminator(
+            in_channels=input_channels,
+            out_channels=output_channels,
+            kernel_size=conf["discriminator_kernel_size"],
+            layers=conf["n_discriminator_layers"],
+            conv_channels=64,
+            dilation_factor=1,
+            nonlinear_activation="LeakyReLU",
+            nonlinear_activation_params={"negative_slope": 0.2},
+            bias=True,
+            use_weight_norm=True,
+        )
         models.update({"D": D.to(device)})
         logging.info(models["D"])
 
     # domain classifier
     if conf["trainer_type"] in ["stargan"]:
-        if conf["classifier_type"] == "pwg":
-            C = ParallelWaveGANDiscriminator(
-                in_channels=conf["input_size"],
-                out_channels=spkr_size,
-                kernel_size=conf["classifier_kernel_size"],
-                layers=conf["n_classifier_layers"],
-                conv_channels=64,
-                dilation_factor=1,
-                nonlinear_activation="LeakyReLU",
-                nonlinear_activation_params={"negative_slope": 0.2},
-                bias=True,
-                use_weight_norm=True,
-            )
-        else:
-            raise NotImplementedError()
+        C = ParallelWaveGANDiscriminator(
+            in_channels=conf["input_size"],
+            out_channels=spkr_size,
+            kernel_size=conf["classifier_kernel_size"],
+            layers=conf["n_classifier_layers"],
+            conv_channels=64,
+            dilation_factor=1,
+            nonlinear_activation="LeakyReLU",
+            nonlinear_activation_params={"negative_slope": 0.2},
+            bias=True,
+            use_weight_norm=True,
+        )
         models.update({"C": C.to(device)})
         logging.info(models["C"])
 
-    if conf["speaker_adversarial"]:
+    if conf["use_spkradv_training"]:
         SPKRADV = SpeakerAdversarialNetwork(conf, spkr_size)
         models.update({"SPKRADV": SPKRADV.to(device)})
         logging.info(models["SPKRADV"])

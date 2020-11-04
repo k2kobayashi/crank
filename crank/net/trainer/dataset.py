@@ -106,7 +106,7 @@ class BaseDataset(Dataset):
             sample = self._transform(sample)
         if self.conf["spec_augment"]:
             feats = sample["feats"]
-            for i in range(self.conf["n_apply_spec_augment"]):
+            for i in range(self.conf["n_spec_augment"]):
                 feats = apply_tfmask(feats)
             sample["feats_sa"] = feats
         sample = self._zero_padding(sample)

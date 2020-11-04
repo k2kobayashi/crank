@@ -15,6 +15,7 @@ import random
 
 import torch
 from crank.net.trainer import CycleVQVAETrainer, LSGANTrainer
+from torch.nn.utils import clip_grad_norm
 
 
 class StarGANTrainer(LSGANTrainer, CycleVQVAETrainer):
@@ -62,7 +63,7 @@ class StarGANTrainer(LSGANTrainer, CycleVQVAETrainer):
 
     def forward_stargan(self, batch, loss, phase="train"):
         # run update_G and updata_D
-        if self.conf["train_first"] == "generator":
+        if self.conf["train_first"] == "G":
             loss = self.update_G(batch, loss, phase=phase)
             loss = self.update_D(batch, loss, phase=phase)
             loss = self.update_C(batch, loss, phase=phase)
@@ -86,11 +87,12 @@ class StarGANTrainer(LSGANTrainer, CycleVQVAETrainer):
             feats, enc_h, dec_h, enc_h_cv, dec_h_cv, spkrvec, spkrvec_cv
         )
         vqvae_outputs = cycle_outputs[0]["org"]
-        loss = self.calculate_vqvae_loss(batch, vqvae_outputs, loss)
+        if self.conf["use_vqvae_loss"]:
+            loss = self.calculate_vqvae_loss(batch, vqvae_outputs, loss)
         loss = self.calculate_cyclevqvae_loss(batch, cycle_outputs, loss)
 
         # SPKRADV loss
-        if self.conf["speaker_adversarial"]:
+        if self.conf["use_spkradv_training"]:
             loss = self.calculate_spkradv_loss(batch, vqvae_outputs, loss, phase=phase)
 
         # StarGAN-based adversarial loss using cv one
@@ -100,10 +102,15 @@ class StarGANTrainer(LSGANTrainer, CycleVQVAETrainer):
         if phase == "train" and not self.stop_generator:
             self.optimizer["G"].zero_grad()
             loss["G"].backward()
+            if self.conf["optim"]["G"]["clip_grad_norm"] != 0:
+                clip_grad_norm(
+                    self.model["G"].parameters(),
+                    self.conf["optim"]["G"]["clip_grad_norm"],
+                )
             self.optimizer["G"].step()
 
         # update SPKRADV
-        if phase == "train" and self.conf["speaker_adversarial"]:
+        if phase == "train" and self.conf["use_spkradv_training"]:
             outputs = self.model["G"].forward(feats, enc_h, dec_h, spkrvec=spkrvec)
             loss = self.update_SPKRADV(batch, outputs, loss, phase=phase)
         return loss
@@ -125,6 +132,11 @@ class StarGANTrainer(LSGANTrainer, CycleVQVAETrainer):
         if phase == "train":
             self.optimizer["D"].zero_grad()
             loss["D"].backward()
+            if self.conf["optim"]["D"]["clip_grad_norm"] != 0:
+                clip_grad_norm(
+                    self.model["D"].parameters(),
+                    self.conf["optim"]["D"]["clip_grad_norm"],
+                )
             self.optimizer["D"].step()
         return loss
 
@@ -139,10 +151,15 @@ class StarGANTrainer(LSGANTrainer, CycleVQVAETrainer):
         # calculate C loss
         h_scalar = batch["org_h_scalar"].reshape(-1)
         loss["C_real"] = self.criterion["ce"](real, h_scalar)
-        loss["C"] += self.conf["alphas"]["acgan"] * loss["C_real"]
+        loss["C"] += self.conf["alpha"]["acgan"] * loss["C_real"]
         if phase == "train":
             self.optimizer["C"].zero_grad()
             loss["C"].backward()
+            if self.conf["optim"]["C"]["clip_grad_norm"] != 0:
+                clip_grad_norm(
+                    self.model["C"].parameters(),
+                    self.conf["optim"]["C"]["clip_grad_norm"],
+                )
             self.optimizer["C"].step()
         return loss
 
@@ -163,8 +180,8 @@ class StarGANTrainer(LSGANTrainer, CycleVQVAETrainer):
 
         # merge adv loss
         loss["G"] += (
-            self.conf["alphas"]["adv"] * loss["D_adv_cv"]
-            + self.conf["alphas"]["acgan"] * loss["C_adv_cv"]
+            self.conf["alpha"]["adv"] * loss["D_adv_cv"]
+            + self.conf["alpha"]["acgan"] * loss["C_adv_cv"]
         )
         return loss
 
@@ -195,21 +212,7 @@ class StarGANTrainer(LSGANTrainer, CycleVQVAETrainer):
 
         # merge D loss
         loss["D"] += (
-            self.conf["alphas"]["fake"] * loss["D_fake"]
-            + self.conf["alphas"]["real"] * loss["D_real"]
+            self.conf["alpha"]["fake"] * loss["D_fake"]
+            + self.conf["alpha"]["real"] * loss["D_real"]
         )
         return loss
-
-    def get_D_inputs(self, batch, feats, label="org"):
-        feats_list = [feats]
-        if ["use_discriminator_uv"]:
-            feats_list.append(batch["uv"])
-        if ["use_discriminator_spkrcode"]:
-            if not ["use_discriminator_spkr_embedding"]:
-                feats_list.append(batch[f"{label}_h_onehot"])
-            else:
-                # remove ignore_index (i.e., -100)
-                h_scalar = batch[f"{label}_h_scalar"].clone()
-                h_scalar[:, :] = h_scalar[:, 0:1]
-                feats_list.append(self.model["G"].spkr_embedding(h_scalar).detach())
-        return torch.cat(feats_list, axis=-1).float()

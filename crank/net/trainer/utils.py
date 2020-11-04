@@ -37,121 +37,44 @@ def get_criterion(conf):
     return criterion
 
 
-def get_optimizer(net_conf, model):
-    if net_conf["optimizer"] == "adam":
-        Gopt = optim.Adam(model["G"].parameters(), lr=net_conf["lr"])
-    elif net_conf["optimizer"] == "radam":
-        Gopt = toptim.RAdam(model["G"].parameters(), lr=net_conf["lr"])
-    elif net_conf["optimizer"] == "lamb":
-        Gopt = Lamb(
-            model["G"].parameters(),
-            lr=net_conf["lr"],
-            weight_decay=0.01,
-            betas=(0.9, 0.999),
-            adam=False,
-        )
-    optimizer = {"G": Gopt}
+def get_optimizer(conf, model):
+    def return_optim(model, optim_type, lr):
+        if optim_type == "adam":
+            return optim.Adam(model.parameters(), lr=lr)
+        elif optim_type == "radam":
+            return toptim.RAdam(model.parameters(), lr=lr)
+        elif optim_type == "lamb":
+            return Lamb(model.parameters(), lr=lr)
+        else:
+            raise ValueError("Invalid optimizer type")
 
-    if "D" in model:
-        if net_conf["optimizer"] == "adam":
-            Dopt = optim.Adam(model["D"].parameters(), lr=net_conf["discriminator_lr"])
-        elif net_conf["optimizer"] == "radam":
-            Dopt = toptim.RAdam(
-                model["D"].parameters(), lr=net_conf["discriminator_lr"]
+    optimizer = {}
+    for m in ["G", "D", "C", "SPKRADV"]:
+        if m in model:
+            opt = return_optim(
+                model[m], conf["optim"][m]["type"], conf["optim"][m]["lr"]
             )
-        elif net_conf["optimizer"] == "lamb":
-            Dopt = Lamb(
-                model["D"].parameters(),
-                lr=net_conf["discriminator_lr"],
-                weight_decay=0.01,
-                betas=(0.9, 0.999),
-                adam=False,
-            )
-        optimizer.update({"D": Dopt})
-
-    if "C" in model:
-        if net_conf["optimizer"] == "adam":
-            Copt = optim.Adam(model["C"].parameters(), lr=net_conf["classifier_lr"])
-        elif net_conf["optimizer"] == "radam":
-            Copt = toptim.RAdam(model["C"].parameters(), lr=net_conf["classifier_lr"])
-        elif net_conf["optimizer"] == "lamb":
-            Copt = Lamb(
-                model["C"].parameters(),
-                lr=net_conf["classifier_lr"],
-                weight_decay=0.01,
-                betas=(0.9, 0.999),
-                adam=False,
-            )
-        optimizer.update({"C": Copt})
-
-    if "SPKRADV" in model:
-        if net_conf["spkradv_optimizer"] == "adam":
-            SPKRADVopt = optim.Adam(
-                model["SPKRADV"].parameters(), lr=net_conf["spkradv_lr"]
-            )
-        elif net_conf["spkradv_optimizer"] == "radam":
-            SPKRADVopt = toptim.RAdam(
-                model["SPKRADV"].parameters(), lr=net_conf["spkradv_lr"]
-            )
-        elif net_conf["spkradv_optimizer"] == "lamb":
-            SPKRADVopt = Lamb(
-                model["SPKRADV"].parameters(),
-                lr=net_conf["spkradv_lr"],
-                weight_decay=0.01,
-                betas=(0.9, 0.999),
-                adam=False,
-            )
-        elif net_conf["spkradv_optimizer"] == "sgd":
-            SPKRADVopt = optim.SGD(
-                model["SPKRADV"].parameters(), lr=net_conf["spkradv_lr"],
-            )
-        optimizer.update({"SPKRADV": SPKRADVopt})
+            optimizer[m] = opt
     return optimizer
 
 
-def get_scheduler(net_conf, optimizer):
-    scheduler = {
-        "G": StepLR(
-            optimizer["G"],
-            step_size=net_conf["lr_decay_step_size"],
-            gamma=net_conf["lr_decay_size"],
-        ),
-    }
-    if "D" in optimizer:
-        scheduler.update(
-            {
-                "D": StepLR(
-                    optimizer["D"],
-                    step_size=net_conf["discriminator_lr_decay_step_size"],
-                    gamma=net_conf["discriminator_lr_decay_size"],
-                )
-            }
-        )
-    if "C" in optimizer:
-        scheduler.update(
-            {
-                "C": StepLR(
-                    optimizer["C"],
-                    step_size=net_conf["classifier_lr_decay_step_size"],
-                    gamma=net_conf["classifier_lr_decay_size"],
-                )
-            }
-        )
-    if "SPKRADV" in optimizer:
-        scheduler.update(
-            {
-                "SPKRADV": StepLR(
-                    optimizer["SPKRADV"],
-                    step_size=net_conf["spkradv_lr_decay_step_size"],
-                    gamma=net_conf["spkradv_lr_decay_size"],
-                )
-            }
-        )
+def get_scheduler(conf, optimizer):
+    def return_scheduler(optim, step_size, gamma):
+        return StepLR(optim, step_size=step_size, gamma=gamma)
+
+    scheduler = {}
+    for m in ["G", "D", "C", "SPKRADV"]:
+        if m in optimizer:
+            sche = return_scheduler(
+                optimizer[m],
+                conf["optim"][m]["decay_step_size"],
+                conf["optim"][m]["decay_size"],
+            )
+            scheduler[m] = sche
     return scheduler
 
 
 def get_dataloader(conf, scp, scaler, flag="train", n_jobs=10):
-
     if flag in ["train", "reconstruction"]:
         feats = list(scp["train"]["feats"].values()) + list(
             scp["dev"]["feats"].values()
