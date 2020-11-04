@@ -100,14 +100,7 @@ class StarGANTrainer(LSGANTrainer, CycleVQVAETrainer):
 
         # update G
         if phase == "train" and not self.stop_generator:
-            self.optimizer["G"].zero_grad()
-            loss["G"].backward()
-            if self.conf["optim"]["G"]["clip_grad_norm"] != 0:
-                clip_grad_norm(
-                    self.model["G"].parameters(),
-                    self.conf["optim"]["G"]["clip_grad_norm"],
-                )
-            self.optimizer["G"].step()
+            self.step_model(loss, model="G")
 
         # update SPKRADV
         if phase == "train" and self.conf["use_spkradv_training"]:
@@ -130,14 +123,7 @@ class StarGANTrainer(LSGANTrainer, CycleVQVAETrainer):
         loss = self.calculate_stargan_discriminator_loss(batch, outputs, loss)
 
         if phase == "train":
-            self.optimizer["D"].zero_grad()
-            loss["D"].backward()
-            if self.conf["optim"]["D"]["clip_grad_norm"] != 0:
-                clip_grad_norm(
-                    self.model["D"].parameters(),
-                    self.conf["optim"]["D"]["clip_grad_norm"],
-                )
-            self.optimizer["D"].step()
+            self.step_model(loss, model="D")
         return loss
 
     def update_C(self, batch, loss, phase="train"):
@@ -153,14 +139,7 @@ class StarGANTrainer(LSGANTrainer, CycleVQVAETrainer):
         loss["C_real"] = self.criterion["ce"](real, h_scalar)
         loss["C"] += self.conf["alpha"]["acgan"] * loss["C_real"]
         if phase == "train":
-            self.optimizer["C"].zero_grad()
-            loss["C"].backward()
-            if self.conf["optim"]["C"]["clip_grad_norm"] != 0:
-                clip_grad_norm(
-                    self.model["C"].parameters(),
-                    self.conf["optim"]["C"]["clip_grad_norm"],
-                )
-            self.optimizer["C"].step()
+            self.step_model(loss, model="C")
         return loss
 
     def calculate_starganadv_loss(self, batch, outputs, loss):

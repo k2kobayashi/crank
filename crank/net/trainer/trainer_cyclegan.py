@@ -87,14 +87,7 @@ class CycleGANTrainer(LSGANTrainer, CycleVQVAETrainer):
         loss = self.calculate_cycleadv_loss(batch, cycle_outputs, loss)
 
         if phase == "train" and not self.stop_generator:
-            self.optimizer["G"].zero_grad()
-            loss["G"].backward()
-            if self.conf["optim"]["G"]["clip_grad_norm"] != 0:
-                clip_grad_norm(
-                    self.model["G"].parameters(),
-                    self.conf["optim"]["G"]["clip_grad_norm"],
-                )
-            self.optimizer["G"].step()
+            self.step_model(loss, model="G")
 
         if phase == "train" and self.conf["use_spkradv_training"]:
             outputs = self.model["G"].forward(feats, enc_h, dec_h, spkrvec=spkrvec)
@@ -115,14 +108,7 @@ class CycleGANTrainer(LSGANTrainer, CycleVQVAETrainer):
         loss = self.calculate_cycle_discriminator_loss(batch, outputs, loss)
 
         if phase == "train":
-            self.optimizer["D"].zero_grad()
-            loss["D"].backward()
-            if self.conf["optim"]["D"]["clip_grad_norm"] != 0:
-                clip_grad_norm(
-                    self.model["D"].parameters(),
-                    self.conf["optim"]["D"]["clip_grad_norm"],
-                )
-            self.optimizer["D"].step()
+            self.step_model(loss, model="D")
         return loss
 
     def calculate_cycleadv_loss(self, batch, outputs, loss):

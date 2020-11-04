@@ -113,19 +113,22 @@ class VQVAETrainer(BaseTrainer):
 
         loss["objective"] += loss["G"]
         if phase == "train":
-            self.optimizer["G"].zero_grad()
-            loss["G"].backward()
-            if self.conf["optim"]["G"]["clip_grad_norm"] != 0:
-                clip_grad_norm(
-                    self.model["G"].parameters(),
-                    self.conf["optim"]["G"]["clip_grad_norm"],
-                )
-            self.optimizer["G"].step()
+            self.step_model(loss, model="G")
 
         if phase == "train" and self.conf["use_spkradv_training"]:
             outputs = self.model["G"].forward(feats, enc_h, dec_h, spkrvec=spkrvec)
             loss = self.update_SPKRADV(batch, outputs, loss, phase=phase)
         return loss
+
+    def step_model(self, loss, model="G"):
+        self.optimizer[model].zero_grad()
+        loss[model].backward()
+        if self.conf["optim"][model]["clip_grad_norm"] != 0:
+            clip_grad_norm(
+                self.model[model].parameters(),
+                self.conf["optim"][model]["clip_grad_norm"],
+            )
+        self.optimizer[model].step()
 
     def calculate_vqvae_loss(self, batch, outputs, loss):
         mask = batch["mask"]
@@ -174,14 +177,7 @@ class VQVAETrainer(BaseTrainer):
         )
         loss["SPKRADV"] = self.conf["alpha"]["ce"] * spkradv_loss
         if phase == "train":
-            self.optimizer["SPKRADV"].zero_grad()
-            loss["SPKRADV"].backward()
-            if self.conf["optim"]["SPKRADV"]["clip_grad_norm"] != 0:
-                clip_grad_norm(
-                    self.model["SPKRADV"].parameters(),
-                    self.conf["optim"]["SPKRADV"]["clip_grad_norm"],
-                )
-            self.optimizer["SPKRADV"].step()
+            self.step_model(loss, model="SPKRADV")
         return loss
 
     def _parse_vqvae_loss(self, loss):
