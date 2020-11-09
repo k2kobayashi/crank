@@ -78,7 +78,7 @@ class CycleGANTrainer(LSGANTrainer, CycleVQVAETrainer):
         loss = self.calculate_vqvae_loss(batch, cycle_outputs[0]["org"], loss)
         loss = self.calculate_cyclevqvae_loss(batch, cycle_outputs, loss)
 
-        if self.conf["speaker_adversarial"]:
+        if self.conf["use_spkradv_training"]:
             loss = self.calculate_spkradv_loss(
                 batch, cycle_outputs[0]["org"], loss, phase=phase
             )
@@ -87,16 +87,9 @@ class CycleGANTrainer(LSGANTrainer, CycleVQVAETrainer):
         loss = self.calculate_cycleadv_loss(batch, cycle_outputs, loss)
 
         if phase == "train" and not self.stop_generator:
-            self.optimizer["G"].zero_grad()
-            loss["G"].backward()
-            if self.conf["clip_grad_norm"] != 0:
-                clip_grad_norm(
-                    self.model["G"].parameters(),
-                    self.conf["clip_grad_norm"],
-                )
-            self.optimizer["G"].step()
+            self.step_model(loss, model="G")
 
-        if phase == "train" and self.conf["speaker_adversarial"]:
+        if phase == "train" and self.conf["use_spkradv_training"]:
             outputs = self.model["G"].forward(feats, enc_h, dec_h, spkrvec=spkrvec)
             loss = self.update_SPKRADV(batch, outputs, loss, phase=phase)
         return loss
@@ -112,55 +105,60 @@ class CycleGANTrainer(LSGANTrainer, CycleVQVAETrainer):
         outputs = self.model["G"].cycle_forward(
             feats, enc_h, dec_h, enc_h_cv, dec_h_cv, spkrvec, spkrvec_cv
         )
-        loss = self.calculate_cyclediscriminator_loss(batch, outputs, loss)
+        loss = self.calculate_cycle_discriminator_loss(batch, outputs, loss)
 
         if phase == "train":
-            self.optimizer["D"].zero_grad()
-            loss["D"].backward()
-            self.optimizer["D"].step()
+            self.step_model(loss, model="D")
         return loss
 
     def calculate_cycleadv_loss(self, batch, outputs, loss):
+        def return_sample(x):
+            return self.model["D"](x.transpose(1, 2)).transpose(1, 2)
+
         mask = batch["mask"]
         for c in range(self.conf["n_cycles"]):
             for io in ["org", "cv"]:
-                lbl = "{}cyc_{}".format(c, io)
-                D_outputs = (
-                    self.model["D"]
-                    .forward(outputs[c][io]["decoded"].transpose(1, 2))
-                    .transpose(1, 2)
+                lbl = f"{c}cyc_{io}"
+                D_inputs = self.get_D_inputs(
+                    batch, outputs[c][io]["decoded"], label="cv"
                 )
+                D_outputs = return_sample(D_inputs)
                 if self.conf["acgan_flag"]:
                     D_outputs, spkr_cls = torch.split(
                         D_outputs, [1, self.n_spkrs], dim=2
                     )
                     D_outputs = D_outputs.masked_select(mask)
-                    loss["ce_adv_{}".format(lbl)] = self.criterion["ce"](
+                    loss[f"D_acgan_adv_{lbl}"] = self.criterion["ce"](
                         spkr_cls.reshape(-1, spkr_cls.size(2)),
-                        batch["{}_h_scalar".format(io)].reshape(-1),
+                        batch[f"{io}_h_scalar"].reshape(-1),
                     )
                     loss["G"] += (
-                        self.conf["alphas"]["acgan"] * loss["ce_adv_{}".format(lbl)]
+                        self.conf["alpha"]["acgan"] * loss[f"D_acgan_adv_{lbl}"]
                     )
-                loss["adv_{}".format(lbl)] = self.criterion["mse"](
+                loss[f"D_adv_{lbl}"] = self.criterion["mse"](
                     D_outputs, torch.ones_like(D_outputs)
                 )
-                loss["G"] += self.conf["alphas"]["adv"] * loss["adv_{}".format(lbl)]
+                loss["G"] += self.conf["alpha"]["adv"] * loss[f"D_adv_{lbl}"]
         return loss
 
-    def calculate_cyclediscriminator_loss(self, batch, outputs, loss):
+    def calculate_cycle_discriminator_loss(self, batch, outputs, loss):
+        def return_sample(x):
+            return self.model["D"](x.transpose(1, 2)).transpose(1, 2)
+
         mask = batch["mask"]
         for c in range(self.conf["n_cycles"]):
-
-            def return_sample(x):
-                return self.model["D"](x.transpose(1, 2)).transpose(1, 2)
-
-            # get discriminator outputs
-            lbl = "{}cyc".format(c)
+            lbl = f"{c}cyc"
+            real_inputs = self.get_D_inputs(batch, batch["feats"], label="org")
+            org_fake_inputs = self.get_D_inputs(
+                batch, outputs[0]["org"]["decoded"].detach(), label="org"
+            )
+            cv_fake_inputs = self.get_D_inputs(
+                batch, outputs[0]["cv"]["decoded"].detach(), label="cv"
+            )
             sample = {
-                "real": return_sample(batch["feats"]),
-                "org_fake": return_sample(outputs[c]["org"]["decoded"].detach()),
-                "cv_fake": return_sample(outputs[c]["cv"]["decoded"].detach()),
+                "real": return_sample(real_inputs),
+                "org_fake": return_sample(org_fake_inputs),
+                "cv_fake": return_sample(cv_fake_inputs),
             }
 
             if self.conf["acgan_flag"]:
@@ -172,27 +170,25 @@ class CycleGANTrainer(LSGANTrainer, CycleVQVAETrainer):
                     sample[k], spkr_cls = torch.split(
                         sample[k], [1, self.n_spkrs], dim=2
                     )
-                    loss["ce_{}_{}".format(k, lbl)] = self.criterion["ce"](
-                        spkr_cls.reshape(-1, spkr_cls.size(2)),
-                        h_scalar.reshape(-1),
+                    loss[f"D_ce_{k}_{lbl}"] = self.criterion["ce"](
+                        spkr_cls.reshape(-1, spkr_cls.size(2)), h_scalar.reshape(-1),
                     )
                     if not (self.conf["use_real_only_acgan"] and k == "org_fake"):
                         loss["D"] += (
-                            self.conf["alphas"]["acgan"]
-                            * loss["ce_{}_{}".format(k, lbl)]
+                            self.conf["alpha"]["acgan"] * loss[f"D_ce_{k}_{lbl}"]
                         )
 
             real_sample = sample["real"].masked_select(mask)
-            loss["real_{}".format(lbl)] = self.criterion["mse"](
+            loss[f"D_real_{lbl}"] = self.criterion["mse"](
                 real_sample, torch.ones_like(real_sample)
             )
             fake_key = random.choice(["org_fake", "cv_fake"])
             fake_sample = sample[fake_key].masked_select(mask)
-            loss["fake_{}".format(lbl)] = self.criterion["mse"](
+            loss[f"D_fake_{lbl}"] = self.criterion["mse"](
                 fake_sample, torch.zeros_like(fake_sample)
             )
             loss["D"] += (
-                self.conf["alphas"]["fake"] * loss["fake_{}".format(lbl)]
-                + self.conf["alphas"]["real"] * loss["real_{}".format(lbl)]
+                self.conf["alpha"]["fake"] * loss[f"D_fake_{lbl}"]
+                + self.conf["alpha"]["real"] * loss[f"D_real_{lbl}"]
             )
         return loss

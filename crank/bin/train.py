@@ -11,6 +11,7 @@ Train VQ-VAE2 model
 
 """
 
+import re
 import argparse
 import logging
 import random
@@ -24,8 +25,12 @@ import torch
 from crank.net.module.spkradv import SpeakerAdversarialNetwork
 from crank.net.module.vqvae2 import VQVAE2
 from crank.net.trainer import TrainerWrapper
-from crank.net.trainer.utils import (get_criterion, get_dataloader,
-                                     get_optimizer, get_scheduler)
+from crank.net.trainer.utils import (
+    get_criterion,
+    get_dataloader,
+    get_optimizer,
+    get_scheduler,
+)
 from crank.utils import load_yaml, open_featsscp, open_scpdir
 from parallel_wavegan.models import ParallelWaveGANDiscriminator
 from tensorboardX import SummaryWriter
@@ -50,30 +55,52 @@ def get_model(conf, spkr_size=0, device="cuda"):
     logging.info(models["G"])
 
     # discriminator
-    if conf["gan_type"] == "lsgan":
-        output_channels = 1
-    if conf["acgan_flag"]:
-        output_channels += spkr_size
-    if conf["trainer_type"] in ["lsgan", "cyclegan"]:
-        if conf["discriminator_type"] == "pwg":
-            D = ParallelWaveGANDiscriminator(
-                in_channels=conf["input_size"],
-                out_channels=output_channels,
-                kernel_size=conf["discriminator_kernel_size"],
-                layers=conf["n_discriminator_layers"],
-                conv_channels=64,
-                dilation_factor=1,
-                nonlinear_activation="LeakyReLU",
-                nonlinear_activation_params={"negative_slope": 0.2},
-                bias=True,
-                use_weight_norm=True,
-            )
-        else:
-            raise NotImplementedError()
+    if conf["trainer_type"] in ["lsgan", "cyclegan", "stargan"]:
+        input_channels = conf["input_size"]
+        if conf["use_D_uv"]:
+            input_channels += 1  # for uv flag
+        if conf["use_D_spkrcode"]:
+            if not conf["use_spkr_embedding"]:
+                input_channels += spkr_size
+            else:
+                input_channels += conf["spkr_embedding_size"]
+        if conf["gan_type"] == "lsgan":
+            output_channels = 1
+        if conf["acgan_flag"]:
+            output_channels += spkr_size
+        D = ParallelWaveGANDiscriminator(
+            in_channels=input_channels,
+            out_channels=output_channels,
+            kernel_size=conf["discriminator_kernel_size"],
+            layers=conf["n_discriminator_layers"],
+            conv_channels=64,
+            dilation_factor=1,
+            nonlinear_activation="LeakyReLU",
+            nonlinear_activation_params={"negative_slope": 0.2},
+            bias=True,
+            use_weight_norm=True,
+        )
         models.update({"D": D.to(device)})
         logging.info(models["D"])
 
-    if conf["speaker_adversarial"]:
+    # domain classifier
+    if conf["trainer_type"] in ["stargan"]:
+        C = ParallelWaveGANDiscriminator(
+            in_channels=conf["input_size"],
+            out_channels=spkr_size,
+            kernel_size=conf["classifier_kernel_size"],
+            layers=conf["n_classifier_layers"],
+            conv_channels=64,
+            dilation_factor=1,
+            nonlinear_activation="LeakyReLU",
+            nonlinear_activation_params={"negative_slope": 0.2},
+            bias=True,
+            use_weight_norm=True,
+        )
+        models.update({"C": C.to(device)})
+        logging.info(models["C"])
+
+    if conf["use_spkradv_training"]:
         SPKRADV = SpeakerAdversarialNetwork(conf, spkr_size)
         models.update({"SPKRADV": SPKRADV.to(device)})
         logging.info(models["SPKRADV"])
@@ -84,7 +111,7 @@ def load_checkpoint(model, checkpoint):
     state_dict = torch.load(checkpoint, map_location="cpu")
     model["G"].load_state_dict(state_dict["model"]["G"])
     logging.info("load G checkpoint: {}".format(checkpoint))
-    for m in ["D", "SPKRADV"]:
+    for m in ["D", "C", "SPKRADV"]:
         if m in state_dict["model"].keys():
             model[m].load_state_dict(state_dict["model"][m])
         logging.info("load {} checkpoint: {}".format(m, checkpoint))
@@ -133,8 +160,6 @@ def main():
         model, resume = load_checkpoint(model, args.checkpoint)
     else:
         if args.flag in ["reconstruction", "eval"]:
-            import re
-
             pkls = list(expdir.glob("*.pkl"))
             steps = [re.findall("[0-9]+", str(p.stem))[0] for p in pkls]
             max_step = max([int(s) for s in steps])

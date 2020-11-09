@@ -4,10 +4,10 @@ scipy
 joblib
 matplotlib
 sprocket-vc
-torch==1.4.0
-torchvision==0.5.0
+torch
+torchvision
 parallel_wavegan
 tensorboardX
 torch-optimizer
 pytorch_lamb
-numba==0.48.0
+tensorflow-gpu==2.3.1

@@ -1,3 +1,5 @@
+test
+conf
 *.swp
 *.pyc
 slurm-*.out

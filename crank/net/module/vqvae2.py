@@ -28,11 +28,6 @@ class VQVAE2(nn.Module):
             self.spkr_embedding = nn.Embedding(
                 self.spkr_size, self.conf["spkr_embedding_size"]
             )
-            if self.conf["use_embedding_transform"]:
-                self.embedding_transform = nn.Linear(
-                    self.conf["spkr_embedding_size"],
-                    self.conf["embedding_transform_size"],
-                )
 
     def forward(
         self, x, enc_h, dec_h, spkrvec=None, use_ema=True, encoder_detach=False
@@ -108,12 +103,7 @@ class VQVAE2(nn.Module):
                         cv_spkr_cls,
                     ),
                     "recon": self.make_dict(
-                        recon_enc,
-                        recon_dec,
-                        recon_emb_idxs,
-                        recon_qidxs,
-                        None,
-                        None,
+                        recon_enc, recon_dec, recon_emb_idxs, recon_qidxs, None, None,
                     ),
                 }
             )
@@ -187,23 +177,16 @@ class VQVAE2(nn.Module):
                 enc_out_channels = self.conf["emb_dim"][n]
                 if self.conf["encoder_spkr_classifier"]:
                     enc_out_channels += self.spkr_size
-                enc_aux_channels = self.conf["enc_aux_size"]
+                enc_aux_channels = 2 if self.conf["encoder_f0"] else 0
                 dec_in_channels = sum(
                     [self.conf["emb_dim"][i] for i in range(self.conf["n_vq_stacks"])]
                 )
                 dec_out_channels = self.conf["output_size"]
+                dec_aux_channels = 2 if self.conf["decoder_f0"] else 0
                 if self.conf["use_spkr_embedding"]:
-                    if not self.conf["use_embedding_transform"]:
-                        dec_aux_channels = (
-                            self.conf["dec_aux_size"] + self.conf["spkr_embedding_size"]
-                        )
-                    else:
-                        dec_aux_channels = (
-                            self.conf["dec_aux_size"]
-                            + self.conf["embedding_transform_size"]
-                        )
+                    dec_aux_channels += self.conf["spkr_embedding_size"]
                 else:
-                    dec_aux_channels = self.conf["dec_aux_size"] + self.spkr_size
+                    dec_aux_channels += self.spkr_size
             elif n >= 1:
                 enc_in_channels = self.conf["emb_dim"][n - 1]
                 enc_out_channels = self.conf["emb_dim"][n]
@@ -218,7 +201,7 @@ class VQVAE2(nn.Module):
                     kernel_size=self.conf["kernel_size"][n],
                     layers=self.conf["n_layers"][n] * self.conf["n_layers_stacks"][n],
                     stacks=self.conf["n_layers_stacks"][n],
-                    residual_channels=self.conf["residual_channels"],
+                    residual_channels=64,
                     gate_channels=128,
                     skip_channels=64,
                     aux_channels=enc_aux_channels,
@@ -237,7 +220,7 @@ class VQVAE2(nn.Module):
                     kernel_size=self.conf["kernel_size"][n],
                     layers=self.conf["n_layers"][n] * self.conf["n_layers_stacks"][n],
                     stacks=self.conf["n_layers_stacks"][n],
-                    residual_channels=self.conf["residual_channels"],
+                    residual_channels=64,
                     gate_channels=128,
                     skip_channels=64,
                     aux_channels=dec_aux_channels,

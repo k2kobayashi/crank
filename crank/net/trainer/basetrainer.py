@@ -21,8 +21,13 @@ from tqdm import tqdm
 
 
 def TrainerWrapper(trainer_type, **ka):
-    from crank.net.trainer import (CycleGANTrainer, CycleVQVAETrainer,
-                                   LSGANTrainer, VQVAETrainer)
+    from crank.net.trainer import (
+        CycleGANTrainer,
+        CycleVQVAETrainer,
+        LSGANTrainer,
+        VQVAETrainer,
+        StarGANTrainer,
+    )
 
     if trainer_type == "vqvae":
         trainer = VQVAETrainer(**ka)
@@ -32,6 +37,8 @@ def TrainerWrapper(trainer_type, **ka):
         trainer = CycleVQVAETrainer(**ka)
     elif trainer_type == "cyclegan":
         trainer = CycleGANTrainer(**ka)
+    elif trainer_type == "stargan":
+        trainer = StarGANTrainer(**ka)
     else:
         raise NotImplementedError(
             "conf['trainer_type']: {} is not supported.".format(trainer_type)
@@ -71,11 +78,8 @@ class BaseTrainer(object):
 
         self.spkrs = dataloader["spkrs"]
         self.n_spkrs = len(self.spkrs)
-        self.n_cv_spkrs = (
-            self.conf["n_cv_spkrs"]
-            if self.n_spkrs > self.conf["n_cv_spkrs"]
-            else self.n_spkrs
-        )
+        self.n_cv_spkrs = 4 if self.n_spkrs > 4 else self.n_cv_spkrs
+        self.n_dev_samples = 5
 
         self.resume_steps = resume
         self.steps = resume
@@ -130,8 +134,9 @@ class BaseTrainer(object):
             "steps": self.steps,
             "model": {"G": self.model["G"].state_dict()},
         }
-        if self.conf["speaker_adversarial"]:
-            state_dict["model"].update({"SPKRADV": self.model["SPKRADV"].state_dict()})
+        for m in ["SPKRADV", "D", "C"]:
+            if m in self.model.keys():
+                state_dict["model"].update({m: self.model[m].state_dict()})
         torch.save(state_dict, checkpoint)
 
     def _run_eval(self, flag="eval", tdir=False):
@@ -197,7 +202,7 @@ class BaseTrainer(object):
             recon_tqdm.close()
 
     def _get_loss_dict(self):
-        loss_dict = {"objective": 0.0, "G": 0.0, "D": 0.0}
+        loss_dict = {"objective": 0.0, "G": 0.0, "D": 0.0, "C": 0.0, "SPKRADV": 0.0}
         return loss_dict
 
     def _parse_loss(self, loss):
