@@ -42,15 +42,9 @@ alpha:
   fake: 1
   acgan: 1
 stft_params:  # parameters for STFT loss
-  fft_sizes:
-     - 64
-     - 128
-  win_sizes:
-     - 64
-     - 128
-  hop_sizes:
-     - 16
-     - 32
+  fft_sizes: [64, 128]
+  win_sizes: [64, 128]
+  hop_sizes: [16, 32]
   logratio: 0 # ratio between log-magnitude and magnitude
 
 optim:
@@ -89,26 +83,11 @@ use_spkr_embedding: true       # use nn.Embedding instead of 1-hot vector
 spkr_embedding_size: 32        # output_size of speaker embedding
 ema_flag: true                 # use exponential moving average
 n_vq_stacks: 2                 # # of hierarchical VQVAE stacks [1, 2, 3]
-n_layers_stacks:
-- 2
-- 2
-- 2
-n_layers:
-- 6
-- 5
-- 4
-kernel_size:
-- 5
-- 3
-- 3
-emb_dim:
-- 64
-- 64
-- 64
-emb_size:
-- 512
-- 512
-- 512
+n_layers_stacks: [2, 2, 2]
+n_layers: [6, 5, 4]
+kernel_size: [5, 3, 3]
+emb_dim: [64, 64, 64]
+emb_size: [512, 512, 512]
 n_steps_cycle_start: 100000     # # of steps when starts cycle-consistency training
 n_cycles: 1                    # # of cycles of cyclic architecture
 encoder_spkr_classifier: false # train speaker classifier in encoder
