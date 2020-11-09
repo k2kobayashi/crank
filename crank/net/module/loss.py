@@ -18,7 +18,7 @@ import torch.nn.functional as F
 
 
 class CustomFeatureLoss(nn.Module):
-    def __init__(self, loss_type="l1", causal_size=0, stft_params={}):
+    def __init__(self, loss_type="l1", causal_size=0, stft_params={}, device="cuda"):
         super(CustomFeatureLoss, self).__init__()
         self.loss_type = loss_type
         self.causal_size = causal_size
@@ -27,7 +27,7 @@ class CustomFeatureLoss(nn.Module):
         elif loss_type == "mse":
             self.loss_func = nn.MSELoss()
         elif loss_type == "stft":
-            self.loss_func = MultiSizeSTFTLoss(**stft_params)
+            self.loss_func = MultiSizeSTFTLoss(**stft_params, device=device)
 
     def forward(self, x, y, mask=None):
         if self.causal_size > 0:
@@ -36,9 +36,9 @@ class CustomFeatureLoss(nn.Module):
             if mask is not None:
                 mask = mask[:, self.causal_size :]
         elif self.causal_size < 0:
-            cs = - self.causal_size
-            y = y[:, cs :]
-            x = x[:, : -cs]
+            cs = -self.causal_size
+            y = y[:, cs:]
+            x = x[:, :-cs]
             if mask is not None:
                 mask = mask[:, :-cs]
 
@@ -62,13 +62,15 @@ def stft(x, fft_size, hop_size, win_size, window):
 
 
 class STFTLoss(nn.Module):
-    def __init__(self, fft_size=32, win_size=20, hop_size=10, logratio=0.0):
+    def __init__(
+        self, fft_size=32, win_size=20, hop_size=10, logratio=0.0, device="cuda"
+    ):
         super(STFTLoss, self).__init__()
         self.fft_size = fft_size
         self.win_size = win_size
         self.hop_size = hop_size
         self.logratio = logratio
-        self.window = torch.hann_window(win_size)
+        self.window = torch.hann_window(win_size).to(device)
 
     def forward(self, x, y):
         """
@@ -91,12 +93,13 @@ class MultiSizeSTFTLoss(nn.Module):
         win_sizes=[20, 80, 160],
         hop_sizes=[10, 20, 30],
         logratio=0.0,
+        device="cuda",
     ):
         super(MultiSizeSTFTLoss, self).__init__()
         self.loss_layers = torch.nn.ModuleList()
         for (fft_size, win_size, hop_size) in zip(fft_sizes, win_sizes, hop_sizes):
             self.loss_layers.append(
-                STFTLoss(fft_size, hop_size, win_size, logratio=logratio)
+                STFTLoss(fft_size, hop_size, win_size, logratio=logratio, device=device)
             )
 
     def forward(self, x, y):

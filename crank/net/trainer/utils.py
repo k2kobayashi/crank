@@ -20,7 +20,7 @@ from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import DataLoader
 
 
-def get_criterion(conf):
+def get_criterion(conf, device="cuda"):
     criterion = {
         "mse": nn.MSELoss(),
         "l1": nn.L1Loss(),
@@ -32,6 +32,7 @@ def get_criterion(conf):
             loss_type="stft",
             causal_size=conf["causal_size"],
             stft_params=conf["stft_params"],
+            device=device,
         ),
     }
     return criterion
