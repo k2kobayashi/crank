@@ -27,6 +27,7 @@ batch_len: 500           # frame length (time_axis) of a minibatch
 cache_dataset: true      # cache_dataset (NOTE: fix cv_spkr_label in a minibatch)
 spec_augment: false      # apply SpecAugment mask to input feature
 n_spec_augment: 0        # # of bands of spec_augment (both time and freq axises)
+use_mcep_0th: false      # model 0th order of mcep
 
 # alpha
 alpha:

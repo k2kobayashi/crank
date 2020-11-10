@@ -14,7 +14,7 @@ feature:
   mlfb_dim: 80      # dimension of mel-spectrogram
 
 # general setting
-feat_type: mlfb          # input feature type ['mlfb', 'mcep']
+feat_type: mcep          # input feature type ['mlfb', 'mcep']
 trainer_type: vqvae      # trainer type ['vqvae', 'lsgan', 'cycle', 'cyclegan', 'stargan']
 input_size: 50           # input_size of G network ['mlfb_dim', 'mcep_dim+1']
 output_size: 50          # output_size of G network ['mlfb_dim', 'mcep_dim+1']
@@ -27,6 +27,7 @@ batch_len: 500           # frame length (time_axis) of a minibatch
 cache_dataset: true      # cache_dataset (NOTE: fix cv_spkr_label in a minibatch)
 spec_augment: false      # apply SpecAugment mask to input feature
 n_spec_augment: 0        # # of bands of spec_augment (both time and freq axises)
+use_mcep_0th: true       # model 0th order of mcep
 
 # alpha
 alpha:

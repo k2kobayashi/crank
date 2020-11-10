@@ -7,7 +7,7 @@
 # Distributed under terms of the MIT license.
 
 """
-Extract various features
+Extract various acoustic features
 
 """
 
@@ -23,7 +23,7 @@ logging.basicConfig(level=logging.INFO)
 
 
 def main():
-    dcp = "Extract aoucstic features of the speaker"
+    dcp = "Extract aoucstic features"
     parser = argparse.ArgumentParser(description=dcp)
     parser.add_argument("--n_jobs", type=int, default=-1, help="# of CPUs")
     parser.add_argument("--phase", type=str, default=None, help="phase")

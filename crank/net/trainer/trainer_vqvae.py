@@ -295,6 +295,9 @@ class VQVAETrainer(BaseTrainer):
             feats[wavf] = {}
             flen = batch["flen"][n]
             feat = to_numpy(outputs["decoded"][n][:flen])
+            if feat_type == "mcep" and not self.conf["use_mcep_0th"]:
+                mcep_0th = to_numpy(batch["mcep_0th"][n][:flen])
+                feat = np.hstack([mcep_0th, feat])
             feats[wavf]["feats"] = self.scaler[feat_type].inverse_transform(feat)
             feats[wavf]["normed_feat"] = feat
 
@@ -327,6 +330,8 @@ class VQVAETrainer(BaseTrainer):
     def _save_decoded_mlfb(self, feats, n_samples=-1):
         if n_samples == -1:
             n_samples = len(list(feats.keys()))
+        if n_samples > len(list(feats.keys())):
+            n_samples = len(list(feats.keys()))
         Parallel(n_jobs=self.n_jobs)(
             [
                 delayed(mlfb2wavf)(
@@ -346,6 +351,8 @@ class VQVAETrainer(BaseTrainer):
 
     def _save_decoded_world(self, feats, n_samples=-1):
         if n_samples == -1:
+            n_samples = len(list(feats.keys()))
+        if n_samples > len(list(feats.keys())):
             n_samples = len(list(feats.keys()))
         Parallel(n_jobs=self.n_jobs)(
             [
