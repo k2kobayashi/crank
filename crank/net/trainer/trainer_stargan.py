@@ -51,12 +51,19 @@ class StarGANTrainer(LSGANTrainer, CycleVQVAETrainer):
             n_jobs=n_jobs,
         )
 
+    def check_custom_start(self):
+        self._check_gan_start()
+        self._check_cycle_start()
+
     def train(self, batch, phase="train"):
         loss = self._get_loss_dict()
         if self.gan_flag:
             loss = self.forward_stargan(batch, loss, phase=phase)
         else:
-            loss = self.forward_vqvae(batch, loss, phase=phase)
+            if self.cycle_flag:
+                loss = self.forward_cycle(batch, loss, phase=phase)
+            else:
+                loss = self.forward_vqvae(batch, loss, phase=phase)
         loss_values = self._parse_loss(loss)
         self._flush_writer(loss, phase)
         return loss_values

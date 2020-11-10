@@ -112,9 +112,9 @@ def load_checkpoint(model, checkpoint):
     model["G"].load_state_dict(state_dict["model"]["G"])
     logging.info("load G checkpoint: {}".format(checkpoint))
     for m in ["D", "C", "SPKRADV"]:
-        if m in state_dict["model"].keys():
+        if m in state_dict["model"].keys() and m in model.keys():
             model[m].load_state_dict(state_dict["model"][m])
-        logging.info("load {} checkpoint: {}".format(m, checkpoint))
+            logging.info("load {} checkpoint: {}".format(m, checkpoint))
     return model, state_dict["steps"]
 
 
