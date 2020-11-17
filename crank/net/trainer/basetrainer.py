@@ -319,12 +319,16 @@ class BaseTrainer(object):
     ):
         tdir = self.expdir / tdir / str(self.steps)
         feats = self._store_features(batch, outputs, cv_spkr_name, tdir)
+        if not (n_samples == -1 or n_samples > len(feats.keys())):
+            feats = dict((k, feats[k]) for k in random.sample(feats.keys(), n_samples))
+        for k in feats.keys():
+            Path(k).parent.mkdir(parents=True, exist_ok=True)
         if save_hdf5:
             self._save_decoded_to_hdf5(feats)
         if self.conf["feat_type"] == "mcep":
-            self._save_decoded_world(feats, n_samples)
+            self._save_decoded_world(feats)
         else:
-            self._save_decoded_mlfb(feats, n_samples)
+            self._save_decoded_mlfb(feats)
 
     def _store_features(self, batch, outputs, cv_spkr_name, tdir):
         feats = {}
@@ -333,7 +337,6 @@ class BaseTrainer(object):
             org_spkr_name = batch["org_spkr_name"][n]
             cv_name = org_spkr_name if cv_spkr_name is None else cv_spkr_name
             wavf = tdir / f"{batch['flbl'][n]}_org-{org_spkr_name}_cv-{cv_name}.wav"
-            wavf.parent.mkdir(parents=True, exist_ok=True)
 
             # for feat
             feats[wavf] = {}
@@ -371,11 +374,7 @@ class BaseTrainer(object):
                 ]
             )
 
-    def _save_decoded_mlfb(self, feats, n_samples=-1):
-        if n_samples == -1:
-            n_samples = len(list(feats.keys()))
-        if n_samples > len(list(feats.keys())):
-            n_samples = len(list(feats.keys()))
+    def _save_decoded_mlfb(self, feats):
         Parallel(n_jobs=self.n_jobs)(
             [
                 delayed(mlfb2wavf)(
@@ -389,15 +388,11 @@ class BaseTrainer(object):
                     fmax=self.feat_conf["fmax"],
                     plot=True,
                 )
-                for wavf in random.sample(list(feats.keys()), n_samples)
+                for wavf in feats.keys()
             ]
         )
 
-    def _save_decoded_world(self, feats, n_samples=-1):
-        if n_samples == -1:
-            n_samples = len(list(feats.keys()))
-        if n_samples > len(list(feats.keys())):
-            n_samples = len(list(feats.keys()))
+    def _save_decoded_world(self, feats):
         Parallel(n_jobs=self.n_jobs)(
             [
                 delayed(world2wav)(
@@ -410,6 +405,6 @@ class BaseTrainer(object):
                     shiftms=self.conf["feature"]["shiftms"],
                     alpha=self.conf["feature"]["mcep_alpha"],
                 )
-                for k in random.sample(list(feats.keys()), n_samples)
+                for k in feats.keys()
             ]
         )
