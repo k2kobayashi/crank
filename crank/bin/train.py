@@ -54,6 +54,29 @@ def get_model(conf, spkr_size=0, device="cuda"):
     models = {"G": VQVAE2(conf, spkr_size=spkr_size).to(device)}
     logging.info(models["G"])
 
+    # speaker adversarial network
+    if conf["use_spkradv_training"]:
+        SPKRADV = SpeakerAdversarialNetwork(conf, spkr_size)
+        models.update({"SPKRADV": SPKRADV.to(device)})
+        logging.info(models["SPKRADV"])
+
+    # spkr classifier network
+    if conf["use_spkr_classifier"]:
+        C = ParallelWaveGANDiscriminator(
+            in_channels=conf["input_size"],
+            out_channels=spkr_size,
+            kernel_size=conf["spkr_classifier_kernel_size"],
+            layers=conf["n_spkr_classifier_layers"],
+            conv_channels=64,
+            dilation_factor=1,
+            nonlinear_activation="LeakyReLU",
+            nonlinear_activation_params={"negative_slope": 0.2},
+            bias=True,
+            use_weight_norm=True,
+        )
+        models.update({"C": C.to(device)})
+        logging.info(models["C"])
+
     # discriminator
     if conf["trainer_type"] in ["lsgan", "cyclegan", "stargan"]:
         input_channels = conf["input_size"]
@@ -82,28 +105,6 @@ def get_model(conf, spkr_size=0, device="cuda"):
         )
         models.update({"D": D.to(device)})
         logging.info(models["D"])
-
-    # domain classifier
-    if conf["trainer_type"] in ["stargan"]:
-        C = ParallelWaveGANDiscriminator(
-            in_channels=conf["input_size"],
-            out_channels=spkr_size,
-            kernel_size=conf["classifier_kernel_size"],
-            layers=conf["n_classifier_layers"],
-            conv_channels=64,
-            dilation_factor=1,
-            nonlinear_activation="LeakyReLU",
-            nonlinear_activation_params={"negative_slope": 0.2},
-            bias=True,
-            use_weight_norm=True,
-        )
-        models.update({"C": C.to(device)})
-        logging.info(models["C"])
-
-    if conf["use_spkradv_training"]:
-        SPKRADV = SpeakerAdversarialNetwork(conf, spkr_size)
-        models.update({"SPKRADV": SPKRADV.to(device)})
-        logging.info(models["SPKRADV"])
     return models
 
 

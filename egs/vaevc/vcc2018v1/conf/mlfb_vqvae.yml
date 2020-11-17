@@ -79,7 +79,6 @@ encoder_f0: false              # conditioned on F0 (lcf0, uv) to encoder
 decoder_f0: true               # conditioned on F0 (lcf0, uv) to decoder
 causal: false                  # use causal network
 causal_size: 0                 # # of look up frames (allow future frames)
-train_cv_classifier: false     # train speaker classifier using converted
 use_spkr_embedding: true       # use nn.Embedding instead of 1-hot vector
 spkr_embedding_size: 32        # output_size of speaker embedding
 ema_flag: true                 # use exponential moving average
@@ -89,9 +88,16 @@ n_layers: [6, 5, 4]            # # layers
 kernel_size: [5, 3, 3]         # # kernels in each stack
 emb_dim: [64, 64, 64]          # embedding dimesnion size for VQ
 emb_size: [512, 512, 512]      # # codebook for VQ
-n_steps_cycle_start: 100000    # # of steps when starts cycle-consistency training
+use_spkradv_training: true     # use speaker adversarial network
+n_spkradv_layers: 3            # # of layers
+spkradv_kernel_size: 3         # kernel_size for speaker adversarial net
+spkradv_lambda: 0.02           # hyper-parameter of gradient reversal layer
+use_spkr_classifier: true
+n_spkr_classifier_layers: 8    # # of classifier layers
+spkr_classifier_kernel_size: 5 # kernel_size for classifier
+use_cyclic_training: true
+n_steps_cycle_start: 50000    # # of steps when starts cycle-consistency training
 n_cycles: 1                    # # of cycles of cyclic architecture
-encoder_spkr_classifier: false # train speaker classifier in encoder
 
 # for D
 n_steps_gan_start: 100000    # # of steps to start adv training
@@ -108,12 +114,4 @@ use_D_spkrcode: true         # conditioned on speaker code to D
 use_vqvae_loss: true         # update G as well as vqvae loss
 n_steps_stop_generator: 100  # # of stopping steps for training discriminator
 
-# for C (domain classifier)
-n_classifier_layers: 8     # # of classifier layers
-classifier_kernel_size: 5  # kernel_size for classifier
-
 # for SPKRADV
-use_spkradv_training: true # use speaker adversarial network
-n_spkradv_layers: 3        # # of layers
-spkradv_kernel_size: 3     # kernel_size for speaker adversarial net
-spkradv_lambda: 0.02       # hyper-parameter of gradient reversal layer

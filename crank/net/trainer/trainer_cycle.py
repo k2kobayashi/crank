@@ -97,11 +97,6 @@ class CycleVQVAETrainer(VQVAETrainer):
             # for cv
             lbl = f"{c}cyc_cv"
 
-            if self.conf["encoder_spkr_classifier"]:
-                loss["G"] += (
-                    alpha_cycle * self.conf["alpha"]["ce"] * loss[f"G_ce_{lbl}"]
-                )
-
             # for recon
             lbl = f"{c}cyc_recon"
             for k in ["l1", "mse", "stft"]:
@@ -127,11 +122,7 @@ class CycleVQVAETrainer(VQVAETrainer):
                 lbl = f"{c}cyc_{io}"
                 o = outputs[c][io]
                 if io == "cv":
-                    if self.conf["encoder_spkr_classifier"]:
-                        loss[f"G_ce_{lbl}"] = self.criterion["ce"](
-                            o["spkr_cls"].reshape(-1, o["spkr_cls"].size(2)),
-                            batch["cv_h_scalar"].reshape(-1),
-                        )
+                    pass
                 elif io == "recon":
                     feats = batch["feats"]
                     decoded = o["decoded"]

@@ -107,17 +107,45 @@ class VQVAETrainer(BaseTrainer):
         if self.conf["use_spkradv_training"]:
             loss = self.calculate_spkradv_loss(batch, outputs, loss, phase=phase)
 
-        # train classifier using converted feature
-        if self.conf["train_cv_classifier"]:
-            loss = self.calculate_cv_spkr_cls_loss(feats, batch, enc_h, loss)
-
         loss["objective"] += loss["G"]
         if phase == "train":
             self.step_model(loss, model="G")
 
-        if phase == "train" and self.conf["use_spkradv_training"]:
+        # update spkradv and spkrclassifier networks
+        loss = self.forward_spkradv(batch, loss, phase=phase)
+        loss = self.forward_spkrclassifier(batch, loss, phase=phase)
+        return loss
+
+    def forward_spkradv(self, batch, loss, phase="train"):
+        if self.conf["use_spkradv_training"]:
+            enc_h = self._get_enc_h(batch)
+            dec_h, spkrvec = self._get_dec_h(batch)
+            feats = batch["feats_sa"] if self.conf["spec_augment"] else batch["feats"]
             outputs = self.model["G"].forward(feats, enc_h, dec_h, spkrvec=spkrvec)
-            loss = self.update_SPKRADV(batch, outputs, loss, phase=phase)
+            advspkr_class = self.model["SPKRADV"].forward(
+                outputs["encoded_unmod"], detach=True
+            )
+            spkradv_loss = self.criterion["ce"](
+                advspkr_class.reshape(-1, advspkr_class.size(2)),
+                batch["org_h_scalar"].reshape(-1),
+            )
+            loss["SPKRADV"] = self.conf["alpha"]["ce"] * spkradv_loss
+            if phase == "train":
+                self.step_model(loss, model="SPKRADV")
+        return loss
+
+    def forward_spkrclassifier(self, batch, loss, phase="train"):
+        def return_sample(x):
+            return self.model["C"](x.transpose(1, 2)).transpose(1, 2)
+
+        if self.conf["use_spkr_classifier"]:
+            real = return_sample(batch["feats"])
+            real = real.reshape(-1, real.size(2))
+            h_scalar = batch["org_h_scalar"].reshape(-1)
+            loss["C_real"] = self.criterion["ce"](real, h_scalar)
+            loss["C"] += self.conf["alpha"]["ce"] * loss["C_real"]
+            if phase == "train":
+                self.step_model(loss, model="C")
         return loss
 
     def step_model(self, loss, model="G"):
@@ -137,11 +165,6 @@ class VQVAETrainer(BaseTrainer):
         loss["G_l1"] = self.criterion["fl1"](decoded, feats, mask=mask)
         loss["G_mse"] = self.criterion["fmse"](decoded, feats, mask=mask)
         loss["G_stft"] = self.criterion["fstft"](decoded, feats)
-        if self.conf["encoder_spkr_classifier"]:
-            loss["G_ce"] = self.criterion["ce"](
-                outputs["spkr_cls"].reshape(-1, outputs["spkr_cls"].size(2)),
-                batch["org_h_scalar"].reshape(-1),
-            )
 
         # loss for vq
         encoded = outputs["encoded"]
@@ -160,24 +183,11 @@ class VQVAETrainer(BaseTrainer):
 
     def calculate_spkradv_loss(self, batch, outputs, loss, phase="train"):
         advspkr_class = self.model["SPKRADV"].forward(outputs["encoded_unmod"])
-        spkradv_loss = self.criterion["ce"](
+        loss["G_spkradv"] = self.criterion["ce"](
             advspkr_class.reshape(-1, advspkr_class.size(2)),
             batch["org_h_scalar"].reshape(-1),
         )
-        loss["G"] += self.conf["alpha"]["ce"] * spkradv_loss
-        return loss
-
-    def update_SPKRADV(self, batch, outputs, loss, phase="train"):
-        advspkr_class = self.model["SPKRADV"].forward(
-            outputs["encoded_unmod"], detach=True
-        )
-        spkradv_loss = self.criterion["ce"](
-            advspkr_class.reshape(-1, advspkr_class.size(2)),
-            batch["org_h_scalar"].reshape(-1),
-        )
-        loss["SPKRADV"] = self.conf["alpha"]["ce"] * spkradv_loss
-        if phase == "train":
-            self.step_model(loss, model="SPKRADV")
+        loss["G"] += self.conf["alpha"]["ce"] * loss["G_spkradv"]
         return loss
 
     def _parse_vqvae_loss(self, loss):
@@ -188,8 +198,6 @@ class VQVAETrainer(BaseTrainer):
 
         for k in ["l1", "mse", "stft"]:
             loss["G"] += self.conf["alpha"][k] * loss[f"G_{k}"]
-        if self.conf["encoder_spkr_classifier"]:
-            loss["G"] += self.conf["alpha"]["ce"] * loss["G_ce"]
         loss = _parse_vq("commit")
         if not self.conf["ema_flag"]:
             loss = _parse_vq("dict")
