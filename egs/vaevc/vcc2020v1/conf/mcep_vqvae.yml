@@ -14,10 +14,10 @@ feature:
   mlfb_dim: 80      # dimension of mel-spectrogram
 
 # general setting
-feat_type: mlfb          # input feature type ['mlfb', 'mcep']
+feat_type: mcep          # input feature type ['mlfb', 'mcep']
 trainer_type: vqvae      # trainer type ['vqvae', 'lsgan', 'cyclegan', 'stargan']
-input_size: 50           # input_size of G network ['mlfb_dim', 'mcep_dim+1']
-output_size: 50          # output_size of G network ['mlfb_dim', 'mcep_dim+1']
+input_size: 49           # input_size of G network ['mlfb_dim', 'mcep_dim+1']
+output_size: 49          # output_size of G network ['mlfb_dim', 'mcep_dim+1']
 n_steps: 200000          # # of training steps
 dev_steps: 2000          # # of development steps
 n_steps_save_model: 5000 # save model in each # steps
