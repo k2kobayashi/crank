@@ -33,9 +33,7 @@ class VQVAE2(nn.Module):
         self, x, enc_h, dec_h, spkrvec=None, use_ema=True, encoder_detach=False
     ):
         x = x.transpose(1, 2)
-        if spkrvec is not None:
-            spkremb = self.spkr_embedding(spkrvec)
-            dec_h = spkremb if dec_h is None else torch.cat([dec_h, spkremb], axis=-1)
+        dec_h = self._get_dec_h(dec_h, spkrvec)
         enc_h = enc_h.transpose(1, 2) if enc_h is not None else None
         dec_h = dec_h.transpose(1, 2) if dec_h is not None else None
 
@@ -47,22 +45,18 @@ class VQVAE2(nn.Module):
         outputs = self.make_dict(enc, dec, emb_idxs, qidxs, enc_unmod)
         return outputs
 
+    def _get_dec_h(self, dec_h, spkrvec):
+        if spkrvec is not None:
+            spkremb = self.spkr_embedding(spkrvec)
+            dec_h = spkremb if dec_h is None else torch.cat([dec_h, spkremb], axis=-1)
+        return dec_h
+
     def cycle_forward(
         self, x, org_enc_h, org_dec_h, cv_enc_h, cv_dec_h, org_spkrvec, cv_spkrvec
     ):
         x = x.transpose(1, 2)
-        if org_spkrvec is not None:
-            org_spkremb = self.spkr_embedding(org_spkrvec)
-            if org_dec_h is not None:
-                org_dec_h = torch.cat([org_dec_h, org_spkremb], axis=-1)
-            else:
-                org_dec_h = org_spkremb
-        if cv_spkrvec is not None:
-            cv_spkremb = self.spkr_embedding(cv_spkrvec)
-            if cv_dec_h is not None:
-                cv_dec_h = torch.cat([cv_dec_h, cv_spkremb], axis=-1)
-            else:
-                cv_dec_h = cv_spkremb
+        org_dec_h = self._get_dec_h(org_dec_h, org_spkrvec)
+        cv_dec_h = self._get_dec_h(cv_dec_h, cv_spkrvec)
         org_enc_h = org_enc_h.transpose(1, 2) if org_enc_h is not None else None
         org_dec_h = org_dec_h.transpose(1, 2) if org_dec_h is not None else None
         cv_enc_h = cv_enc_h.transpose(1, 2) if cv_enc_h is not None else None
@@ -70,7 +64,7 @@ class VQVAE2(nn.Module):
 
         outputs = []
         for n in range(self.conf["n_cycles"]):
-            enc, org_spkr_cls = self.encode(x, enc_h=org_enc_h)
+            enc = self.encode(x, enc_h=org_enc_h)
             org_enc_unmod = [e.clone() for e in enc]
             org_enc, org_dec, org_emb_idxs, _, org_qidxs = self.decode(
                 enc, org_dec_h, use_ema=True
@@ -79,7 +73,7 @@ class VQVAE2(nn.Module):
                 enc, cv_dec_h, use_ema=False
             )
 
-            enc, cv_spkr_cls = self.encode(cv_dec, enc_h=cv_enc_h)
+            enc = self.encode(cv_dec, enc_h=cv_enc_h)
             cv_enc_unmod = [e.clone() for e in enc]
             recon_enc, recon_dec, recon_emb_idxs, _, recon_qidxs = self.decode(
                 enc, org_dec_h, use_ema=True
@@ -97,7 +91,7 @@ class VQVAE2(nn.Module):
                     ),
                 }
             )
-            x = recon_dec.detach()
+            x = recon_dec.clone().detach()
         return outputs
 
     def encode(self, x, enc_h=None):

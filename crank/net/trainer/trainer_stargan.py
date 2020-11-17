@@ -14,11 +14,11 @@ Cyclic VQVAE w/ StarGAN trainer
 import random
 
 import torch
-from crank.net.trainer import CycleVQVAETrainer, LSGANTrainer
+from crank.net.trainer import LSGANTrainer
 from torch.nn.utils import clip_grad_norm
 
 
-class StarGANTrainer(LSGANTrainer, CycleVQVAETrainer):
+class StarGANTrainer(LSGANTrainer):
     def __init__(
         self,
         model,
