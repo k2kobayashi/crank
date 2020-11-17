@@ -51,19 +51,6 @@ class CycleGANTrainer(LSGANTrainer):
             n_jobs=n_jobs,
         )
 
-    def train(self, batch, phase="train"):
-        loss = self._get_loss_dict()
-        if self.gan_flag:
-            loss = self.forward_cyclegan(batch, loss, phase=phase)
-        else:
-            loss = self.forward_vqvae(batch, loss, phase=phase)
-        loss_values = self._parse_loss(loss)
-        self._flush_writer(loss, phase)
-        return loss_values
-
-    def forward_cyclegan(self, batch, loss, phase="train"):
-        return self.forward_lsgan(batch, loss, phase=phase)
-
     def update_G(self, batch, loss, phase="train"):
         enc_h = self._get_enc_h(batch)
         enc_h_cv = self._get_enc_h(batch, use_cvfeats=True)
@@ -88,10 +75,6 @@ class CycleGANTrainer(LSGANTrainer):
 
         if phase == "train" and not self.stop_generator:
             self.step_model(loss, model="G")
-
-        if phase == "train" and self.conf["use_spkradv_training"]:
-            outputs = self.model["G"].forward(feats, enc_h, dec_h, spkrvec=spkrvec)
-            loss = self.update_SPKRADV(batch, outputs, loss, phase=phase)
         return loss
 
     def update_D(self, batch, loss, phase="train"):
