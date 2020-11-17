@@ -220,7 +220,7 @@ class VQVAETrainer(BaseTrainer):
                 lbl = f"{c}cyc_{io}"
                 o = outputs[c][io]
                 if io == "cv":
-                    loss[f"G_spkrcls_{lbl}"] = calculate_spkrcls_loss(batch, o)
+                    loss[f"C_fake_{lbl}"] = calculate_spkrcls_loss(batch, o)
                 elif io == "recon":
                     feats = batch["feats"]
                     decoded = o["decoded"]
@@ -273,9 +273,7 @@ class VQVAETrainer(BaseTrainer):
             alpha_cycle = self.conf["alpha"]["cycle"]
             # for cv
             lbl = f"{c}cyc_cv"
-            loss["G"] += (
-                alpha_cycle * self.conf["alpha"]["ce"] * loss[f"G_spkrcls_{lbl}"]
-            )
+            loss["G"] += alpha_cycle * self.conf["alpha"]["ce"] * loss[f"C_fake_{lbl}"]
 
             # for recon
             lbl = f"{c}cyc_recon"
