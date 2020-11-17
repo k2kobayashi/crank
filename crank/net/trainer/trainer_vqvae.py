@@ -12,7 +12,6 @@ VQVAE trainer
 """
 
 import random
-
 import numpy as np
 import torch
 from crank.net.trainer import BaseTrainer
@@ -201,20 +200,6 @@ class VQVAETrainer(BaseTrainer):
         loss = _parse_vq("commit")
         if not self.conf["ema_flag"]:
             loss = _parse_vq("dict")
-        return loss
-
-    def calculate_cv_spkr_cls_loss(self, feats, batch, enc_h, loss):
-        dec_h_cv, spkrvec = self._get_dec_h(batch, use_cvfeats=True)
-        cv_outputs = self.model["G"].forward(feats, enc_h, dec_h_cv, spkrvec=spkrvec)
-        _, cv_spkr_cls = self.model["G"].encode(
-            cv_outputs["decoded"].detach().transpose(1, 2)
-        )
-
-        loss["ce_cv"] = self.criterion["ce"](
-            cv_spkr_cls.reshape(-1, cv_spkr_cls.size(2)),
-            batch["cv_h_scalar"].reshape(-1),
-        )
-        loss["G"] += self.conf["alpha"]["ce"] * loss["ce_cv"]
         return loss
 
     def _get_enc_h(self, batch, use_cvfeats=False, cv_spkr_name=None):
