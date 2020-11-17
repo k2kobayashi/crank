@@ -25,14 +25,13 @@ EPS = 1e-10
 
 
 class Feature(object):
-    def __init__(self, h5_dir, conf, spkr_conf, synth_flag=False):
+    def __init__(self, h5_dir, conf, spkr_conf):
         self.h5_dir = Path(h5_dir)
         self.conf = conf
         self.sconf = spkr_conf
         self.feats = {}
-        self.synth_flag = synth_flag
 
-    def analyze(self, wavf, gl_flag=False):
+    def analyze(self, wavf, synth_flag=False):
         self.fs, x, flbl = self._open_wavf(wavf)
         assert self.fs == self.conf["fs"]
 
@@ -42,12 +41,12 @@ class Feature(object):
 
             # analyze mlfb
             self._analyze_mlfb(wavf)
-            if gl_flag:
+            if synth_flag:
                 self._mlfb2wavf(flbl)
 
             # analyze world features, cf0, uv, then synthesize
             self._analyze_world_features(x)
-            if self.synth_flag and self.conf["fftl"] != 256:
+            if synth_flag and self.conf["fftl"] != 256:
                 self._synthesize_world_features(flbl)
 
             # save as hdf5
@@ -147,4 +146,5 @@ class Feature(object):
             hop_size=self.conf["hop_size"],
             fmin=self.conf["fmin"],
             fmax=self.conf["fmax"],
+            plot=True,
         )

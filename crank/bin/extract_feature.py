@@ -7,26 +7,29 @@
 # Distributed under terms of the MIT license.
 
 """
-Extract various features
+Extract various acoustic features
 
 """
 
 import argparse
 import logging
 from pathlib import Path
-from joblib import Parallel, delayed
 
 from crank.feature import Feature
 from crank.utils import load_yaml, open_scpdir
+from joblib import Parallel, delayed
 
 logging.basicConfig(level=logging.INFO)
 
 
 def main():
-    dcp = "Extract aoucstic features of the speaker"
+    dcp = "Extract aoucstic features"
     parser = argparse.ArgumentParser(description=dcp)
     parser.add_argument("--n_jobs", type=int, default=-1, help="# of CPUs")
     parser.add_argument("--phase", type=str, default=None, help="phase")
+    parser.add_argument(
+        "--n_decode_samples", type=int, default=3, help="# decode samples"
+    )
     parser.add_argument("--conf", type=str, help="ymal file for network parameters")
     parser.add_argument("--spkr_yml", type=str, help="yml file for speaker params")
     parser.add_argument("--scpdir", type=str, help="scp directory")
@@ -58,16 +61,16 @@ def main():
         # feature extraction with GliffinLim
         Parallel(n_jobs=args.n_jobs)(
             [
-                delayed(feat.analyze)(wavf, gl_flag=True)
-                for wavf in wavs[: conf["n_gl_samples"]]
+                delayed(feat.analyze)(wavf, synth_flag=True)
+                for wavf in wavs[: args.n_decode_samples]
             ]
         )
 
         # feature extraction without GliffinLim
         Parallel(n_jobs=args.n_jobs)(
             [
-                delayed(feat.analyze)(wavf, gl_flag=False)
-                for wavf in wavs[conf["n_gl_samples"] :]
+                delayed(feat.analyze)(wavf, synth_flag=False)
+                for wavf in wavs[args.n_decode_samples :]
             ]
         )
 

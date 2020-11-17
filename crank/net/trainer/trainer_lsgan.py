@@ -7,13 +7,12 @@
 # Distributed under terms of the MIT license.
 
 """
-VQVAE w/ LSGAN trainer
+LSGAN trainer
 
 """
 
 import torch
 from crank.net.trainer.trainer_vqvae import VQVAETrainer
-from torch.nn.utils import clip_grad_norm
 
 
 class LSGANTrainer(VQVAETrainer):
@@ -61,6 +60,8 @@ class LSGANTrainer(VQVAETrainer):
             loss = self.forward_lsgan(batch, loss, phase=phase)
         else:
             loss = self.forward_vqvae(batch, loss, phase=phase)
+        loss = self.forward_spkradv(batch, loss, phase=phase)
+        loss = self.forward_spkrclassifier(batch, loss, phase=phase)
         loss_values = self._parse_loss(loss)
         self._flush_writer(loss, phase)
         return loss_values
@@ -85,6 +86,7 @@ class LSGANTrainer(VQVAETrainer):
         if self.conf["use_spkradv_training"]:
             loss = self.calculate_spkradv_loss(batch, outputs, loss, phase=phase)
 
+        # calculate adv loss
         if self.conf["cvadv_flag"]:
             dec_h, spkrvec = self._get_dec_h(batch, use_cvfeats=True)
             h_scalar = batch["cv_h_scalar"]
@@ -95,20 +97,14 @@ class LSGANTrainer(VQVAETrainer):
             enc_h,
             dec_h,
             spkrvec=spkrvec,
-            use_ema=False,
+            use_ema=not self.conf["encoder_detach"],
             encoder_detach=self.conf["encoder_detach"],
         )
-        adv_decoded = adv_outputs["decoded"]
         loss = self.calculate_adv_loss(
-            batch, adv_decoded, h_scalar, batch["mask"], loss
+            batch, adv_outputs["decoded"], h_scalar, batch["mask"], loss
         )
-
         if phase == "train" and not self.stop_generator:
             self.step_model(loss, model="G")
-
-        if phase == "train" and self.conf["use_spkradv_training"]:
-            outputs = self.model["G"].forward(feats, enc_h, dec_h, spkrvec=spkrvec)
-            loss = self.update_SPKRADV(batch, outputs, loss, phase=phase)
         return loss
 
     def update_D(self, batch, loss, phase="train"):
@@ -118,8 +114,6 @@ class LSGANTrainer(VQVAETrainer):
         enc_h = self._get_enc_h(batch)
         feats = batch["feats_sa"] if self.conf["spec_augment"] else batch["feats"]
         mask = batch["mask"]
-
-        # calculate fake D loss
         if self.conf["cvadv_flag"]:
             dec_h, spkrvec = self._get_dec_h(batch, use_cvfeats=True)
             h_scalar = batch["cv_h_scalar"]
@@ -127,19 +121,19 @@ class LSGANTrainer(VQVAETrainer):
             dec_h, spkrvec = self._get_dec_h(batch)
             h_scalar = batch["org_h_scalar"]
         outputs = self.model["G"].forward(feats, enc_h, dec_h, spkrvec)
-        real_inputs = self.get_D_inputs(batch, batch["feats"], label="org")
-        fake_inputs = self.get_D_inputs(batch, outputs["decoded"].detach(), label="cv")
 
-        # get discriminator outputs
-        sample = {
-            "real": return_sample(real_inputs),
-            "cv_fake": return_sample(fake_inputs),
-        }
+        # for real
+        real_inputs = self.get_D_inputs(batch, batch["feats"], label="org")
+        real = return_sample(real_inputs)
         loss = self.calculate_discriminator_loss(
-            sample["cv_fake"], h_scalar, mask, loss, label="fake"
+            real, batch["org_h_scalar"], mask, loss, label="real"
         )
+
+        # for fake
+        fake_inputs = self.get_D_inputs(batch, outputs["decoded"].detach(), label="cv")
+        cv_fake = return_sample(fake_inputs)
         loss = self.calculate_discriminator_loss(
-            sample["real"], batch["org_h_scalar"], mask, loss, label="real"
+            cv_fake, h_scalar, mask, loss, label="fake"
         )
 
         if phase == "train":

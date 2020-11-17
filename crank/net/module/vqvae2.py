@@ -33,36 +33,30 @@ class VQVAE2(nn.Module):
         self, x, enc_h, dec_h, spkrvec=None, use_ema=True, encoder_detach=False
     ):
         x = x.transpose(1, 2)
-        if spkrvec is not None:
-            spkremb = self.spkr_embedding(spkrvec)
-            dec_h = spkremb if dec_h is None else torch.cat([dec_h, spkremb], axis=-1)
+        dec_h = self._get_dec_h(dec_h, spkrvec)
         enc_h = enc_h.transpose(1, 2) if enc_h is not None else None
         dec_h = dec_h.transpose(1, 2) if dec_h is not None else None
 
-        enc, spkr_cls = self.encode(x, enc_h=enc_h)
+        enc = self.encode(x, enc_h=enc_h)
         enc_unmod = [e.clone() for e in enc]
         enc, dec, emb_idxs, _, qidxs = self.decode(
             enc, dec_h, use_ema=use_ema, detach=encoder_detach
         )
-        outputs = self.make_dict(enc, dec, emb_idxs, qidxs, enc_unmod, spkr_cls)
+        outputs = self.make_dict(enc, dec, emb_idxs, qidxs, enc_unmod)
         return outputs
+
+    def _get_dec_h(self, dec_h, spkrvec):
+        if spkrvec is not None:
+            spkremb = self.spkr_embedding(spkrvec)
+            dec_h = spkremb if dec_h is None else torch.cat([dec_h, spkremb], axis=-1)
+        return dec_h
 
     def cycle_forward(
         self, x, org_enc_h, org_dec_h, cv_enc_h, cv_dec_h, org_spkrvec, cv_spkrvec
     ):
         x = x.transpose(1, 2)
-        if org_spkrvec is not None:
-            org_spkremb = self.spkr_embedding(org_spkrvec)
-            if org_dec_h is not None:
-                org_dec_h = torch.cat([org_dec_h, org_spkremb], axis=-1)
-            else:
-                org_dec_h = org_spkremb
-        if cv_spkrvec is not None:
-            cv_spkremb = self.spkr_embedding(cv_spkrvec)
-            if cv_dec_h is not None:
-                cv_dec_h = torch.cat([cv_dec_h, cv_spkremb], axis=-1)
-            else:
-                cv_dec_h = cv_spkremb
+        org_dec_h = self._get_dec_h(org_dec_h, org_spkrvec)
+        cv_dec_h = self._get_dec_h(cv_dec_h, cv_spkrvec)
         org_enc_h = org_enc_h.transpose(1, 2) if org_enc_h is not None else None
         org_dec_h = org_dec_h.transpose(1, 2) if org_dec_h is not None else None
         cv_enc_h = cv_enc_h.transpose(1, 2) if cv_enc_h is not None else None
@@ -70,7 +64,7 @@ class VQVAE2(nn.Module):
 
         outputs = []
         for n in range(self.conf["n_cycles"]):
-            enc, org_spkr_cls = self.encode(x, enc_h=org_enc_h)
+            enc = self.encode(x, enc_h=org_enc_h)
             org_enc_unmod = [e.clone() for e in enc]
             org_enc, org_dec, org_emb_idxs, _, org_qidxs = self.decode(
                 enc, org_dec_h, use_ema=True
@@ -79,7 +73,7 @@ class VQVAE2(nn.Module):
                 enc, cv_dec_h, use_ema=False
             )
 
-            enc, cv_spkr_cls = self.encode(cv_dec, enc_h=cv_enc_h)
+            enc = self.encode(cv_dec, enc_h=cv_enc_h)
             cv_enc_unmod = [e.clone() for e in enc]
             recon_enc, recon_dec, recon_emb_idxs, _, recon_qidxs = self.decode(
                 enc, org_dec_h, use_ema=True
@@ -87,27 +81,17 @@ class VQVAE2(nn.Module):
             outputs.append(
                 {
                     "org": self.make_dict(
-                        org_enc,
-                        org_dec,
-                        org_emb_idxs,
-                        org_qidxs,
-                        org_enc_unmod,
-                        org_spkr_cls,
+                        org_enc, org_dec, org_emb_idxs, org_qidxs, org_enc_unmod,
                     ),
                     "cv": self.make_dict(
-                        cv_enc,
-                        cv_dec,
-                        cv_emb_idxs,
-                        cv_qidxs,
-                        cv_enc_unmod,
-                        cv_spkr_cls,
+                        cv_enc, cv_dec, cv_emb_idxs, cv_qidxs, cv_enc_unmod,
                     ),
                     "recon": self.make_dict(
-                        recon_enc, recon_dec, recon_emb_idxs, recon_qidxs, None, None,
+                        recon_enc, recon_dec, recon_emb_idxs, recon_qidxs, None,
                     ),
                 }
             )
-            x = recon_dec.detach()
+            x = recon_dec.clone().detach()
         return outputs
 
     def encode(self, x, enc_h=None):
@@ -116,15 +100,10 @@ class VQVAE2(nn.Module):
         for n in range(self.conf["n_vq_stacks"]):
             if n == 0:
                 enc = self.encoders[n](x, c=enc_h)
-                spkr_cls = None
-                if self.conf["encoder_spkr_classifier"]:
-                    enc, spkr_cls = torch.split(
-                        enc, [self.conf["emb_dim"][n], self.spkr_size], dim=1
-                    )
             else:
                 enc = self.encoders[n](enc, c=None)
             encoded.append(enc)
-        return encoded, spkr_cls
+        return encoded
 
     def decode(self, enc, dec_h, use_ema=True, detach=False):
         # decode
@@ -152,7 +131,7 @@ class VQVAE2(nn.Module):
             self.encoders[n].remove_weight_norm()
             self.decoders[n].remove_weight_norm()
 
-    def make_dict(self, enc, dec, emb_idxs, qidxs, enc_unmod, spkr_cls=None):
+    def make_dict(self, enc, dec, emb_idxs, qidxs, enc_unmod):
         # NOTE: transpose from [B, D, T] to be [B, T, D]
         # NOTE: index of bottom outputs to be 0
         encoded_unmod = (
@@ -161,7 +140,6 @@ class VQVAE2(nn.Module):
         return {
             "encoded": [e.transpose(1, 2) for e in enc],
             "encoded_unmod": encoded_unmod,
-            "spkr_cls": spkr_cls.transpose(1, 2) if spkr_cls is not None else None,
             "decoded": dec.transpose(1, 2),
             "emb_idx": emb_idxs[::-1],
             "qidx": qidxs[::-1],
@@ -175,8 +153,6 @@ class VQVAE2(nn.Module):
             if n == 0:
                 enc_in_channels = self.conf["input_size"]
                 enc_out_channels = self.conf["emb_dim"][n]
-                if self.conf["encoder_spkr_classifier"]:
-                    enc_out_channels += self.spkr_size
                 enc_aux_channels = 2 if self.conf["encoder_f0"] else 0
                 dec_in_channels = sum(
                     [self.conf["emb_dim"][i] for i in range(self.conf["n_vq_stacks"])]

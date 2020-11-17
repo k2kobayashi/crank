@@ -11,18 +11,24 @@ Dataset
 
 """
 
-import h5py
-import numpy as np
 import random
-from pathlib import Path
 from abc import abstractmethod
 from multiprocessing import Manager
+from pathlib import Path
+
+import h5py
+import numpy as np
 from torch.utils.data import Dataset
 
 
 class BaseDataset(Dataset):
     def __init__(
-        self, conf, scp, phase="train", scaler=None, batch_len=5000,
+        self,
+        conf,
+        scp,
+        phase="train",
+        scaler=None,
+        batch_len=5000,
     ):
         self.conf = conf
         self.h5list = list(scp[phase]["feats"].values())
@@ -104,11 +110,15 @@ class BaseDataset(Dataset):
     def _post_getitem(self, sample):
         if self.scaler is not None:
             sample = self._transform(sample)
+        if self.conf["feat_type"] == "mcep" and not self.conf["use_mcep_0th"]:
+            sample["mcep_0th"] = sample["feats"][..., :1]
+            sample["feats"] = sample["feats"][..., 1:]
         if self.conf["spec_augment"]:
             feats = sample["feats"]
             for i in range(self.conf["n_spec_augment"]):
                 feats = apply_tfmask(feats)
             sample["feats_sa"] = feats
+
         sample = self._zero_padding(sample)
         return sample
 

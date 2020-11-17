@@ -1,32 +1,33 @@
 # feature setting
 feature:
-  label: default    # feature set label
-  fs: 22050         # sampling frequency
-  fftl: 1024        # FFT size
-  hop_size: 128     # hop_size for FFT
-  fmin: 80          # start freq to calculate fbank
-  fmax: 7600        # stop freq to calculate fbank
-  mlfb_dim: 80      # dimension of mel-spectrogram
-  n_iteration: 100  # # iterations of GriffinLim
-  framems: 25       # frame ms for WORLD
-  shiftms: 5.80499  # shift ms for WORLD
-  mcep_dim: 34      # mcep dimension (resulting dim will be [mcepdim+1])
-  mcep_alpha: 0.466 # all-path filter coefficient
+  label: default         # feature label
+  fs: 22050              # sampling frequency
+  fftl: 1024             # FFT size
+  hop_size: 128          # hop_size for FFT
+  fmin: 80               # start freq to calculate fbank
+  fmax: 7600             # stop freq to calculate fbank
+  mlfb_dim: 80           # dimension of mel-spectrogram
+  n_iteration: 100       # # iterations of GriffinLim
+  framems: 25            # frame ms for WORLD
+  shiftms: 5.80499       # shift ms for WORLD
+  mcep_dim: 34           # mcep dimension (resulting dim will be [mcepdim+1])
+  mcep_alpha: 0.466      # all-path filter coefficient
 
 # general setting
 feat_type: mlfb          # input feature type ['mlfb', 'mcep']
-trainer_type: vqvae      # trainer type ['vqvae', 'lsgan', 'cycle', 'cyclegan', 'stargan']
+trainer_type: vqvae      # trainer type ['vqvae', 'lsgan', 'cyclegan', 'stargan']
 input_size: 80           # input_size of G network ['mlfb_dim', 'mcep_dim+1']
 output_size: 80          # output_size of G network ['mlfb_dim', 'mcep_dim+1']
 n_steps: 200000          # # of training steps
 dev_steps: 2000          # # of development steps
 n_steps_save_model: 5000 # save model in each # steps
 n_steps_print_loss: 50   # print loss in each # steps
-batch_size: 40           # # of minibatch in a batch
-batch_len: 500           # frame length (time_axis) of a minibatch
-cache_dataset: true      # cache_dataset (NOTE: fix cv_spkr_label in a minibatch)
+batch_size: 40           # # of mini-batch in a batch
+batch_len: 500           # frame length (time_axis) of a mini-batch
+cache_dataset: true      # cache_dataset (NOTE: fix cv_spkr_label in a mini-batch)
 spec_augment: false      # apply SpecAugment mask to input feature
 n_spec_augment: 0        # # of bands of spec_augment (both time and freq axises)
+use_mcep_0th: false      # model 0th order of mcep
 
 # alpha
 alpha:
@@ -35,7 +36,7 @@ alpha:
   stft: 1
   commit: 0.25
   dict: 0.5
-  cycle: 0.5
+  cycle: 1
   ce: 1
   adv: 2
   real: 1
@@ -78,7 +79,6 @@ encoder_f0: false              # conditioned on F0 (lcf0, uv) to encoder
 decoder_f0: true               # conditioned on F0 (lcf0, uv) to decoder
 causal: false                  # use causal network
 causal_size: 0                 # # of look up frames (allow future frames)
-train_cv_classifier: false     # train speaker classifier using converted
 use_spkr_embedding: true       # use nn.Embedding instead of 1-hot vector
 spkr_embedding_size: 32        # output_size of speaker embedding
 ema_flag: true                 # use exponential moving average
@@ -86,33 +86,30 @@ n_vq_stacks: 2                 # # of hierarchical VQVAE stacks [1, 2, 3]
 n_layers_stacks: [2, 2, 2]     # # stacks of layers in the stack
 n_layers: [6, 5, 4]            # # layers
 kernel_size: [5, 3, 3]         # # kernels in each stack
-emb_dim: [64, 64, 64]          # embedding dimesnion size for VQ
-emb_size: [512, 512, 512]      # # codebook for VQ
-n_steps_cycle_start: 100000    # # of steps when starts cycle-consistency training
-n_cycles: 1                    # # of cycles of cyclic architecture
-encoder_spkr_classifier: false # train speaker classifier in encoder
+emb_dim: [64, 64, 64]          # embedding dimension size for VQ
+emb_size: [512, 512, 512]      # # codebooks
+use_spkradv_training: true     # use speaker adversarial network
+n_spkradv_layers: 3            # # of layers
+spkradv_kernel_size: 3         # kernel_size for speaker adversarial net
+spkradv_lambda: 0.02           # hyper-parameter of gradient reversal layer
+use_spkr_classifier: true      # train speaker classifier
+n_spkr_classifier_layers: 8    # # of classifier layers
+spkr_classifier_kernel_size: 5 # kernel_size for classifier
+use_cyclic_training: true      # train VQVAE with cyclic constraints
+n_steps_cycle_start: 50000     # # steps when starts cycle-consistency training
+n_cycles: 1                    # # cycles of cyclic architecture
 
 # for D
-n_steps_gan_start: 100000    # # of steps to start adv training
-gan_type: lsgan              # type of GAN ['lsgan']
-n_discriminator_layers: 8    # # of discriminator layers
-discriminator_kernel_size: 5 # kernel_size for discriminator
-train_first: D               # updated first ['G', 'D']
-cvadv_flag: false            # calculate adv_loss using converted or reconstructed
-acgan_flag: false            # add additional classifier to discriminator
-encoder_detach: true         # detach encoder and VQ for adv_loss (update decoder only)
-use_real_only_acgan: false   # train acgan with real sample only
-use_D_uv: true               # conditioned on uv symbol to D
-use_D_spkrcode: true         # conditioned on speaker code to D
-use_vqvae_loss: true         # update G as well as vqvae loss
-n_steps_stop_generator: 100  # # of stopping steps for training discriminator
-
-# for C (domain classifier)
-n_classifier_layers: 8     # # of classifier layers
-classifier_kernel_size: 5  # kernel_size for classifier
-
-# for SPKRADV
-use_spkradv_training: true # use speaker adversarial network
-n_spkradv_layers: 3        # # of layers
-spkradv_kernel_size: 3     # kernel_size for speaker adversarial net
-spkradv_lambda: 0.02       # hyper-parameter of gradient reversal layer
+n_steps_gan_start: 100000      # # of steps to start adv training
+gan_type: lsgan                # type of GAN ['lsgan']
+n_discriminator_layers: 8      # # of discriminator layers
+discriminator_kernel_size: 5   # kernel_size for discriminator
+train_first: D                 # updated first ['G', 'D']
+cvadv_flag: false              # calculate adv_loss using converted or reconstructed
+acgan_flag: false              # add additional classifier to discriminator
+encoder_detach: false          # detach encoder and VQ for adv_loss (update decoder only)
+use_real_only_acgan: false     # train acgan with real sample only
+use_D_uv: true                 # conditioned on uv symbol to D
+use_D_spkrcode: true           # conditioned on speaker code to D
+use_vqvae_loss: true           # update G as well as vqvae loss
+n_steps_stop_generator: 0      # # of stopping steps for training discriminator
