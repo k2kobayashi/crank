@@ -64,9 +64,20 @@ class StarGANTrainer(LSGANTrainer):
         loss = self.calculate_cyclevqvae_loss(batch, cycle_outputs, loss)
 
         # StarGAN adv loss
-        cv_decoded = cycle_outputs[0]["cv"]["decoded"]
+        adv_outputs = self.model["G"].forward(
+            feats,
+            enc_h_cv,
+            dec_h_cv,
+            spkrvec=spkrvec_cv,
+            use_ema=not self.conf["encoder_detach"],
+            encoder_detach=self.conf["encoder_detach"],
+        )
         loss = self.calculate_adv_loss(
-            batch, cv_decoded, batch["cv_h_scalar"], batch["mask"], loss,
+            batch,
+            adv_outputs["decoded"],
+            batch["cv_h_scalar"],
+            batch["mask"],
+            loss,
         )
 
         if self.conf["use_spkradv_training"]:
