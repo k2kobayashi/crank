@@ -48,10 +48,13 @@ class LSGANTrainer(VQVAETrainer):
             n_jobs=n_jobs,
         )
         self.gan_flag = False
-        self.stop_generator = False
+        self.cycle_flag = False
+        self._check_cycle_start()
         self._check_gan_start()
+        self.stop_generator = False
 
     def check_custom_start(self):
+        self._check_cycle_start()
         self._check_gan_start()
 
     def train(self, batch, phase="train"):
@@ -59,7 +62,10 @@ class LSGANTrainer(VQVAETrainer):
         if self.gan_flag:
             loss = self.forward_lsgan(batch, loss, phase=phase)
         else:
-            loss = self.forward_vqvae(batch, loss, phase=phase)
+            if self.cycle_flag:
+                loss = self.forward_cycle(batch, loss, phase=phase)
+            else:
+                loss = self.forward_vqvae(batch, loss, phase=phase)
         loss = self.forward_spkradv(batch, loss, phase=phase)
         loss = self.forward_spkrclassifier(batch, loss, phase=phase)
         loss_values = self._parse_loss(loss)
