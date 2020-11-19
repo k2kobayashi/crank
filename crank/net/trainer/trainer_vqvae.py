@@ -102,7 +102,6 @@ class VQVAETrainer(BaseTrainer):
             )
 
     def forward_vqvae(self, batch, loss, phase="train"):
-        # train generator
         enc_h = self._get_enc_h(batch)
         dec_h, spkrvec = self._get_dec_h(batch)
         feats = batch["feats_sa"] if self.conf["spec_augment"] else batch["feats"]

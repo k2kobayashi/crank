@@ -343,8 +343,13 @@ class BaseTrainer(object):
             flen = batch["flen"][n]
             feat = to_numpy(outputs["decoded"][n][:flen])
             if feat_type == "mcep" and not self.conf["use_mcep_0th"]:
-                mcep_0th = to_numpy(batch["mcep_0th"][n][:flen])
-                feat = np.hstack([mcep_0th, feat])
+                org_mcep_0th = to_numpy(batch["mcep_0th"][n][:flen])
+                org_mcep = to_numpy(batch["feats"][n][:flen])
+                feat = np.hstack([org_mcep_0th, feat])
+                rmcep = np.hstack([org_mcep_0th, org_mcep])
+                feats[wavf]["rmcep"] = self.scaler[feat_type].inverse_transform(rmcep)
+            else:
+                feats[wavf]["rmcep"] = None
             feats[wavf]["feats"] = self.scaler[feat_type].inverse_transform(feat)
             feats[wavf]["normed_feat"] = feat
 
@@ -399,6 +404,7 @@ class BaseTrainer(object):
                     feats[k]["f0"][:, 0].astype(np.float64),
                     feats[k]["feats"].astype(np.float64),
                     feats[k]["cap"].astype(np.float64),
+                    rmcep=feats[k]["rmcep"].astype(np.float64),
                     wavf=k,
                     fs=self.conf["feature"]["fs"],
                     fftl=self.conf["feature"]["fftl"],

@@ -70,7 +70,7 @@ class VQVAE2(nn.Module):
                 enc, org_dec_h, use_ema=True
             )
             cv_enc, cv_dec, cv_emb_idxs, _, cv_qidxs = self.decode(
-                enc, cv_dec_h, use_ema=False
+                enc, cv_dec_h, use_ema=True
             )
 
             enc = self.encode(cv_dec, enc_h=cv_enc_h)

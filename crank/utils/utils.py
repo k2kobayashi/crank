@@ -121,10 +121,18 @@ def feat2hdf5(mlfb, hdf5, ext="feats"):
 
 
 def world2wav(
-    f0, mcep, codeap, wavf=None, fs=22050, fftl=1024, shiftms=10, alpha=0.455
+    f0,
+    mcep,
+    codeap,
+    rmcep=None,
+    wavf=None,
+    fs=22050,
+    fftl=1024,
+    shiftms=10,
+    alpha=0.455,
 ):
     synthesizer = Synthesizer(fs=fs, fftl=fftl, shiftms=shiftms)
-    wav = synthesizer.synthesis(f0, mcep, codeap, alpha=alpha)
+    wav = synthesizer.synthesis(f0, mcep, codeap, rmcep=rmcep, alpha=alpha)
     wav = np.clip(wav, -1.0, 1.0)
     if wavf is not None:
         sf.write(wavf, wav, fs)
