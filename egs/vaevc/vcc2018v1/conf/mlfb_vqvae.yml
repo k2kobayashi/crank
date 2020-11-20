@@ -1,6 +1,6 @@
 # feature setting
 feature:
-  label: default         # feature label
+  label: itu-g           # feature label
   fs: 22050              # sampling frequency
   fftl: 1024             # FFT size
   hop_size: 128          # hop_size for FFT
@@ -12,6 +12,7 @@ feature:
   shiftms: 5.80499       # shift ms for WORLD
   mcep_dim: 34           # mcep dimension (resulting dim will be [mcepdim+1])
   mcep_alpha: 0.466      # all-path filter coefficient
+  window_types: [hann, itu-g]
 
 # general setting
 feat_type: mlfb          # input feature type ['mlfb', 'mcep']
