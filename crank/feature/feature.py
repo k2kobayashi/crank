@@ -21,7 +21,6 @@ from crank.utils import convert_continuos_f0, low_cut_filter, mlfb2wavf
 from parallel_wavegan.bin.preprocess import logmelfilterbank
 from sprocket.speech import FeatureExtractor, Synthesizer
 from sprocket.util import HDF5
-from asynmetric_window.window import itug_729_window
 
 EPS = 1e-10
 
@@ -173,3 +172,21 @@ class Feature(object):
             elif win_type == "itu-g":
                 win = itug_729_window(self.conf["fftl"])
             self.windows[win_type] = win
+
+
+def itug_729_window(length):
+    """ITU-G. 729 window function."""
+
+    def cos_win(x, length):
+        return np.cos((2 * np.pi * x) / (2 * length / 3 - 1))
+
+    def hamming_win(x, length):
+        return 0.54 - 0.46 * np.cos(
+            (2 * np.pi * (x - length / 6)) / (5 * length / 3 - 1)
+        )
+
+    win = np.zeros(length)
+    arange = np.arange(length)
+    win[-(length // 6) :] = cos_win(arange[: length // 6], length)
+    win[: -(length // 6)] = hamming_win(arange[length // 6 :], length)
+    return win
