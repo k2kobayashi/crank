@@ -166,7 +166,6 @@ class Feature(object):
         self.windows = {}
         assert "hann" in self.conf["window_types"]
         for win_type in self.conf["window_types"]:
-            print(win_type)
             if win_type == "hann":
                 win = sp.hann(self.conf["fftl"])
             elif win_type == "hamming":
