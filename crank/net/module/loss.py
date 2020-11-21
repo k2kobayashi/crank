@@ -55,7 +55,7 @@ def stft(x, fft_size, hop_size, win_size, window):
         x : input tensor (B, T, D)
     """
     x = x.transpose(1, 2).reshape(-1, x.size(1))
-    x_stft = torch.stft(x, fft_size, win_size, hop_size, window)
+    x_stft = torch.stft(x, fft_size, win_size, hop_size, window, return_complex=False)
     real, imag = x_stft[..., 0], x_stft[..., 1]
     y = torch.clamp(real ** 2 + imag ** 2, min=1e-7).transpose(2, 1)
     return torch.sqrt(y)
