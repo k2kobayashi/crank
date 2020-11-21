@@ -49,5 +49,3 @@ def test_feature_8k():
     feat = Feature(datadir, conf["feature"], spkr_conf["SF1"])
     feat.analyze(datadir / "SF1_10001_8k.wav", synth_flag=False)
     (datadir / "SF1_10001_8k.h5").unlink()
-    (datadir / "SF1_10001_8k_gl.wav").unlink()
-    (datadir / "SF1_10001_8k_gl.wav.png").unlink()

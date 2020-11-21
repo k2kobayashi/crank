@@ -7,12 +7,11 @@
 # Distributed under terms of the MIT license.
 
 """
-Dataset
+Base Dataset
 
 """
 
 import random
-from abc import abstractmethod
 from multiprocessing import Manager
 from pathlib import Path
 
@@ -23,24 +22,24 @@ from torch.utils.data import Dataset
 
 class BaseDataset(Dataset):
     def __init__(
-        self,
-        conf,
-        scp,
-        phase="train",
-        scaler=None,
-        batch_len=5000,
+        self, conf, scp, scaler, phase="train",
     ):
         self.conf = conf
         self.h5list = list(scp[phase]["feats"].values())
         self.spkrlist = scp["train"]["spkrs"]
         self.scaler = scaler
-        self.batch_len = batch_len
+        self.batch_len = self.conf["batch_len"]
 
-        if self.conf["feat_type"] == "mlfb":
-            self.features = ["mlfb", "lcf0", "uv"]
-        elif self.conf["feat_type"] == "mcep":
-            self.features = ["mcep", "lcf0", "uv", "cap"]
-
+        self.features = [self.conf["input_feat_type"], self.conf["output_feat_type"]]
+        if "mcep" in self.features:
+            self.features += ["cap"]
+        if (
+            self.conf["encoder_f0"]
+            or self.conf["decoder_f0"]
+            or self.conf["output_feat_type"] == "excit"
+        ):
+            self.features += ["lcf0", "uv"]
+        self.features = set(self.features)
         self.spkrdict = dict(zip(self.spkrlist, range(len(self.spkrlist))))
         self.n_spkrs = len(self.spkrdict)
 
@@ -50,41 +49,33 @@ class BaseDataset(Dataset):
             for _ in range(len(self.h5list)):
                 self.caches += [None]
 
-    @abstractmethod
-    def mid_getitem(self, sample, idx, h5f):
-        raise NotImplementedError("No mid_getitem function.")
-
     def __len__(self):
         return len(self.h5list)
 
     def __getitem__(self, idx):
-        # use cache
         if self.conf["cache_dataset"] and self.caches[idx] is not None:
             return self.caches[idx]
 
-        h5f = str(self.h5list[idx])
-
         # preprocess
+        h5f = str(self.h5list[idx])
         sample = self._pre_getitem(idx, h5f)
 
-        # mid proecss defined in child
-        try:
-            sample = self.mid_getitem(sample, idx, h5f)
-        except NotImplementedError:
-            pass
+        # middle process
+        sample = self._middle_getitem(sample)
 
         # postprocess
         sample = self._post_getitem(sample)
 
-        # cache for next epoch
         if self.conf["cache_dataset"]:
             self.caches[idx] = sample
-
         return sample
 
     def _pre_getitem(self, idx, h5f):
+        """Read feature vectors"""
         sample = {}
         sample = self._read_features(sample, h5f)
+        sample["key_in"] = str(self.conf["input_feat_type"])
+        sample["key_out"] = str(self.conf["output_feat_type"])
         sample["flbl"] = str(
             Path(Path(self.h5list[idx]).parent.stem) / Path(self.h5list[idx]).stem
         )
@@ -92,11 +83,8 @@ class BaseDataset(Dataset):
         sample["cv_spkr_name"] = random.choice(
             [s for s in list(self.spkrdict.keys()) if s != sample["org_spkr_name"]]
         )
-        sample["flen"] = sample["feats"].shape[0]
+        sample["flen"] = sample[sample["key_in"]].shape[0]
         sample["mask"] = np.ones([sample["flen"]], dtype=bool)[:, np.newaxis]
-        sample["cv_lcf0"] = convert_f0(
-            self.scaler, sample["lcf0"], sample["org_spkr_name"], sample["cv_spkr_name"]
-        )
         sample["org_spkr_num"] = int(self.spkrdict[sample["org_spkr_name"]])
         sample["org_h_onehot"], sample["org_h_scalar"] = self._get_spkrcode(
             sample["org_spkr_name"], sample["flen"]
@@ -105,42 +93,49 @@ class BaseDataset(Dataset):
         sample["cv_h_onehot"], sample["cv_h_scalar"] = self._get_spkrcode(
             sample["cv_spkr_name"], sample["flen"]
         )
+        if self.conf["encoder_f0"] or self.conf["decoder_f0"]:
+            sample["cv_lcf0"] = convert_f0(
+                self.scaler,
+                sample["lcf0"],
+                sample["org_spkr_name"],
+                sample["cv_spkr_name"],
+            )
+
+        return sample
+
+    def _middle_getitem(self, sample):
+        """Apply normalization and some modification"""
+        if self.scaler is not None:
+            sample = self._transform(sample)
+        if "mcep" in self.features and not self.conf["use_mcep_0th"]:
+            sample["mcep_0th"] = sample["mcep"][..., :1]
+            sample["mcep"] = sample["mcep"][..., 1:]
+        if sample["key_out"] == "excit":
+            sample["excit"] = np.hstack(sample["lcf0"], sample["uv"], sample["cap"])
+        if self.conf["spec_augment"]:
+            sample["spec_augment"] = self._spec_augment(sample[sample["key_in"]])
+        sample = self._zero_padding(sample)
         return sample
 
     def _post_getitem(self, sample):
-        if self.scaler is not None:
-            sample = self._transform(sample)
-        if self.conf["feat_type"] == "mcep" and not self.conf["use_mcep_0th"]:
-            sample["mcep_0th"] = sample["feats"][..., :1]
-            sample["feats"] = sample["feats"][..., 1:]
-        if self.conf["spec_augment"]:
-            feats = sample["feats"]
-            for i in range(self.conf["n_spec_augment"]):
-                feats = apply_tfmask(feats)
-            sample["feats_sa"] = feats
-
-        sample = self._zero_padding(sample)
+        # TODO: input feature modification such as SpecAugument and noise augment
+        # sample["in_mod"] = sample[self.conf["input_feat_type"]]
         return sample
 
     def _read_features(self, sample, h5f):
         for k in self.features:
-            if k == self.conf["feat_type"]:
-                sample["feats"] = read_feature(h5f, ext=k)
-            else:
-                sample[k] = read_feature(h5f, ext=k)
+            sample[k] = read_feature(h5f, ext=k)
         return sample
 
     def _transform(self, sample):
         for k in self.features:
-            if k == self.conf["feat_type"]:
-                sample["feats"] = self.scaler[k].transform(sample["feats"])
-            elif k not in ["uv", "cap"]:
+            if k not in ["uv", "cap"] and k not in self.conf["ignore_scaler"]:
                 sample[k] = self.scaler[k].transform(sample[k])
         return sample
 
     def _get_spkrcode(self, spkr_name, flen):
         spkr_num = int(self.spkrdict[spkr_name])
-        h_scalar = (np.ones(flen) * spkr_num).astype(np.int32)
+        h_scalar = (np.ones(flen) * spkr_num).astype(np.long)
         h_onehot = create_one_hot(flen, self.n_spkrs, spkr_num)
         return h_onehot, h_scalar
 
@@ -150,12 +145,14 @@ class BaseDataset(Dataset):
         for k, v in sample.items():
             if isinstance(v, np.ndarray):
                 if k in ["org_h_scalar", "cv_h_scalar"]:
+                    # padding -100 for ignore_index
                     sample[k] = padding(v, dlen, self.batch_len, value=-100, p=p)
                     sample[k] = sample[k].astype(np.long)
                 elif k in ["mask"]:
                     sample[k] = padding(v, dlen, self.batch_len, value=False, p=p)
                     sample[k] = sample[k].astype(bool)
                 else:
+                    # padding 0 for continuous values
                     sample[k] = padding(v, dlen, self.batch_len, value=0.0, p=p)
                     sample[k] = sample[k].astype(np.float32)
                 assert (
@@ -164,6 +161,11 @@ class BaseDataset(Dataset):
                     k, dlen, p, sample[k].shape[0]
                 )
         return sample
+
+    def _spec_augment(self, feats):
+        for i in range(self.conf["n_spec_augment"]):
+            feats = apply_tfmask(feats)
+        return feats
 
 
 def apply_tfmask(feats, max_bin=27, max_time=100):
