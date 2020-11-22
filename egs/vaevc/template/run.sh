@@ -107,8 +107,7 @@ if [ "${stage}" -le 2 ] && [ "${stop_stage}" -ge 2 ]; then
             --phase train \
             --conf "${conf}" \
             --scpdir "${scpdir}" \
-            --featdir "${featdir}" \
-            --expdir "${expdir}"
+            --featdir "${featdir}"
     echo "stage 2: extract features and statistics has been done."
 fi
 
