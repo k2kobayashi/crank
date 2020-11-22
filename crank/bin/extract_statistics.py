@@ -59,6 +59,10 @@ def main():
 
     # speaker independent scaler extraction
     feats = ["mlfb", "mcep", "lcf0"]
+    for win_type in conf["feature"]["window_types"]:
+        if win_type != "hann":
+            feats += [f"mlfb_{win_type}"]
+
     for ext in feats:
         s = Scaler()
         s.fit(list(scp["feats"].values()), ext=ext)
