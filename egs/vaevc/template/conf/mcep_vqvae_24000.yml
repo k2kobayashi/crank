@@ -14,7 +14,8 @@ feature:
   mcep_alpha: 0.466      # all-path filter coefficient
 
 # general setting
-feat_type: mcep          # input feature type ['mlfb', 'mcep']
+input_feat_type: mcep    # input feature type ['mlfb', 'mcep']
+output_feat_type: mcep   # output feature type ['mlfb', 'mcep', 'excit']
 trainer_type: vqvae      # trainer type ['vqvae', 'lsgan', 'cyclegan', 'stargan']
 input_size: 34           # input_size of G network ['mlfb_dim', 'mcep_dim+1']
 output_size: 34          # output_size of G network ['mlfb_dim', 'mcep_dim+1']
@@ -28,6 +29,7 @@ cache_dataset: true      # cache_dataset (NOTE: fix cv_spkr_label in a mini-batc
 spec_augment: false      # apply SpecAugment mask to input feature
 n_spec_augment: 0        # # of bands of spec_augment (both time and freq axises)
 use_mcep_0th: false      # model 0th order of mcep
+ignore_scaler: [mcep]    # ignore applying scaler ['mlfb', 'mcep', 'lcf0']
 
 # alpha
 alpha:
@@ -112,4 +114,4 @@ use_real_only_acgan: false     # train acgan with real sample only
 use_D_uv: true                 # conditioned on uv symbol to D
 use_D_spkrcode: true           # conditioned on speaker code to D
 use_vqvae_loss: true           # update G as well as vqvae loss
-n_steps_stop_generator: 0      # # of stopping steps for training discriminator
+n_steps_stop_generator: 0      # # of steps for stopping training discriminator
