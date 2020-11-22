@@ -74,8 +74,6 @@ class BaseDataset(Dataset):
         """Read feature vectors"""
         sample = {}
         sample = self._read_features(sample, h5f)
-        sample["key_in"] = str(self.conf["input_feat_type"])
-        sample["key_out"] = str(self.conf["output_feat_type"])
         sample["flbl"] = str(
             Path(Path(self.h5list[idx]).parent.stem) / Path(self.h5list[idx]).stem
         )
@@ -83,14 +81,12 @@ class BaseDataset(Dataset):
         sample["cv_spkr_name"] = random.choice(
             [s for s in list(self.spkrdict.keys()) if s != sample["org_spkr_name"]]
         )
-        sample["flen"] = sample[sample["key_in"]].shape[0]
+        sample["flen"] = sample[self.conf["input_feat_type"]].shape[0]
         sample["mask"] = np.ones([sample["flen"]], dtype=bool)[:, np.newaxis]
-        sample["org_spkr_num"] = int(self.spkrdict[sample["org_spkr_name"]])
-        sample["org_h_onehot"], sample["org_h_scalar"] = self._get_spkrcode(
+        sample["org_h_onehot"], sample["org_h"] = self._get_spkrcode(
             sample["org_spkr_name"], sample["flen"]
         )
-        sample["cv_spkr_num"] = int(self.spkrdict[sample["cv_spkr_name"]])
-        sample["cv_h_onehot"], sample["cv_h_scalar"] = self._get_spkrcode(
+        sample["cv_h_onehot"], sample["cv_h"] = self._get_spkrcode(
             sample["cv_spkr_name"], sample["flen"]
         )
         if self.conf["encoder_f0"] or self.conf["decoder_f0"]:
@@ -110,16 +106,24 @@ class BaseDataset(Dataset):
         if "mcep" in self.features and not self.conf["use_mcep_0th"]:
             sample["mcep_0th"] = sample["mcep"][..., :1]
             sample["mcep"] = sample["mcep"][..., 1:]
-        if sample["key_out"] == "excit":
+        if sample[self.conf["output_feat_type"]] == "excit":
             sample["excit"] = np.hstack(sample["lcf0"], sample["uv"], sample["cap"])
         if self.conf["spec_augment"]:
-            sample["spec_augment"] = self._spec_augment(sample[sample["key_in"]])
+            raise NotImplementedError("SpecAugument currently disabled.")
+            sample["spec_augment"] = self._spec_augment(
+                sample[self.conf["input_feat_type"]]
+            )
         sample = self._zero_padding(sample)
         return sample
 
     def _post_getitem(self, sample):
         # TODO: input feature modification such as SpecAugument and noise augment
+        sample["in_feats"] = sample[self.conf["input_feat_type"]]
+        sample["out_feats"] = sample[self.conf["output_feat_type"]]
         # sample["in_mod"] = sample[self.conf["input_feat_type"]]
+        del sample[self.conf["input_feat_type"]]
+        if self.conf["output_feat_type"] in sample.keys():
+            del sample[self.conf["output_feat_type"]]
         return sample
 
     def _read_features(self, sample, h5f):
@@ -135,16 +139,16 @@ class BaseDataset(Dataset):
 
     def _get_spkrcode(self, spkr_name, flen):
         spkr_num = int(self.spkrdict[spkr_name])
-        h_scalar = (np.ones(flen) * spkr_num).astype(np.long)
+        h = (np.ones(flen) * spkr_num).astype(np.long)
         h_onehot = create_one_hot(flen, self.n_spkrs, spkr_num)
-        return h_onehot, h_scalar
+        return h_onehot, h
 
     def _zero_padding(self, sample):
         dlen = self.batch_len - sample["flen"]
         p = random.choice(list(range(0, abs(dlen)))) if dlen < 0 else 0
         for k, v in sample.items():
             if isinstance(v, np.ndarray):
-                if k in ["org_h_scalar", "cv_h_scalar"]:
+                if k in ["org_h", "cv_h"]:
                     # padding -100 for ignore_index
                     sample[k] = padding(v, dlen, self.batch_len, value=-100, p=p)
                     sample[k] = sample[k].astype(np.long)

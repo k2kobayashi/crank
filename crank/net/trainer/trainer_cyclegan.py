@@ -56,7 +56,7 @@ class CycleGANTrainer(LSGANTrainer):
         enc_h_cv = self._get_enc_h(batch, use_cvfeats=True)
         dec_h, spkrvec = self._get_dec_h(batch)
         dec_h_cv, spkrvec_cv = self._get_dec_h(batch, use_cvfeats=True)
-        feats = batch["feats_sa"] if self.conf["spec_augment"] else batch["feats"]
+        feats = batch["in_feats"]
 
         # cycle loss
         cycle_outputs = self.model["G"].cycle_forward(
@@ -82,7 +82,7 @@ class CycleGANTrainer(LSGANTrainer):
         enc_h_cv = self._get_enc_h(batch, use_cvfeats=True)
         dec_h, spkrvec = self._get_dec_h(batch)
         dec_h_cv, spkrvec_cv = self._get_dec_h(batch, use_cvfeats=True)
-        feats = batch["feats_sa"] if self.conf["spec_augment"] else batch["feats"]
+        feats = batch["in_feats"]
 
         # train discriminator
         outputs = self.model["G"].cycle_forward(
@@ -113,7 +113,7 @@ class CycleGANTrainer(LSGANTrainer):
                     D_outputs = D_outputs.masked_select(mask)
                     loss[f"D_acgan_adv_{lbl}"] = self.criterion["ce"](
                         spkr_cls.reshape(-1, spkr_cls.size(2)),
-                        batch[f"{io}_h_scalar"].reshape(-1),
+                        batch[f"{io}_h"].reshape(-1),
                     )
                     loss["G"] += (
                         self.conf["alpha"]["acgan"] * loss[f"D_acgan_adv_{lbl}"]
@@ -131,7 +131,7 @@ class CycleGANTrainer(LSGANTrainer):
         mask = batch["mask"]
         for c in range(self.conf["n_cycles"]):
             lbl = f"{c}cyc"
-            real_inputs = self.get_D_inputs(batch, batch["feats"], label="org")
+            real_inputs = self.get_D_inputs(batch, batch["in_feats"], label="org")
             org_fake_inputs = self.get_D_inputs(
                 batch, outputs[0]["org"]["decoded"].detach(), label="org"
             )
@@ -147,14 +147,14 @@ class CycleGANTrainer(LSGANTrainer):
             if self.conf["acgan_flag"]:
                 for k in sample.keys():
                     if k in ["real", "org_fake"]:
-                        h_scalar = batch["org_h_scalar"]
+                        h = batch["org_h"]
                     else:
-                        h_scalar = batch["cv_h_scalar"]
+                        h = batch["cv_h"]
                     sample[k], spkr_cls = torch.split(
                         sample[k], [1, self.n_spkrs], dim=2
                     )
                     loss[f"D_ce_{k}_{lbl}"] = self.criterion["ce"](
-                        spkr_cls.reshape(-1, spkr_cls.size(2)), h_scalar.reshape(-1),
+                        spkr_cls.reshape(-1, spkr_cls.size(2)), h.reshape(-1),
                     )
                     if not (self.conf["use_real_only_acgan"] and k == "org_fake"):
                         loss["D"] += (

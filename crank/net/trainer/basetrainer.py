@@ -255,13 +255,13 @@ class BaseTrainer(object):
 
     def _get_enc_h(self, batch, use_cvfeats=False, cv_spkr_name=None):
         if self.conf["encoder_f0"]:
-            f0, _, _ = self._prepare_feats(batch, cv_spkr_name, use_cvfeats)
+            f0, _, _ = self._prepare_conditions(batch, cv_spkr_name, use_cvfeats)
             return f0
         else:
             return None
 
     def _get_dec_h(self, batch, use_cvfeats=False, cv_spkr_name=None):
-        f0, h_onehot, h_scalar = self._prepare_feats(batch, cv_spkr_name, use_cvfeats)
+        f0, h, h_onehot = self._prepare_conditions(batch, cv_spkr_name, use_cvfeats)
         if not self.conf["use_spkr_embedding"]:
             if self.conf["decoder_f0"]:
                 return torch.cat([f0, h_onehot], dim=-1), None
@@ -269,37 +269,37 @@ class BaseTrainer(object):
                 return h_onehot, None
         else:
             if self.conf["decoder_f0"]:
-                return f0, h_scalar
+                return f0, h
             else:
-                return None, h_scalar
+                return None, h
 
-    def _prepare_feats(self, batch, cv_spkr_name, use_cvfeats=False):
+    def _prepare_conditions(self, batch, cv_spkr_name, use_cvfeats=False):
         if cv_spkr_name is not None:
             # use specified cv speaker
-            B, T, _ = batch["feats"].size()
+            B, T, _ = batch["in_feats"].size()
             spkr_num = self.spkrs[cv_spkr_name]
             lcf0 = self._get_cvf0(batch, cv_spkr_name)
             h_onehot_np = create_one_hot(T, self.n_spkrs, spkr_num, B=B)
             h_onehot = torch.tensor(h_onehot_np).to(self.device)
-            h_scalar = torch.ones((B, T)).long() * self.spkrs[cv_spkr_name]
-            h_scalar = h_scalar.to(self.device)
+            h = (torch.ones((B, T)).long() * self.spkrs[cv_spkr_name]).to(self.device)
         else:
             if use_cvfeats:
                 # use randomly selected cv speaker by dataset
-                lcf0 = batch["cv_lcf0"].clone()
-                h_onehot = batch["cv_h_onehot"].clone()
-                h_scalar = batch["cv_h_scalar"].clone()
+                lcf0 = batch["cv_lcf0"]
+                h = batch["cv_h"].clone()
+                h_onehot = batch["cv_h_onehot"]
             else:
                 # use org speaker
-                lcf0 = batch["lcf0"].clone()
-                h_onehot = batch["org_h_onehot"].clone()
-                h_scalar = batch["org_h_scalar"].clone()
-        h_scalar[:, :] = h_scalar[:, 0:1]  # remove ignore_index (i.e., -100)
-        return torch.cat([lcf0, batch["uv"]], axis=-1), h_onehot, h_scalar
+                lcf0 = batch["lcf0"]
+                h_onehot = batch["org_h_onehot"]
+                h = batch["org_h"].clone()
+        h[:, :] = h[:, 0:1]  # remove ignore_index (i.e., -100)
+        f0 = torch.cat([lcf0, batch["uv"]], axis=-1)
+        return f0, h, h_onehot
 
     def _get_cvf0(self, batch, spkr_name):
         cv_lcf0s = []
-        for n in range(batch["feats"].size(0)):
+        for n in range(batch["in_feats"].size(0)):
             org_lcf0 = self.scaler["lcf0"].inverse_transform(to_numpy(batch["lcf0"][n]))
             cv_lcf0 = convert_f0(
                 self.scaler, org_lcf0, batch["org_spkr_name"][n], spkr_name
@@ -325,51 +325,56 @@ class BaseTrainer(object):
             Path(k).parent.mkdir(parents=True, exist_ok=True)
         if save_hdf5:
             self._save_decoded_to_hdf5(feats)
-        if self.conf["feat_type"] == "mcep":
+        if self.conf["output_feat_type"] == "mcep":
             self._save_decoded_world(feats)
         else:
             self._save_decoded_mlfb(feats)
 
     def _store_features(self, batch, outputs, cv_spkr_name, tdir):
+        def inv_trans(k, feat):
+            if k not in self.conf["ignore_scaler"]:
+                return self.scaler[k].inverse_transform(feat)
+            else:
+                return feat
+
         feats = {}
-        feat_type = self.conf["feat_type"]
+        feat_type = self.conf["output_feat_type"]
         for n in range(outputs["decoded"].size(0)):
             org_spkr_name = batch["org_spkr_name"][n]
             cv_name = org_spkr_name if cv_spkr_name is None else cv_spkr_name
             wavf = tdir / f"{batch['flbl'][n]}_org-{org_spkr_name}_cv-{cv_name}.wav"
 
-            # for feat
+            # feat
             feats[wavf] = {}
             flen = batch["flen"][n]
             feat = to_numpy(outputs["decoded"][n][:flen])
-            if feat_type == "mcep" and not self.conf["use_mcep_0th"]:
-                org_mcep_0th = to_numpy(batch["mcep_0th"][n][:flen])
-                org_mcep = to_numpy(batch["feats"][n][:flen])
-                feat = np.hstack([org_mcep_0th, feat])
-                rmcep = np.hstack([org_mcep_0th, org_mcep])
-                feats[wavf]["rmcep"] = self.scaler[feat_type].inverse_transform(rmcep)
-            else:
-                feats[wavf]["rmcep"] = None
-            feats[wavf]["feats"] = self.scaler[feat_type].inverse_transform(feat)
-            feats[wavf]["normed_feat"] = feat
+            if feat_type == "mcep":
+                feats[wavf]["cap"] = to_numpy(batch["cap"][n][:flen])
+                if not self.conf["use_mcep_0th"]:
+                    org_mcep_0th = to_numpy(batch["mcep_0th"][n][:flen])
+                    org_mcep = to_numpy(batch["in_feats"][n][:flen])
+                    feat = np.hstack([org_mcep_0th, feat])
+                    rmcep = np.hstack([org_mcep_0th, org_mcep])
+                    feats[wavf]["rmcep"] = inv_trans(feat_type, rmcep)
+                else:
+                    feats[wavf]["rmcep"] = None
+            feats[wavf]["feats"] = inv_trans(feat_type, feat)
 
-            # for f0 features
-            org_cf0 = self.scaler["lcf0"].inverse_transform(
-                to_numpy(batch["lcf0"][n][:flen])
-            )
+            # f0
+            org_cf0 = inv_trans("lcf0", to_numpy(batch["lcf0"][n][:flen]))
             cv_cf0 = convert_f0(self.scaler, org_cf0, org_spkr_name, cv_name)
             feats[wavf]["lcf0"] = cv_cf0
-            feats[wavf]["normed_lcf0"] = self.scaler["lcf0"].transform(cv_cf0)
             feats[wavf]["uv"] = to_numpy(batch["uv"][n][:flen])
             feats[wavf]["f0"] = np.exp(cv_cf0) * feats[wavf]["uv"]
 
-            if feat_type == "mcep":
-                feats[wavf]["cap"] = to_numpy(batch["cap"][n][:flen])
+            # save normed one as well
+            feats[wavf]["normed_lcf0"] = self.scaler["lcf0"].transform(cv_cf0)
+            feats[wavf]["normed_feat"] = feat
         return feats
 
     def _save_decoded_to_hdf5(self, feats):
         type_features = ["feats", "normed_feat", "f0", "lcf0", "normed_lcf0", "uv"]
-        if self.conf["feat_type"] == "mcep":
+        if self.conf["output_feat_type"] == "mcep":
             type_features += ["cap"]
         for k in type_features:
             Parallel(n_jobs=self.n_jobs)(

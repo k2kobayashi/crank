@@ -73,7 +73,7 @@ class VQVAETrainer(BaseTrainer):
         for cv_spkr_name in random.sample(list(self.spkrs.keys()), self.n_cv_spkrs):
             enc_h = self._get_enc_h(batch)
             dec_h, spkrvec = self._get_dec_h(batch, cv_spkr_name=cv_spkr_name)
-            outputs = self.model["G"](batch["feats"], enc_h, dec_h, spkrvec=spkrvec)
+            outputs = self.model["G"](batch["in_feats"], enc_h, dec_h, spkrvec=spkrvec)
             self._generate_cvwav(
                 batch,
                 outputs,
@@ -88,7 +88,9 @@ class VQVAETrainer(BaseTrainer):
     def reconstruction(self, batch, tdir="reconstruction"):
         enc_h = self._get_enc_h(batch)
         dec_h, spkrvec = self._get_dec_h(batch, cv_spkr_name=None)
-        outputs = self.model["G"].forward(batch["feats"], enc_h, dec_h, spkrvec=spkrvec)
+        outputs = self.model["G"].forward(
+            batch["in_feats"], enc_h, dec_h, spkrvec=spkrvec
+        )
         self._generate_cvwav(batch, outputs, None, tdir=tdir, save_hdf5=True)
 
     @torch.no_grad()
@@ -96,7 +98,7 @@ class VQVAETrainer(BaseTrainer):
         for cv_spkr_name in self.spkrs.keys():
             enc_h = self._get_enc_h(batch)
             dec_h, spkrvec = self._get_dec_h(batch, cv_spkr_name=cv_spkr_name)
-            outputs = self.model["G"](batch["feats"], enc_h, dec_h, spkrvec=spkrvec)
+            outputs = self.model["G"](batch["in_feats"], enc_h, dec_h, spkrvec=spkrvec)
             self._generate_cvwav(
                 batch, outputs, cv_spkr_name, tdir="eval_wav", save_hdf5=True
             )
@@ -104,7 +106,7 @@ class VQVAETrainer(BaseTrainer):
     def forward_vqvae(self, batch, loss, phase="train"):
         enc_h = self._get_enc_h(batch)
         dec_h, spkrvec = self._get_dec_h(batch)
-        feats = batch["feats_sa"] if self.conf["spec_augment"] else batch["feats"]
+        feats = batch["in_feats"]
         outputs = self.model["G"].forward(feats, enc_h, dec_h, spkrvec=spkrvec)
         loss = self.calculate_vqvae_loss(batch, outputs, loss)
 
@@ -122,7 +124,7 @@ class VQVAETrainer(BaseTrainer):
         enc_h_cv = self._get_enc_h(batch, use_cvfeats=True)
         dec_h, spkrvec = self._get_dec_h(batch)
         dec_h_cv, spkrvec_cv = self._get_dec_h(batch, use_cvfeats=True)
-        feats = batch["feats_sa"] if self.conf["spec_augment"] else batch["feats"]
+        feats = batch["in_feats"]
         cycle_outputs = self.model["G"].cycle_forward(
             feats, enc_h, dec_h, enc_h_cv, dec_h_cv, spkrvec, spkrvec_cv
         )
@@ -142,14 +144,14 @@ class VQVAETrainer(BaseTrainer):
         if self.conf["use_spkradv_training"]:
             enc_h = self._get_enc_h(batch)
             dec_h, spkrvec = self._get_dec_h(batch)
-            feats = batch["feats_sa"] if self.conf["spec_augment"] else batch["feats"]
+            feats = batch["in_feats"]
             outputs = self.model["G"].forward(feats, enc_h, dec_h, spkrvec=spkrvec)
             advspkr_class = self.model["SPKRADV"].forward(
                 outputs["encoded_unmod"], detach=True
             )
             spkradv_loss = self.criterion["ce"](
                 advspkr_class.reshape(-1, advspkr_class.size(2)),
-                batch["org_h_scalar"].reshape(-1),
+                batch["org_h"].reshape(-1),
             )
             loss["SPKRADV"] = self.conf["alpha"]["ce"] * spkradv_loss
             if phase == "train":
@@ -161,10 +163,10 @@ class VQVAETrainer(BaseTrainer):
             return self.model["C"](x.transpose(1, 2)).transpose(1, 2)
 
         if self.conf["use_spkr_classifier"]:
-            real = return_sample(batch["feats"])
+            real = return_sample(batch["in_feats"])
             real = real.reshape(-1, real.size(2))
-            h_scalar = batch["org_h_scalar"].reshape(-1)
-            loss["C_real"] = self.criterion["ce"](real, h_scalar)
+            h = batch["org_h"].reshape(-1)
+            loss["C_real"] = self.criterion["ce"](real, h)
             loss["C"] += self.conf["alpha"]["ce"] * loss["C_real"]
             if phase == "train":
                 self.step_model(loss, model="C")
@@ -182,11 +184,11 @@ class VQVAETrainer(BaseTrainer):
 
     def calculate_vqvae_loss(self, batch, outputs, loss):
         mask = batch["mask"]
-        feats = batch["feats"]
+        target = batch["out_feats"]
         decoded = outputs["decoded"]
-        loss["G_l1"] = self.criterion["fl1"](decoded, feats, mask=mask)
-        loss["G_mse"] = self.criterion["fmse"](decoded, feats, mask=mask)
-        loss["G_stft"] = self.criterion["fstft"](decoded, feats)
+        loss["G_l1"] = self.criterion["fl1"](decoded, target, mask=mask)
+        loss["G_mse"] = self.criterion["fmse"](decoded, target, mask=mask)
+        loss["G_stft"] = self.criterion["fstft"](decoded, target)
 
         # loss for vq
         encoded = outputs["encoded"]
@@ -210,8 +212,8 @@ class VQVAETrainer(BaseTrainer):
 
             fake = return_sample(outputs["decoded"])
             fake = fake.reshape(-1, fake.size(2))
-            h_scalar = batch["cv_h_scalar"].reshape(-1)
-            return self.criterion["ce"](fake, h_scalar)
+            h = batch["cv_h"].reshape(-1)
+            return self.criterion["ce"](fake, h)
 
         mask = batch["mask"]
         for c in range(self.conf["n_cycles"]):
@@ -221,17 +223,15 @@ class VQVAETrainer(BaseTrainer):
                 if io == "cv":
                     loss[f"C_fake_{lbl}"] = calculate_spkrcls_loss(batch, o)
                 elif io == "recon":
-                    feats = batch["feats"]
+                    target = batch["in_feats"]
                     decoded = o["decoded"]
                     loss[f"G_l1_{lbl}"] = self.criterion["fl1"](
-                        decoded, feats, mask=mask
+                        decoded, target, mask=mask
                     )
                     loss[f"G_mse_{lbl}"] = self.criterion["fmse"](
-                        decoded, feats, mask=mask
+                        decoded, target, mask=mask
                     )
-                    loss[f"G_stft_{lbl}"] = self.criterion["fstft"](
-                        o["decoded"], batch["feats"]
-                    )
+                    loss[f"G_stft_{lbl}"] = self.criterion["fstft"](decoded, target)
                     for n in range(self.conf["n_vq_stacks"]):
                         loss[f"G_commit{n}_{lbl}"] = self.criterion["mse"](
                             o["encoded"][n].masked_select(mask),
@@ -249,7 +249,7 @@ class VQVAETrainer(BaseTrainer):
         advspkr_class = self.model["SPKRADV"].forward(outputs["encoded_unmod"])
         loss["G_spkradv"] = self.criterion["ce"](
             advspkr_class.reshape(-1, advspkr_class.size(2)),
-            batch["org_h_scalar"].reshape(-1),
+            batch["org_h"].reshape(-1),
         )
         loss["G"] += self.conf["alpha"]["ce"] * loss["G_spkradv"]
         return loss
