@@ -353,8 +353,8 @@ class BaseTrainer(object):
                 if not self.conf["use_mcep_0th"]:
                     org_mcep_0th = to_numpy(batch["mcep_0th"][n][:flen])
                     org_mcep = to_numpy(batch["in_feats"][n][:flen])
-                    feat = np.hstack([org_mcep_0th, feat])
-                    rmcep = np.hstack([org_mcep_0th, org_mcep])
+                    feat = np.ascontiguousarray(np.hstack([org_mcep_0th, feat]))
+                    rmcep = np.ascontiguousarray(np.hstack([org_mcep_0th, org_mcep]))
                     feats[wavf]["rmcep"] = inv_trans(feat_type, rmcep)
                 else:
                     feats[wavf]["rmcep"] = None
