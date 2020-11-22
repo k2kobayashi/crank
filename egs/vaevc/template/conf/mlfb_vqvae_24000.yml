@@ -12,6 +12,7 @@ feature:
   shiftms: 5.333333      # shift ms for WORLD
   mcep_dim: 34           # mcep dimension (resulting dim will be [mcepdim+1])
   mcep_alpha: 0.466      # all-path filter coefficient
+  window_types: [hann]   # type of window for mlfb extraction
 
 # general setting
 input_feat_type: mlfb    # input feature type ['mlfb', 'mcep']

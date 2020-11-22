@@ -15,6 +15,7 @@ import logging
 from pathlib import Path
 
 import numpy as np
+import scipy.signal as sp
 import soundfile as sf
 from crank.utils import convert_continuos_f0, low_cut_filter, mlfb2wavf
 from parallel_wavegan.bin.preprocess import logmelfilterbank
@@ -30,6 +31,7 @@ class Feature(object):
         self.conf = conf
         self.sconf = spkr_conf
         self.feats = {}
+        self.win = self._generate_window()
 
     def analyze(self, wavf, synth_flag=False):
         self.fs, x, flbl = self._open_wavf(wavf)
@@ -122,29 +124,69 @@ class Feature(object):
     def _analyze_mlfb(self, wavf):
         # read wav file as float format
         x, fs = sf.read(str(wavf))
-        self.feats["mlfb"] = logmelfilterbank(
-            x,
-            self.conf["fs"],
-            hop_size=self.conf["hop_size"],
-            fft_size=self.conf["fftl"],
-            win_length=self.conf["fftl"],
-            window="hann",
-            num_mels=self.conf["mlfb_dim"],
-            fmin=self.conf["fmin"],
-            fmax=self.conf["fmax"],
-            eps=EPS,
-        )
+        for win_type in self.windows.keys():
+            if win_type == "hann":
+                feat_name = "mlfb"
+            else:
+                feat_name = f"mlfb_{win_type}"
+            self.feats[feat_name] = logmelfilterbank(
+                x,
+                self.conf["fs"],
+                hop_size=self.conf["hop_size"],
+                fft_size=self.conf["fftl"],
+                win_length=self.conf["fftl"],
+                window=self.windows[win_type],
+                num_mels=self.conf["mlfb_dim"],
+                fmin=self.conf["fmin"],
+                fmax=self.conf["fmax"],
+                eps=EPS,
+            )
 
     def _mlfb2wavf(self, flbl):
-        glf = self.h5_dir / (flbl + "_gl.wav")
-        mlfb2wavf(
-            self.feats["mlfb"],
-            glf,
-            fs=self.conf["fs"],
-            n_mels=self.conf["mlfb_dim"],
-            fftl=self.conf["fftl"],
-            hop_size=self.conf["hop_size"],
-            fmin=self.conf["fmin"],
-            fmax=self.conf["fmax"],
-            plot=True,
+        for win_type in self.conf["window_types"]:
+            if win_type == "hann":
+                feat_name = "mlfb"
+            else:
+                feat_name = f"mlfb_{win_type}"
+            glf = self.h5_dir / (flbl + f"_{feat_name}_gl.wav")
+            mlfb2wavf(
+                self.feats[feat_name],
+                glf,
+                fs=self.conf["fs"],
+                n_mels=self.conf["mlfb_dim"],
+                fftl=self.conf["fftl"],
+                hop_size=self.conf["hop_size"],
+                fmin=self.conf["fmin"],
+                fmax=self.conf["fmax"],
+                plot=True,
+            )
+
+    def _generate_window(self):
+        self.windows = {}
+        assert "hann" in self.conf["window_types"]
+        for win_type in self.conf["window_types"]:
+            if win_type == "hann":
+                win = sp.hann(self.conf["fftl"])
+            elif win_type == "hamming":
+                win = sp.hamming(self.conf["fftl"])
+            elif win_type == "itu-g":
+                win = itug_729_window(self.conf["fftl"])
+            self.windows[win_type] = win
+
+
+def itug_729_window(length):
+    """ITU-G. 729 window function."""
+
+    def cos_win(x, length):
+        return np.cos((2 * np.pi * x) / (2 * length / 3 - 1))
+
+    def hamming_win(x, length):
+        return 0.54 - 0.46 * np.cos(
+            (2 * np.pi * (x - length / 6)) / (5 * length / 3 - 1)
         )
+
+    win = np.zeros(length)
+    arange = np.arange(length)
+    win[-(length // 6) :] = cos_win(arange[: length // 6], length)
+    win[: -(length // 6)] = hamming_win(arange[length // 6 :], length)
+    return win
