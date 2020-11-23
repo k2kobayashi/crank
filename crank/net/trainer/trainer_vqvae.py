@@ -91,7 +91,9 @@ class VQVAETrainer(BaseTrainer):
         outputs = self.model["G"].forward(
             batch["in_feats"], enc_h, dec_h, spkrvec=spkrvec
         )
-        self._generate_cvwav(batch, outputs, None, tdir=tdir, save_hdf5=True)
+        self._generate_cvwav(
+            batch, outputs, None, tdir=tdir, save_hdf5=True, n_samples=-1
+        )
 
     @torch.no_grad()
     def eval(self, batch):
@@ -100,7 +102,12 @@ class VQVAETrainer(BaseTrainer):
             dec_h, spkrvec = self._get_dec_h(batch, cv_spkr_name=cv_spkr_name)
             outputs = self.model["G"](batch["in_feats"], enc_h, dec_h, spkrvec=spkrvec)
             self._generate_cvwav(
-                batch, outputs, cv_spkr_name, tdir="eval_wav", save_hdf5=True
+                batch,
+                outputs,
+                cv_spkr_name,
+                tdir="eval_wav",
+                save_hdf5=True,
+                n_samples=-1,
             )
 
     def forward_vqvae(self, batch, loss, phase="train"):
