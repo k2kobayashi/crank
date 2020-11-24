@@ -274,7 +274,7 @@ class BaseTrainer(object):
     def _get_f0_condition(self, batch, cv_spkr_name, use_cvfeats=False):
         if cv_spkr_name is not None:
             # use specified cv speaker
-            lcf0 = self._get_cvf0(batch, self.spkrs[cv_spkr_name])
+            lcf0 = self._get_cvf0(batch, cv_spkr_name)
         else:
             if use_cvfeats:
                 # use randomly selected cv speaker by dataset

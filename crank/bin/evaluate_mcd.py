@@ -50,7 +50,7 @@ def calculate(cv_path, gt_file_list, conf, spkr_conf):
     orgspk = orgspk.split("-")[-1]
 
     # get converted features. If mcep, from h5; else waveform
-    if conf["feat_type"] == "mcep":
+    if conf["output_feat_type"] == "mcep":
         cv_mcep = read_feature(cv_path, "feat")
         cv_f0 = read_feature(cv_path, "f0")
     else:
@@ -118,7 +118,7 @@ def main():
     spkr_conf = load_yaml(args.spkr_conf)
 
     # load converted files. If mcep, use h5; else, waveform
-    if conf["feat_type"] == "mcep":
+    if conf["output_feat_type"] == "mcep":
         converted_files = sorted(list(Path(args.outwavdir).glob("*.h5")))
     else:
         converted_files = sorted(list(Path(args.outwavdir).glob("*.wav")))
