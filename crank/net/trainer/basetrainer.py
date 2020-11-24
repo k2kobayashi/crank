@@ -11,28 +11,22 @@ BaseTrainer class
 
 """
 
-import random
 import logging
+import random
 from abc import abstractmethod
 from pathlib import Path
 
-from joblib import Parallel, delayed
 import numpy as np
 import torch
-from tqdm import tqdm
-
-from crank.utils import to_device
 from crank.net.trainer.dataset import convert_f0, create_one_hot
-from crank.utils import feat2hdf5, mlfb2wavf, to_numpy, world2wav
+from crank.utils import feat2hdf5, mlfb2wavf, to_device, to_numpy, world2wav
+from joblib import Parallel, delayed
+from tqdm import tqdm
 
 
 def TrainerWrapper(trainer_type, **ka):
-    from crank.net.trainer import (
-        CycleGANTrainer,
-        LSGANTrainer,
-        VQVAETrainer,
-        StarGANTrainer,
-    )
+    from crank.net.trainer import (CycleGANTrainer, LSGANTrainer,
+                                   StarGANTrainer, VQVAETrainer)
 
     if trainer_type == "vqvae":
         trainer = VQVAETrainer(**ka)
@@ -255,47 +249,61 @@ class BaseTrainer(object):
 
     def _get_enc_h(self, batch, use_cvfeats=False, cv_spkr_name=None):
         if self.conf["encoder_f0"]:
-            f0, _, _ = self._prepare_conditions(batch, cv_spkr_name, use_cvfeats)
+            f0 = self._get_f0_condition(batch, cv_spkr_name, use_cvfeats)
             return f0
         else:
             return None
 
     def _get_dec_h(self, batch, use_cvfeats=False, cv_spkr_name=None):
-        f0, h, h_onehot = self._prepare_conditions(batch, cv_spkr_name, use_cvfeats)
+        h, h_onehot = self._get_spkr_conditions(batch, cv_spkr_name, use_cvfeats)
+        if self.conf["decoder_f0"]:
+            f0 = self._get_f0_condition(batch, cv_spkr_name, use_cvfeats)
+        else:
+            f0 = None
         if not self.conf["use_spkr_embedding"]:
-            if self.conf["decoder_f0"]:
+            if f0 is not None:
                 return torch.cat([f0, h_onehot], dim=-1), None
             else:
                 return h_onehot, None
         else:
-            if self.conf["decoder_f0"]:
+            if f0 is not None:
                 return f0, h
             else:
                 return None, h
 
-    def _prepare_conditions(self, batch, cv_spkr_name, use_cvfeats=False):
+    def _get_f0_condition(self, batch, cv_spkr_name, use_cvfeats=False):
+        if cv_spkr_name is not None:
+            # use specified cv speaker
+            lcf0 = self._get_cvf0(batch, self.spkrs[cv_spkr_name])
+        else:
+            if use_cvfeats:
+                # use randomly selected cv speaker by dataset
+                lcf0 = batch["cv_lcf0"]
+            else:
+                # use org speaker
+                lcf0 = batch["lcf0"]
+        f0 = torch.cat([lcf0, batch["uv"]], axis=-1)
+        return f0
+
+    def _get_spkr_conditions(self, batch, cv_spkr_name, use_cvfeats=False):
         if cv_spkr_name is not None:
             # use specified cv speaker
             B, T, _ = batch["in_feats"].size()
             spkr_num = self.spkrs[cv_spkr_name]
-            lcf0 = self._get_cvf0(batch, cv_spkr_name)
             h_onehot_np = create_one_hot(T, self.n_spkrs, spkr_num, B=B)
             h_onehot = torch.tensor(h_onehot_np).to(self.device)
             h = (torch.ones((B, T)).long() * self.spkrs[cv_spkr_name]).to(self.device)
         else:
             if use_cvfeats:
                 # use randomly selected cv speaker by dataset
-                lcf0 = batch["cv_lcf0"]
                 h = batch["cv_h"].clone()
                 h_onehot = batch["cv_h_onehot"]
             else:
                 # use org speaker
-                lcf0 = batch["lcf0"]
                 h_onehot = batch["org_h_onehot"]
                 h = batch["org_h"].clone()
         h[:, :] = h[:, 0:1]  # remove ignore_index (i.e., -100)
-        f0 = torch.cat([lcf0, batch["uv"]], axis=-1)
-        return f0, h, h_onehot
+        return h, h_onehot
 
     def _get_cvf0(self, batch, spkr_name):
         cv_lcf0s = []
