@@ -22,7 +22,11 @@ from torch.utils.data import Dataset
 
 class BaseDataset(Dataset):
     def __init__(
-        self, conf, scp, scaler, phase="train",
+        self,
+        conf,
+        scp,
+        scaler,
+        phase="train",
     ):
         self.conf = conf
         self.h5list = list(scp[phase]["feats"].values())
@@ -31,14 +35,9 @@ class BaseDataset(Dataset):
         self.batch_len = self.conf["batch_len"]
 
         self.features = [self.conf["input_feat_type"], self.conf["output_feat_type"]]
+        self.features += ["lcf0", "uv"]
         if "mcep" in self.features:
             self.features += ["cap"]
-        if (
-            self.conf["encoder_f0"]
-            or self.conf["decoder_f0"]
-            or self.conf["output_feat_type"] == "excit"
-        ):
-            self.features += ["lcf0", "uv"]
         self.features = set(self.features)
         self.spkrdict = dict(zip(self.spkrlist, range(len(self.spkrlist))))
         self.n_spkrs = len(self.spkrdict)
@@ -89,13 +88,12 @@ class BaseDataset(Dataset):
         sample["cv_h_onehot"], sample["cv_h"] = self._get_spkrcode(
             sample["cv_spkr_name"], sample["flen"]
         )
-        if self.conf["encoder_f0"] or self.conf["decoder_f0"]:
-            sample["cv_lcf0"] = convert_f0(
-                self.scaler,
-                sample["lcf0"],
-                sample["org_spkr_name"],
-                sample["cv_spkr_name"],
-            )
+        sample["cv_lcf0"] = convert_f0(
+            self.scaler,
+            sample["lcf0"],
+            sample["org_spkr_name"],
+            sample["cv_spkr_name"],
+        )
 
         return sample
 
