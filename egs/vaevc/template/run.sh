@@ -51,6 +51,7 @@ eval_speakers=""  # evaluation speaker
 . utils/parse_options.sh || exit 1;
 
 set -eu # stop when error occured and undefined vars are used
+[ $n_gpus -eq 0 ] && export CUDA_VISIBLE_DEVICES=""
 
 mkdir -p "${expdir}"
 wavdir=${downloaddir}/wav
@@ -219,7 +220,7 @@ if [ "${stage}" -le 6 ] && [ "${stop_stage}" -ge 6 ]; then
         echo "successfully finished decoding."
 
         # rename
-        find "${outwavdir}" -name '*.wav' | sed -e "p;s/_gen//" | xargs -n2 mv
+        find "${outwavdir}" -name '*_gen.wav' | sed -e "p;s/_gen//" | xargs -n2 mv
     else
         echo "Vocoder type not supported. Only GL and PWG are available."
     fi
