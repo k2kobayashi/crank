@@ -191,6 +191,7 @@ def main():
         "device": device,
         "scaler": scaler,
         "resume": resume,
+        "n_jobs": args.n_jobs,
     }
     trainer = TrainerWrapper(conf["trainer_type"], **ka)
     trainer.run(flag=args.flag)
