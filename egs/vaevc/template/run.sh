@@ -239,6 +239,7 @@ if [ "${stage}" -le 7 ] && [ "${stop_stage}" -ge 7 ]; then
     ${train_cmd} "${outwavdir}/mcd.log" \
         python -m crank.bin.evaluate_mcd \
             --conf "${conf}" \
+            --n_jobs "${n_jobs}" \
             --spkr_conf "${spkr_yml}" \
             --outwavdir "${outwavdir}" \
             --featdir ${featdir}
