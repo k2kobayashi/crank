@@ -29,8 +29,6 @@ def test_feature():
     )
     (datadir / "SF1_10001.h5").unlink()
     (datadir / "SF1_10001_anasyn.wav").unlink()
-    (datadir / "SF1_10001_gl.wav").unlink()
-    (datadir / "SF1_10001_gl.wav.png").unlink()
 
 
 def test_feature_8k():
