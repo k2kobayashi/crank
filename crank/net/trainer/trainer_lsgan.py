@@ -86,7 +86,7 @@ class LSGANTrainer(VQVAETrainer):
         # train generator
         enc_h = self._get_enc_h(batch)
         dec_h, spkrvec = self._get_dec_h(batch)
-        feats = batch["feats_sa"] if self.conf["spec_augment"] else batch["feats"]
+        feats = batch["in_feats"]
         outputs = self.model["G"].forward(feats, enc_h, dec_h, spkrvec)
         loss = self.calculate_vqvae_loss(batch, outputs, loss)
         if self.conf["use_spkradv_training"]:
@@ -95,9 +95,9 @@ class LSGANTrainer(VQVAETrainer):
         # calculate adv loss
         if self.conf["cvadv_flag"]:
             dec_h, spkrvec = self._get_dec_h(batch, use_cvfeats=True)
-            h_scalar = batch["cv_h_scalar"]
+            h = batch["cv_h"]
         else:
-            h_scalar = batch["org_h_scalar"]
+            h = batch["org_h"]
         adv_outputs = self.model["G"].forward(
             feats,
             enc_h,
@@ -107,7 +107,7 @@ class LSGANTrainer(VQVAETrainer):
             encoder_detach=self.conf["encoder_detach"],
         )
         loss = self.calculate_adv_loss(
-            batch, adv_outputs["decoded"], h_scalar, batch["mask"], loss
+            batch, adv_outputs["decoded"], h, batch["mask"], loss
         )
         if phase == "train" and not self.stop_generator:
             self.step_model(loss, model="G")
@@ -118,53 +118,49 @@ class LSGANTrainer(VQVAETrainer):
             return self.model["D"](x.transpose(1, 2)).transpose(1, 2)
 
         enc_h = self._get_enc_h(batch)
-        feats = batch["feats_sa"] if self.conf["spec_augment"] else batch["feats"]
+        feats = batch["in_feats"]
         mask = batch["mask"]
         if self.conf["cvadv_flag"]:
             dec_h, spkrvec = self._get_dec_h(batch, use_cvfeats=True)
-            h_scalar = batch["cv_h_scalar"]
+            h = batch["cv_h"]
         else:
             dec_h, spkrvec = self._get_dec_h(batch)
-            h_scalar = batch["org_h_scalar"]
+            h = batch["org_h"]
         outputs = self.model["G"].forward(feats, enc_h, dec_h, spkrvec)
 
         # for real
-        real_inputs = self.get_D_inputs(batch, batch["feats"], label="org")
+        real_inputs = self.get_D_inputs(batch, batch["in_feats"], label="org")
         real = return_sample(real_inputs)
         loss = self.calculate_discriminator_loss(
-            real, batch["org_h_scalar"], mask, loss, label="real"
+            real, batch["org_h"], mask, loss, label="real"
         )
 
         # for fake
         fake_inputs = self.get_D_inputs(batch, outputs["decoded"].detach(), label="cv")
         cv_fake = return_sample(fake_inputs)
-        loss = self.calculate_discriminator_loss(
-            cv_fake, h_scalar, mask, loss, label="fake"
-        )
+        loss = self.calculate_discriminator_loss(cv_fake, h, mask, loss, label="fake")
 
         if phase == "train":
             self.step_model(loss, model="D")
         return loss
 
-    def calculate_adv_loss(self, batch, decoded, h_scalar, mask, loss):
+    def calculate_adv_loss(self, batch, decoded, h, mask, loss):
         fake_inputs = self.get_D_inputs(batch, decoded, label="cv")
         fake = self.model["D"].forward(fake_inputs.transpose(1, 2)).transpose(1, 2)
 
         if self.conf["acgan_flag"]:
             fake, spkr_cls = torch.split(fake, [1, self.n_spkrs], dim=2)
-            loss = self.calculate_acgan_loss(spkr_cls, h_scalar, loss)
+            loss = self.calculate_acgan_loss(spkr_cls, h, loss)
 
         fake = fake.masked_select(mask)
         loss["D_adv"] = self.criterion["mse"](fake, torch.ones_like(fake))
         loss["G"] += self.conf["alpha"]["adv"] * loss["D_adv"]
         return loss
 
-    def calculate_discriminator_loss(self, sample, h_scalar, mask, loss, label="real"):
+    def calculate_discriminator_loss(self, sample, h, mask, loss, label="real"):
         if self.conf["acgan_flag"]:
             sample, spkr_cls = torch.split(sample, [1, self.n_spkrs], dim=2)
-            loss = self.calculate_acgan_loss(
-                spkr_cls, h_scalar, loss, label=label, model="D"
-            )
+            loss = self.calculate_acgan_loss(spkr_cls, h, loss, label=label, model="D")
         sample = sample.masked_select(mask)
         if label == "real":
             correct_label = torch.ones_like(sample)
@@ -174,9 +170,9 @@ class LSGANTrainer(VQVAETrainer):
         loss["D"] += self.conf["alpha"][label] * loss[f"D_{label}"]
         return loss
 
-    def calculate_acgan_loss(self, spkr_cls, h_scalar, loss, label="adv", model="G"):
+    def calculate_acgan_loss(self, spkr_cls, h, loss, label="adv", model="G"):
         loss[f"D_acgan_{label}"] = self.criterion["ce"](
-            spkr_cls.reshape(-1, spkr_cls.size(2)), h_scalar.reshape(-1)
+            spkr_cls.reshape(-1, spkr_cls.size(2)), h.reshape(-1)
         )
         if not (self.conf["use_real_only_acgan"] and label == "fake"):
             loss[model] += self.conf["alpha"]["acgan"] * loss[f"D_acgan_{label}"]
@@ -202,7 +198,7 @@ class LSGANTrainer(VQVAETrainer):
                 feats_list.append(batch[f"{label}_h_onehot"])
             else:
                 # remove ignore_index (i.e., -100)
-                h_scalar = batch[f"{label}_h_scalar"].clone()
-                h_scalar[:, :] = h_scalar[:, 0:1]
-                feats_list.append(self.model["G"].spkr_embedding(h_scalar).detach())
+                h = batch[f"{label}_h"].clone()
+                h[:, :] = h[:, 0:1]
+                feats_list.append(self.model["G"].spkr_embedding(h).detach())
         return torch.cat(feats_list, axis=-1).float()

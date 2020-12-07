@@ -84,25 +84,14 @@ def get_dataloader(conf, scp, scaler, flag="train", n_jobs=10):
         feats = list(scp["eval"]["feats"].values())
 
     if flag in ["reconstruction", "eval"]:
-        batch_len = calculate_maxflen(feats)
-    elif conf["batch_len"] is not None:
-        batch_len = conf["batch_len"]
-    else:
-        batch_len = calculate_maxflen(feats)
+        conf["batch_len"] = calculate_maxflen(feats)
 
     spkrs = dict(zip(scp["train"]["spkrs"], range(len(scp["train"]["spkrs"]))))
-    tr_dataset = BaseDataset(
-        conf, scp, phase="train", scaler=scaler, batch_len=batch_len,
-    )
-    dev_dataset = BaseDataset(
-        conf, scp, phase="dev", scaler=scaler, batch_len=batch_len,
-    )
-    eval_dataset = BaseDataset(
-        conf, scp, phase="eval", scaler=scaler, batch_len=batch_len,
-    )
+    tr_dataset = BaseDataset(conf, scp, phase="train", scaler=scaler)
+    dev_dataset = BaseDataset(conf, scp, phase="dev", scaler=scaler)
+    eval_dataset = BaseDataset(conf, scp, phase="eval", scaler=scaler)
     dataloader = {
         "spkrs": spkrs,
-        "batch_len": batch_len,
         "train": DataLoader(
             tr_dataset, batch_size=conf["batch_size"], shuffle=True, num_workers=n_jobs
         ),

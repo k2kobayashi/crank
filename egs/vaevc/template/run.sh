@@ -32,14 +32,14 @@ expdir=exp            # directory to save experiments
 featsscp="None"
 
 # config settings
-conf=conf/mlfb_vqvae.yml  # newtork config
-spkr_yml=conf/spkr.yml # speaker config
+conf=conf/mlfb_vqvae.yml # newtork config
+spkr_yml=conf/spkr.yml   # speaker config
 
 # synthesis related
-model_step=                     # If not specified, use the latest.
-voc=PWG                         # GL or PWG
-voc_expdir=downloads/PWG        # ex. `downloads/pwg`
-voc_checkpoint=                 # If not specified, use the latest checkpoint
+model_step=""            # If not specified, use the latest.
+voc=PWG                  # GL or PWG
+voc_expdir=downloads/PWG # ex. `downloads/pwg`
+voc_checkpoint=""        # If not specified, use the latest checkpoint
 
 # other settings
 checkpoint="None" # checkpoint path to resume
@@ -51,6 +51,7 @@ eval_speakers=""  # evaluation speaker
 . utils/parse_options.sh || exit 1;
 
 set -eu # stop when error occured and undefined vars are used
+[ $n_gpus -eq 0 ] && export CUDA_VISIBLE_DEVICES=""
 
 mkdir -p "${expdir}"
 wavdir=${downloaddir}/wav
@@ -62,8 +63,8 @@ confname=$(basename "${conf}" .yml)
 # stage 0: download dataset and generate scp
 if [ "${stage}" -le 0 ] && [ "${stop_stage}" -ge 0 ]; then
     echo "stage 0: download dataset and generate scp"
-    ${train_cmd} "${logdir}/download.log" \
-        local/download.sh --downloaddir "${downloaddir}"
+    # ${train_cmd} "${logdir}/download.log" \
+    #     local/download.sh --downloaddir "${downloaddir}"
     ${train_cmd} "${logdir}/generate_scp.log" \
         python -m crank.bin.generate_scp \
             --wavdir "${wavdir}" \
@@ -107,8 +108,7 @@ if [ "${stage}" -le 2 ] && [ "${stop_stage}" -ge 2 ]; then
             --phase train \
             --conf "${conf}" \
             --scpdir "${scpdir}" \
-            --featdir "${featdir}" \
-            --expdir "${expdir}"
+            --featdir "${featdir}"
     echo "stage 2: extract features and statistics has been done."
 fi
 
@@ -164,7 +164,7 @@ fi
 # stage 6: synthesis
 [ -z "${model_step}" ] && model_step="$(find "${expdir}/${confname}" -name "*.pkl" -print0 \
     | xargs -0 ls -t | head -n 1 | cut -d"/" -f 3 | cut -d"_" -f 2 | cut -d"s" -f 1)"
-outdir=${expdir}/${confname}/eval_${voc}_wav/${model_step}
+outdir=${expdir}/${confname}/eval_$(basename $voc_expdir)_wav/${model_step}
 outwavdir=${outdir}/wav
 if [ "${stage}" -le 6 ] && [ "${stop_stage}" -ge 6 ]; then
     echo "stage 6: synthesis"
@@ -211,7 +211,7 @@ if [ "${stage}" -le 6 ] && [ "${stop_stage}" -ge 6 ]; then
 
         # decoding
         echo "Decoding start. See the progress via ${outwavdir}/decode.log."
-        ${cuda_cmd} --gpu 1 "${outwavdir}/decode.log" \
+        ${train_cmd} --gpu ${n_gpus} "${outwavdir}/decode.log" \
             parallel-wavegan-decode \
                 --dumpdir "${hdf5_norm_dir}" \
                 --checkpoint "${voc_checkpoint}" \
@@ -220,7 +220,7 @@ if [ "${stage}" -le 6 ] && [ "${stop_stage}" -ge 6 ]; then
         echo "successfully finished decoding."
 
         # rename
-        find "${outwavdir}" -name '*.wav' | sed -e "p;s/_gen//" | xargs -n2 mv
+        find "${outwavdir}" -name '*_gen.wav' | sed -e "p;s/_gen//" | xargs -n2 mv
     else
         echo "Vocoder type not supported. Only GL and PWG are available."
     fi
@@ -239,12 +239,13 @@ if [ "${stage}" -le 7 ] && [ "${stop_stage}" -ge 7 ]; then
     ${train_cmd} "${outwavdir}/mcd.log" \
         python -m crank.bin.evaluate_mcd \
             --conf "${conf}" \
+            --n_jobs "${n_jobs}" \
             --spkr_conf "${spkr_yml}" \
             --outwavdir "${outwavdir}" \
             --featdir ${featdir}
 
     echo "MOSnet score prediction. Results can be found in ${outwavdir}/mosnet.log"
-    ${train_cmd} --gpu 1 \
+    ${train_cmd} --gpu ${n_gpus} \
         "${outwavdir}/mosnet.log" \
         python -m crank.bin.evaluate_mosnet \
             --outwavdir "${outwavdir}"

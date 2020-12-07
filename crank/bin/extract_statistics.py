@@ -48,18 +48,21 @@ def main():
     parser.add_argument("--conf", type=str, help="ymal file for network parameters")
     parser.add_argument("--scpdir", type=str, help="scp directory")
     parser.add_argument("--featdir", type=str, help="output feature directory")
-    parser.add_argument("--expdir", type=str, help="exp directory")
     args = parser.parse_args()
 
     conf = load_yaml(args.conf)
     scp = open_scpdir(Path(args.scpdir) / args.phase)
-    featsscp = Path(args.featdir) / conf["feature"]["label"] / args.phase / "feats.scp"
+    featdir = Path(args.featdir) / conf["feature"]["label"]
+    featsscp = featdir / args.phase / "feats.scp"
     scp["feats"] = open_featsscp(featsscp)
-    expdir = Path(args.expdir)
     scaler = {}
 
     # speaker independent scaler extraction
     feats = ["mlfb", "mcep", "lcf0"]
+    for win_type in conf["feature"]["window_types"]:
+        if win_type != "hann":
+            feats += [f"mlfb_{win_type}"]
+
     for ext in feats:
         s = Scaler()
         s.fit(list(scp["feats"].values()), ext=ext)
@@ -78,8 +81,8 @@ def main():
         )
         scaler[spkr] = {"lcf0": s.ss}
 
-    pklf = str(expdir / "{}_scaler.pkl".format(conf["feature"]["label"]))
-    joblib.dump(scaler, pklf)
+    pklf = featdir / "scaler.pkl"
+    joblib.dump(scaler, str(pklf))
     logging.info("Save scaler to {}".format(pklf))
 
 

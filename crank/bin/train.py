@@ -168,9 +168,7 @@ def main():
             model, resume = load_checkpoint(model, checkpoint)
 
     # load others
-    scaler = joblib.load(
-        Path(args.expdir) / "{}_scaler.pkl".format(conf["feature"]["label"])
-    )
+    scaler = joblib.load(featdir / "scaler.pkl")
     optimizer = get_optimizer(conf, model)
     criterion = get_criterion(conf)
     dataloader = get_dataloader(conf, scp, scaler, n_jobs=args.n_jobs, flag=args.flag)
@@ -193,6 +191,7 @@ def main():
         "device": device,
         "scaler": scaler,
         "resume": resume,
+        "n_jobs": args.n_jobs,
     }
     trainer = TrainerWrapper(conf["trainer_type"], **ka)
     trainer.run(flag=args.flag)

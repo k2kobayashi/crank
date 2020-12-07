@@ -52,7 +52,7 @@ class StarGANTrainer(LSGANTrainer):
         enc_h_cv = self._get_enc_h(batch, use_cvfeats=True)
         dec_h, spkrvec = self._get_dec_h(batch)
         dec_h_cv, spkrvec_cv = self._get_dec_h(batch, use_cvfeats=True)
-        feats = batch["feats_sa"] if self.conf["spec_augment"] else batch["feats"]
+        feats = batch["in_feats"]
 
         # VQVAE and its cyclic loss
         cycle_outputs = self.model["G"].cycle_forward(
@@ -73,11 +73,7 @@ class StarGANTrainer(LSGANTrainer):
             encoder_detach=self.conf["encoder_detach"],
         )
         loss = self.calculate_adv_loss(
-            batch,
-            adv_outputs["decoded"],
-            batch["cv_h_scalar"],
-            batch["mask"],
-            loss,
+            batch, adv_outputs["decoded"], batch["cv_h"], batch["mask"], loss,
         )
 
         if self.conf["use_spkradv_training"]:
@@ -93,13 +89,13 @@ class StarGANTrainer(LSGANTrainer):
 
         enc_h_cv = self._get_enc_h(batch, use_cvfeats=True)
         dec_h_cv, spkrvec_cv = self._get_dec_h(batch, use_cvfeats=True)
-        feats = batch["feats_sa"] if self.conf["spec_augment"] else batch["feats"]
+        feats = batch["in_feats"]
 
         # real
-        real_inputs = self.get_D_inputs(batch, batch["feats"], label="org")
+        real_inputs = self.get_D_inputs(batch, batch["in_feats"], label="org")
         real = return_sample(real_inputs)
         loss = self.calculate_discriminator_loss(
-            real, batch["org_h_scalar"], batch["mask"], loss, label="real"
+            real, batch["org_h"], batch["mask"], loss, label="real"
         )
 
         # fake
@@ -107,7 +103,7 @@ class StarGANTrainer(LSGANTrainer):
         fake_inputs = self.get_D_inputs(batch, outputs["decoded"].detach(), label="cv")
         cv_fake = return_sample(fake_inputs)
         loss = self.calculate_discriminator_loss(
-            cv_fake, batch["cv_h_scalar"], batch["mask"], loss, label="fake"
+            cv_fake, batch["cv_h"], batch["mask"], loss, label="fake"
         )
 
         if phase == "train":

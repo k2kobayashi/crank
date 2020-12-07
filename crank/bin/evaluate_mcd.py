@@ -50,7 +50,7 @@ def calculate(cv_path, gt_file_list, conf, spkr_conf):
     orgspk = orgspk.split("-")[-1]
 
     # get converted features. If mcep, from h5; else waveform
-    if conf["feat_type"] == "mcep":
+    if conf["output_feat_type"] == "mcep":
         cv_mcep = read_feature(cv_path, "feat")
         cv_f0 = read_feature(cv_path, "f0")
     else:
@@ -102,7 +102,7 @@ def main():
         help="The output filename. " "If omitted, then output to sys.stdout",
     )
     parser.add_argument(
-        "--n_jobs", default=40, type=int, help="number of parallel jobs"
+        "--n_jobs", default=1, type=int, help="number of parallel jobs"
     )
     args = parser.parse_args()
 
@@ -118,7 +118,7 @@ def main():
     spkr_conf = load_yaml(args.spkr_conf)
 
     # load converted files. If mcep, use h5; else, waveform
-    if conf["feat_type"] == "mcep":
+    if conf["output_feat_type"] == "mcep":
         converted_files = sorted(list(Path(args.outwavdir).glob("*.h5")))
     else:
         converted_files = sorted(list(Path(args.outwavdir).glob("*.wav")))
