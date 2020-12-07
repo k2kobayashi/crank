@@ -102,7 +102,7 @@ def main():
         help="The output filename. " "If omitted, then output to sys.stdout",
     )
     parser.add_argument(
-        "--n_jobs", default=40, type=int, help="number of parallel jobs"
+        "--n_jobs", default=1, type=int, help="number of parallel jobs"
     )
     args = parser.parse_args()
 
