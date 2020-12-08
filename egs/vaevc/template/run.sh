@@ -65,6 +65,7 @@ if [ "${stage}" -le 0 ] && [ "${stop_stage}" -ge 0 ]; then
     echo "stage 0: download dataset and generate scp"
     # ${train_cmd} "${logdir}/download.log" \
     #     local/download.sh --downloaddir "${downloaddir}"
+    # shellcheck disable=SC2154
     ${train_cmd} "${logdir}/generate_scp.log" \
         python -m crank.bin.generate_scp \
             --wavdir "${wavdir}" \

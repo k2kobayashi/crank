@@ -9,12 +9,12 @@
 # shellcheck disable=SC1091
 . ./path.sh || exit 1
 
-. utils/parse_options.sh
+. utils/parse_options.sh || exit 1;
 
 conf=$1
-
+voc_expdir=$2
 # check arguments
-if [ $# -ne 1 ]; then
+if [ $# -lt 2 ]; then
     echo "Usage: $0 <conf>"
     exit 1
 fi
@@ -22,17 +22,19 @@ fi
 set -eu
 
 # shellcheck disable=SC2012
-recipe=$(basename `pwd`)
+recipe=$(basename "$PWD")
 confname=$(basename "${conf}" .yml)
 model_dir=exp/"${confname}"
-PWG_dir=${model_dir}/eval_PWG_wav
+voc_confname=$(basename "${voc_expdir}")
+PWG_dir=${model_dir}/eval_${voc_confname}_wav
 
+# shellcheck disable=SC2012
 ckpt=$(basename "$(ls -dt "${model_dir}"/*.pkl | head -1)")
+# shellcheck disable=SC2012
 wav_dir=$PWG_dir/$(basename "$(ls -dt "${PWG_dir}"/* | head -1)")/wav
-tar_name="${recipe}_${confname}".tar.gz
+tar_name="${recipe}_${confname}_${voc_confname}".tar.gz
 
 tar -cvzf "${tar_name}" \
     "${conf}" \
     "${model_dir}/${ckpt}" "${wav_dir}"/mcd.log "${wav_dir}"/mosnet.log \
     "${wav_dir}"
-
