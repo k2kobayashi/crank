@@ -161,7 +161,7 @@ def main():
         model, resume = load_checkpoint(model, args.checkpoint)
     else:
         if args.flag in ["reconstruction", "eval"]:
-            pkls = list(expdir.glob("*.pkl"))
+            pkls = list(expdir.glob("checkpoint_*steps.pkl"))
             steps = [re.findall("[0-9]+", str(p.stem))[0] for p in pkls]
             max_step = max([int(s) for s in steps])
             checkpoint = str([p for p in pkls if str(max_step) in str(p)][0])
