@@ -11,3 +11,4 @@ tensorboardX
 torch-optimizer
 pytorch_lamb
 tensorflow-gpu==2.3.1
+gdown
