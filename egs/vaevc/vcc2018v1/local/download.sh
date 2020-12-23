@@ -22,9 +22,9 @@ if [ ! -e "${downloaddir}"/.done ]; then
 
     # download and decompress
     wget https://datashare.is.ed.ac.uk/bitstream/handle/10283/3061/vcc2018_database_training.zip
-    # wget https://datashare.is.ed.ac.uk/bitstream/handle/10283/3061/vcc2018_database_evaluation.zip
-    # wget https://datashare.is.ed.ac.uk/bitstream/handle/10283/3061/vcc2018_database_reference.zip
-    # wget https://datashare.is.ed.ac.uk/bitstream/handle/10283/3061/vcc2018_database_evaluation_transcriptions.tar.gz
+    wget https://datashare.is.ed.ac.uk/bitstream/handle/10283/3061/vcc2018_database_evaluation.zip
+    wget https://datashare.is.ed.ac.uk/bitstream/handle/10283/3061/vcc2018_database_reference.zip
+    wget https://datashare.is.ed.ac.uk/bitstream/handle/10283/3061/vcc2018_database_evaluation_transcriptions.tar.gz
     unzip -q vcc2018_database_training.zip
     unzip -q vcc2018_database_evaluation.zip
     unzip -q vcc2018_database_reference.zip
