@@ -65,6 +65,7 @@ scpdir=${datadir}/scp
 featdir=${datadir}/feature; mkdir -p ${featdir}
 logdir=${datadir}/log; mkdir -p ${logdir}
 confname=$(basename "${conf}" .yml)
+featlabel=$(grep "label" < "${conf}" | head -n 1 | awk '{print $2}')
 
 # stage 0: download dataset and generate scp
 if [ "${stage}" -le 0 ] && [ "${stop_stage}" -ge 0 ]; then
@@ -100,7 +101,7 @@ fi
 if [ "${stage}" -le 2 ] && [ "${stop_stage}" -ge 2 ]; then
     echo "stage 2: extract features and statistics"
     for phase in train dev eval; do
-        ${train_cmd} "${logdir}/extract_feature_${phase}.log" \
+        ${train_cmd} "${featdir}/${featlabel}/extract_feature_${phase}.log" \
             python -m crank.bin.extract_feature \
                 --n_jobs "${n_jobs}" \
                 --phase "${phase}" \
@@ -109,7 +110,7 @@ if [ "${stage}" -le 2 ] && [ "${stop_stage}" -ge 2 ]; then
                 --scpdir "${scpdir}" \
                 --featdir "${featdir}"
     done
-    ${train_cmd} "${logdir}/extract_statistics.log" \
+    ${train_cmd} "${featdir}/${featlabel}/extract_statistics.log" \
         python -m crank.bin.extract_statistics \
             --n_jobs "${n_jobs}" \
             --phase train \
@@ -180,7 +181,7 @@ if [ "${stage}" -le 6 ] && [ "${stop_stage}" -ge 6 ]; then
     # Griffin-Lim
     if [ ${voc} = "GL" ]; then
         echo "Griffin-Lim phase recovery"
-        ${train_cmd} "${outdir}/decode.log" \
+        ${train_cmd} "${outdir}/griffin_lim_decode.log" \
             python -m crank.bin.griffin_lim \
                 --conf "${conf}" \
                 --rootdir ${expdir}/"${confname}"/eval_wav/"${n_decode_steps}" \
@@ -189,13 +190,11 @@ if [ "${stage}" -le 6 ] && [ "${stop_stage}" -ge 6 ]; then
     # ParallelWaveGAN
     elif [ ${voc} = "PWG" ]; then
         echo "Parallel WaveGAN vocoder"
-        if [ ! -d ${voc_expdir} ]; then
-            echo "Downloading pretrained PWG..."
+        mkdir -p "$voc_expdir"
+        ${train_cmd} "${voc_expdir}/download_pretrained_vocoder.log" \
             local/download_pretrained_vocoder.sh \
                 --downloaddir "$voc_expdir" \
                 --voc ${voc}
-        fi
-        echo "PWG model exists: ${voc_expdir}"
 
         # variable settings
         [ -z "${voc_checkpoint}" ] && \
@@ -203,10 +202,10 @@ if [ "${stage}" -le 6 ] && [ "${stop_stage}" -ge 6 ]; then
             | xargs -0 ls -t | head -n 1)"
         voc_conf="${voc_expdir}"/config.yml
         voc_stats="${voc_expdir}"/stats.h5
-        mkdir -p "${outdir}"/hdf5_norm
 
         # normalize and dump
         echo "Normalize decoded feature"
+        mkdir -p "${outdir}"/hdf5_norm
         ${train_cmd} "${outdir}/normalize.log" \
             parallel-wavegan-normalize \
                 --skip-wav-copy \
@@ -219,7 +218,7 @@ if [ "${stage}" -le 6 ] && [ "${stop_stage}" -ge 6 ]; then
 
         # decoding
         echo "Decoding start. See the progress via ${outdir}/decode.log."
-        ${train_cmd} --gpu ${n_gpus} "${outdir}/decode.log" \
+        ${train_cmd} --gpu ${n_gpus} "${outdir}/pwg_decode.log" \
             parallel-wavegan-decode \
                 --dumpdir "${outdir}"/hdf5_norm \
                 --checkpoint "${voc_checkpoint}" \

@@ -20,6 +20,7 @@ esac
 
 mkdir -p "${downloaddir}"
 if [ ! -e "${downloaddir}"/.done ]; then
+    echo "Downloading pretrained PWG..."
     gdown --id "$id" \
         --output "$downloaddir"/PWG.tar.gz
     tar zxvf "$downloaddir"/PWG.tar.gz \
@@ -27,5 +28,7 @@ if [ ! -e "${downloaddir}"/.done ]; then
     mv "$downloaddir"/vcc2020_train_nodev_all_parallel_wavegan.v1/*.{pkl,h5,yml} \
         "$downloaddir"
     touch "${downloaddir}"/.done
+else
+    echo "PWG model exists: ${downloaddir}"
 fi
 echo "Successfully finished donwload of pretrained model."

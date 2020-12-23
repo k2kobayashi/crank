@@ -20,10 +20,13 @@ esac
 
 mkdir -p "${downloaddir}"
 if [ ! -e "${downloaddir}"/.done ]; then
+    echo "Downloading pretrained PWG..."
     gdown --id "$id" \
         --output "$downloaddir"/PWG.tar.gz
     tar zxvf "$downloaddir"/PWG.tar.gz \
         -C "$downloaddir"
     touch "${downloaddir}"/.done
+else
+    echo "PWG model exists: ${downloaddir}"
 fi
 echo "Successfully finished donwload of pretrained model."
