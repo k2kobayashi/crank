@@ -99,7 +99,7 @@ def get_dataloader(conf, scp, scaler, flag="train", n_jobs=10):
             dev_dataset, batch_size=conf["batch_size"], shuffle=True, num_workers=n_jobs
         ),
         "eval": DataLoader(
-            eval_dataset, batch_size=conf["batch_size"] * 20, num_workers=n_jobs
+            eval_dataset, batch_size=conf["batch_size"] * 10, num_workers=n_jobs
         ),
     }
     return dataloader
