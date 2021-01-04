@@ -10,5 +10,5 @@ parallel_wavegan
 tensorboardX
 torch-optimizer
 pytorch_lamb
-tensorflow-gpu==2.3.1
+tensorflow-gpu==2.4.0
 gdown
