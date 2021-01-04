@@ -36,13 +36,13 @@ conf=conf/mlfb_vqvae.yml # newtork config
 spkr_yml=conf/spkr.yml   # speaker config
 
 # synthesis related
-model_step=""            # If not specified, use the latest.
 voc=PWG                  # GL or PWG
 voc_expdir=downloads/PWG # ex. `downloads/pwg`
 voc_checkpoint=""        # If not specified, use the latest checkpoint
 
 # other settings
-checkpoint="None" # checkpoint path to resume
+resume_checkpoint="None" # checkpoint path to resume
+decode_checkpoint="None" # checkpoint path to resume
 dev_utterances=3  # # of development utterances
 eval_utterances=5 # # of evaluation utterances
 eval_speakers=""  # evaluation speaker
@@ -52,23 +52,30 @@ eval_speakers=""  # evaluation speaker
 
 set -eu # stop when error occured and undefined vars are used
 [ $n_gpus -eq 0 ] && export CUDA_VISIBLE_DEVICES=""
+# set decode step
+feat_type=$(grep input_feat_type ${conf} | head -n 1 | awk '{print $2}')
+if [ $decode_checkpoint != "None" ] ; then
+    n_decode_steps=$(basename $decode_checkpoint | sed -e 's/[^0-9]//g')
+else
+    n_decode_steps=$(grep "n_steps:" "$conf" | awk '{print $2}')
+fi
 
 mkdir -p "${expdir}"
-wavdir=${downloaddir}/wav
 scpdir=${datadir}/scp
 featdir=${datadir}/feature; mkdir -p ${featdir}
 logdir=${datadir}/log; mkdir -p ${logdir}
 confname=$(basename "${conf}" .yml)
+featlabel=$(grep "label" < "${conf}" | head -n 1 | awk '{print $2}')
 
 # stage 0: download dataset and generate scp
 if [ "${stage}" -le 0 ] && [ "${stop_stage}" -ge 0 ]; then
     echo "stage 0: download dataset and generate scp"
-    # ${train_cmd} "${logdir}/download.log" \
-    #     local/download.sh --downloaddir "${downloaddir}"
     # shellcheck disable=SC2154
+    ${train_cmd} "${logdir}/download.log" \
+        local/download.sh --downloaddir "${downloaddir}"
     ${train_cmd} "${logdir}/generate_scp.log" \
         python -m crank.bin.generate_scp \
-            --wavdir "${wavdir}" \
+            --wavdir "${downloaddir}"/wav \
             --scpdir "${scpdir}" \
             --spkr_yml "${spkr_yml}" \
             --dev_utterances "${dev_utterances}" \
@@ -83,7 +90,7 @@ if [ "${stage}" -le 1 ] && [ "${stop_stage}" -ge 1 ]; then
     ${train_cmd} "${logdir}/generate_histogram.log" \
         python -m crank.bin.generate_histogram \
             --n_jobs "${n_jobs}" \
-            "${wavdir}" \
+            "${downloaddir}"/wav \
             "${datadir}/figure"
     echo "Please set speaker parameters in ${spkr_yml}"
     echo "stage 1: initialization has been done."
@@ -94,7 +101,7 @@ fi
 if [ "${stage}" -le 2 ] && [ "${stop_stage}" -ge 2 ]; then
     echo "stage 2: extract features and statistics"
     for phase in train dev eval; do
-        ${train_cmd} "${logdir}/extract_feature_${phase}.log" \
+        ${train_cmd} "${featdir}/${featlabel}/extract_feature_${phase}.log" \
             python -m crank.bin.extract_feature \
                 --n_jobs "${n_jobs}" \
                 --phase "${phase}" \
@@ -103,7 +110,7 @@ if [ "${stage}" -le 2 ] && [ "${stop_stage}" -ge 2 ]; then
                 --scpdir "${scpdir}" \
                 --featdir "${featdir}"
     done
-    ${train_cmd} "${logdir}/extract_statistics.log" \
+    ${train_cmd} "${featdir}/${featlabel}/extract_statistics.log" \
         python -m crank.bin.extract_statistics \
             --n_jobs "${n_jobs}" \
             --phase train \
@@ -122,7 +129,7 @@ if [ "${stage}" -le 3 ] && [ "${stop_stage}" -ge 3 ]; then
             --flag train \
             --n_jobs "${n_jobs}" \
             --conf "${conf}" \
-            --checkpoint ${checkpoint} \
+            --checkpoint ${resume_checkpoint} \
             --scpdir "${scpdir}" \
             --featdir "${featdir}" \
             --expdir "${expdir}"
@@ -138,7 +145,7 @@ if [ "${stage}" -le 4 ] && [ "${stop_stage}" -ge 4 ]; then
             --flag reconstruction \
             --n_jobs "${n_jobs}" \
             --conf "${conf}" \
-            --checkpoint "${checkpoint}" \
+            --checkpoint "${decode_checkpoint}" \
             --scpdir "${scpdir}" \
             --featdir "${featdir}" \
             --expdir "${expdir}"
@@ -154,7 +161,7 @@ if [ "${stage}" -le 5 ] && [ "${stop_stage}" -ge 5 ]; then
             --flag eval \
             --n_jobs "${n_jobs}" \
             --conf "${conf}" \
-            --checkpoint "${checkpoint}" \
+            --checkpoint "${decode_checkpoint}" \
             --scpdir "${scpdir}" \
             --featdir "${featdir}" \
             --featsscp "${featsscp}" \
@@ -163,67 +170,66 @@ if [ "${stage}" -le 5 ] && [ "${stop_stage}" -ge 5 ]; then
 fi
 
 # stage 6: synthesis
-[ -z "${model_step}" ] && model_step="$(find "${expdir}/${confname}" -name "*.pkl" -print0 \
-    | xargs -0 ls -t | head -n 1 | cut -d"/" -f 3 | cut -d"_" -f 2 | cut -d"s" -f 1)"
-outdir=${expdir}/${confname}/eval_$(basename $voc_expdir)_wav/${model_step}
-outwavdir=${outdir}/wav
+if [ "${feat_type}" = "mcep" ]; then
+    outdir=${expdir}/${confname}/eval_wav/${n_decode_steps}
+else
+    outdir=${expdir}/${confname}/eval_$(basename $voc_expdir)_wav/${n_decode_steps}
+fi
 if [ "${stage}" -le 6 ] && [ "${stop_stage}" -ge 6 ]; then
     echo "stage 6: synthesis"
-    mkdir -p "${outwavdir}"
-
+    mkdir -p "${outdir}/wav"
     # Griffin-Lim
     if [ ${voc} = "GL" ]; then
-        echo "Using Griffin-Lim phase recovery."
-        ${train_cmd} "${outwavdir}/decode.log" \
+        echo "Griffin-Lim phase recovery"
+        ${train_cmd} "${outdir}/griffin_lim_decode.log" \
             python -m crank.bin.griffin_lim \
                 --conf "${conf}" \
-                --rootdir ${expdir}/"${confname}"/eval_wav/"${model_step}" \
-                --outdir "${outwavdir}"
+                --rootdir ${expdir}/"${confname}"/eval_wav/"${n_decode_steps}" \
+                --outdir "${outdir}/wav"
 
     # ParallelWaveGAN
     elif [ ${voc} = "PWG" ]; then
-        echo "Using Parallel WaveGAN vocoder."
-        if [ ! -d ${voc_expdir} ]; then
-            echo "Downloading pretrained PWG model..."
-            local/pretrained_model_download.sh \
-                --download_dir ${voc_expdir} \
-                --pretrained_model ${voc}
-        fi
-        echo "PWG model exists: ${voc_expdir}"
+        echo "Parallel WaveGAN vocoder"
+        mkdir -p "$voc_expdir"
+        ${train_cmd} "${voc_expdir}/download_pretrained_vocoder.log" \
+            local/download_pretrained_vocoder.sh \
+                --downloaddir "$voc_expdir" \
+                --voc ${voc}
 
         # variable settings
-        [ -z "${voc_checkpoint}" ] && voc_checkpoint="$(find "${voc_expdir}" -name "*.pkl" -print0 \
+        [ -z "${voc_checkpoint}" ] && \
+            voc_checkpoint="$(find "${voc_expdir}" -name "*.pkl" -print0 \
             | xargs -0 ls -t | head -n 1)"
-        voc_conf="$(find "${voc_expdir}" -name "config.yml" -print0 | xargs -0 ls -t | head -n 1)"
-        voc_stats="$(find "${voc_expdir}" -name "stats.h5" -print0 | xargs -0 ls -t | head -n 1)"
-        hdf5_norm_dir=${outdir}/hdf5_norm; mkdir -p "${hdf5_norm_dir}"
+        voc_conf="${voc_expdir}"/config.yml
+        voc_stats="${voc_expdir}"/stats.h5
 
         # normalize and dump
-        echo "Normalizing..."
-        ${train_cmd} "${hdf5_norm_dir}/normalize.log" \
+        echo "Normalize decoded feature"
+        mkdir -p "${outdir}"/hdf5_norm
+        ${train_cmd} "${outdir}/normalize.log" \
             parallel-wavegan-normalize \
                 --skip-wav-copy \
-                --rootdir ${expdir}/"${confname}"/eval_wav/"${model_step}" \
+                --rootdir ${expdir}/"${confname}"/eval_wav/"${n_decode_steps}" \
                 --config "${voc_conf}" \
                 --stats "${voc_stats}" \
-                --dumpdir "${hdf5_norm_dir}" \
+                --dumpdir "${outdir}"/hdf5_norm \
                 --verbose 1
         echo "successfully finished normalization."
 
         # decoding
-        echo "Decoding start. See the progress via ${outwavdir}/decode.log."
-        ${train_cmd} --gpu ${n_gpus} "${outwavdir}/decode.log" \
+        echo "Decoding start. See the progress via ${outdir}/decode.log."
+        ${train_cmd} --gpu ${n_gpus} "${outdir}/pwg_decode.log" \
             parallel-wavegan-decode \
-                --dumpdir "${hdf5_norm_dir}" \
+                --dumpdir "${outdir}"/hdf5_norm \
                 --checkpoint "${voc_checkpoint}" \
-                --outdir "${outwavdir}" \
+                --outdir "${outdir}"/wav \
                 --verbose 1
         echo "successfully finished decoding."
 
         # rename
-        find "${outwavdir}" -name '*_gen.wav' | sed -e "p;s/_gen//" | xargs -n2 mv
+        find "${outdir}/wav" -name '*_gen.wav' | sed -e "p;s/_gen//" | xargs -n2 mv
     else
-        echo "Vocoder type not supported. Only GL and PWG are available."
+        echo "Not supported decoder type. GL and PWG are available."
     fi
     echo "stage 6: synthesis has been done."
 fi
@@ -231,24 +237,19 @@ fi
 # stage 7: evaluation
 if [ "${stage}" -le 7 ] && [ "${stop_stage}" -ge 7 ]; then
     echo "stage 7: evaluation"
-
-    echo "MCD calculation. Results can be found in ${outwavdir}/mcd.log"
-    feat_type=$(grep feat_type ${conf} | head -n 1 | awk '{ print $2}')
-    if [ "${feat_type}" = "mcep" ]; then
-        outwavdir=${expdir}/${confname}/eval_wav/${model_step}
-    fi
-    ${train_cmd} "${outwavdir}/mcd.log" \
+    echo "MCD calculation. Results: ${outdir}/mcd.log"
+    ${train_cmd} "${outdir}/mcd.log" \
         python -m crank.bin.evaluate_mcd \
             --conf "${conf}" \
             --n_jobs "${n_jobs}" \
             --spkr_conf "${spkr_yml}" \
-            --outwavdir "${outwavdir}" \
+            --outwavdir "${outdir}/wav" \
             --featdir ${featdir}
 
-    echo "MOSnet score prediction. Results can be found in ${outwavdir}/mosnet.log"
+    echo "MOSnet score prediction. Results: ${outdir}/mosnet.log"
     ${train_cmd} --gpu ${n_gpus} \
-        "${outwavdir}/mosnet.log" \
+        "${outdir}/mosnet.log" \
         python -m crank.bin.evaluate_mosnet \
-            --outwavdir "${outwavdir}"
+            --outwavdir "${outdir}/wav"
     echo "stage 7: evaluation has been done."
 fi

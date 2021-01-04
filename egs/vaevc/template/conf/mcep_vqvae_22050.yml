@@ -14,7 +14,6 @@ feature:
   mcep_alpha: 0.466      # all-path filter coefficient
   window_types: [hann]   # type of window for mlfb extraction
 
-
 # general setting
 input_feat_type: mcep    # input feature type ['mlfb', 'mcep']
 output_feat_type: mcep   # output feature type ['mlfb', 'mcep', 'excit']
@@ -40,7 +39,7 @@ alpha:
   stft: 1
   commit: 0.25
   dict: 0.5
-  cycle: 1
+  cycle: 0.1
   ce: 1
   adv: 2
   real: 1

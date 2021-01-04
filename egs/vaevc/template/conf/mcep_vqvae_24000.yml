@@ -39,7 +39,7 @@ alpha:
   stft: 1
   commit: 0.25
   dict: 0.5
-  cycle: 1
+  cycle: 0.1
   ce: 1
   adv: 2
   real: 1

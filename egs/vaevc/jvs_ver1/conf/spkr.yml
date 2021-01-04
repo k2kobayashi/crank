@@ -1,0 +1,400 @@
+jvs001:
+  maxf0: 300
+  minf0: 70
+  npow: -20
+jvs002:
+  maxf0: 390
+  minf0: 130
+  npow: -20
+jvs003:
+  maxf0: 275
+  minf0: 70
+  npow: -20
+jvs004:
+  maxf0: 430
+  minf0: 130
+  npow: -20
+jvs005:
+  maxf0: 285
+  minf0: 70
+  npow: -20
+jvs006:
+  maxf0: 190
+  minf0: 70
+  npow: -20
+jvs007:
+  maxf0: 390
+  minf0: 125
+  npow: -20
+jvs008:
+  maxf0: 400
+  minf0: 115
+  npow: -20
+jvs009:
+  maxf0: 235
+  minf0: 70
+  npow: -20
+jvs010:
+  maxf0: 480
+  minf0: 125
+  npow: -20
+jvs011:
+  maxf0: 310
+  minf0: 70
+  npow: -20
+jvs012:
+  maxf0: 240
+  minf0: 70
+  npow: -20
+jvs013:
+  maxf0: 290
+  minf0: 70
+  npow: -20
+jvs014:
+  maxf0: 470
+  minf0: 130
+  npow: -20
+jvs015:
+  maxf0: 435
+  minf0: 130
+  npow: -20
+jvs016:
+  maxf0: 340
+  minf0: 110
+  npow: -20
+jvs017:
+  maxf0: 390
+  minf0: 120
+  npow: -20
+jvs018:
+  maxf0: 380
+  minf0: 115
+  npow: -20
+jvs019:
+  maxf0: 410
+  minf0: 125
+  npow: -20
+jvs020:
+  maxf0: 280
+  minf0: 70
+  npow: -20
+jvs021:
+  maxf0: 220
+  minf0: 70
+  npow: -20
+jvs022:
+  maxf0: 250
+  minf0: 70
+  npow: -20
+jvs023:
+  maxf0: 260
+  minf0: 70
+  npow: -20
+jvs024:
+  maxf0: 440
+  minf0: 130
+  npow: -20
+jvs025:
+  maxf0: 370
+  minf0: 115
+  npow: -20
+jvs026:
+  maxf0: 450
+  minf0: 130
+  npow: -20
+jvs027:
+  maxf0: 400
+  minf0: 120
+  npow: -20
+jvs028:
+  maxf0: 280
+  minf0: 70
+  npow: -20
+jvs029:
+  maxf0: 360
+  minf0: 120
+  npow: -20
+jvs030:
+  maxf0: 420
+  minf0: 130
+  npow: -20
+jvs031:
+  maxf0: 290
+  minf0: 70
+  npow: -20
+jvs032:
+  maxf0: 335
+  minf0: 70
+  npow: -20
+jvs033:
+  maxf0: 250
+  minf0: 70
+  npow: -20
+jvs034:
+  maxf0: 250
+  minf0: 70
+  npow: -20
+jvs035:
+  maxf0: 360
+  minf0: 110
+  npow: -20
+jvs036:
+  maxf0: 440
+  minf0: 135
+  npow: -20
+jvs037:
+  maxf0: 240
+  minf0: 70
+  npow: -20
+jvs038:
+  maxf0: 410
+  minf0: 130
+  npow: -20
+jvs039:
+  maxf0: 430
+  minf0: 120
+  npow: -20
+jvs040:
+  maxf0: 430
+  minf0: 120
+  npow: -20
+jvs041:
+  maxf0: 300
+  minf0: 70
+  npow: -20
+jvs042:
+  maxf0: 220
+  minf0: 70
+  npow: -20
+jvs043:
+  maxf0: 350
+  minf0: 120
+  npow: -20
+jvs044:
+  maxf0: 240
+  minf0: 70
+  npow: -20
+jvs045:
+  maxf0: 280
+  minf0: 70
+  npow: -20
+jvs046:
+  maxf0: 290
+  minf0: 70
+  npow: -20
+jvs047:
+  maxf0: 330
+  minf0: 70
+  npow: -20
+jvs048:
+  maxf0: 240
+  minf0: 70
+  npow: -20
+jvs049:
+  maxf0: 250
+  minf0: 70
+  npow: -20
+jvs050:
+  maxf0: 300
+  minf0: 70
+  npow: -20
+jvs051:
+  maxf0: 420
+  minf0: 130
+  npow: -20
+jvs052:
+  maxf0: 300
+  minf0: 70
+  npow: -20
+jvs053:
+  maxf0: 420
+  minf0: 125
+  npow: -20
+jvs054:
+  maxf0: 320
+  minf0: 70
+  npow: -20
+jvs055:
+  maxf0: 410
+  minf0: 120
+  npow: -20
+jvs056:
+  maxf0: 410
+  minf0: 120
+  npow: -20
+jvs057:
+  maxf0: 410
+  minf0: 120
+  npow: -20
+jvs058:
+  maxf0: 420
+  minf0: 110
+  npow: -20
+jvs059:
+  maxf0: 420
+  minf0: 115
+  npow: -20
+jvs060:
+  maxf0: 440
+  minf0: 130
+  npow: -20
+jvs061:
+  maxf0: 470
+  minf0: 140
+  npow: -20
+jvs062:
+  maxf0: 390
+  minf0: 115
+  npow: -20
+jvs063:
+  maxf0: 390
+  minf0: 130
+  npow: -20
+jvs064:
+  maxf0: 350
+  minf0: 120
+  npow: -20
+jvs065:
+  maxf0: 470
+  minf0: 120
+  npow: -20
+jvs066:
+  maxf0: 480
+  minf0: 120
+  npow: -20
+jvs067:
+  maxf0: 450
+  minf0: 120
+  npow: -20
+jvs068:
+  maxf0: 260
+  minf0: 70
+  npow: -20
+jvs069:
+  maxf0: 420
+  minf0: 120
+  npow: -20
+jvs070:
+  maxf0: 290
+  minf0: 70
+  npow: -20
+jvs071:
+  maxf0: 230
+  minf0: 70
+  npow: -20
+jvs072:
+  maxf0: 420
+  minf0: 125
+  npow: -20
+jvs073:
+  maxf0: 280
+  minf0: 70
+  npow: -20
+jvs074:
+  maxf0: 280
+  minf0: 70
+  npow: -20
+jvs075:
+  maxf0: 300
+  minf0: 70
+  npow: -20
+jvs076:
+  maxf0: 290
+  minf0: 70
+  npow: -20
+jvs077:
+  maxf0: 280
+  minf0: 70
+  npow: -20
+jvs078:
+  maxf0: 220
+  minf0: 70
+  npow: -20
+jvs079:
+  maxf0: 240
+  minf0: 70
+  npow: -20
+jvs080:
+  maxf0: 300
+  minf0: 70
+  npow: -20
+jvs081:
+  maxf0: 250
+  minf0: 70
+  npow: -20
+jvs082:
+  maxf0: 380
+  minf0: 115
+  npow: -20
+jvs083:
+  maxf0: 420
+  minf0: 135
+  npow: -20
+jvs084:
+  maxf0: 400
+  minf0: 115
+  npow: -20
+jvs085:
+  maxf0: 410
+  minf0: 125
+  npow: -20
+jvs086:
+  maxf0: 290
+  minf0: 70
+  npow: -20
+jvs087:
+  maxf0: 300
+  minf0: 70
+  npow: -20
+jvs088:
+  maxf0: 260
+  minf0: 70
+  npow: -20
+jvs089:
+  maxf0: 240
+  minf0: 70
+  npow: -20
+jvs090:
+  maxf0: 390
+  minf0: 140
+  npow: -20
+jvs091:
+  maxf0: 330
+  minf0: 115
+  npow: -20
+jvs092:
+  maxf0: 380
+  minf0: 110
+  npow: -20
+jvs093:
+  maxf0: 470
+  minf0: 130
+  npow: -20
+jvs094:
+  maxf0: 390
+  minf0: 125
+  npow: -20
+jvs095:
+  maxf0: 370
+  minf0: 125
+  npow: -20
+jvs096:
+  maxf0: 410
+  minf0: 135
+  npow: -20
+jvs097:
+  maxf0: 305
+  minf0: 70
+  npow: -20
+jvs098:
+  maxf0: 340
+  minf0: 70
+  npow: -20
+jvs099:
+  maxf0: 300
+  minf0: 70
+  npow: -20
+jvs100:
+  maxf0: 240
+  minf0: 70
+  npow: -20

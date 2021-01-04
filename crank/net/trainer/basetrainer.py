@@ -323,6 +323,7 @@ class BaseTrainer(object):
         cv_spkr_name=None,
         tdir="dev_wav",
         save_hdf5=True,
+        save_decoded=True,
         n_samples=1,
     ):
         tdir = self.expdir / tdir / str(self.steps)
@@ -333,10 +334,11 @@ class BaseTrainer(object):
             Path(k).parent.mkdir(parents=True, exist_ok=True)
         if save_hdf5:
             self._save_decoded_to_hdf5(feats)
-        if self.conf["output_feat_type"] == "mcep":
-            self._save_decoded_world(feats)
-        else:
-            self._save_decoded_mlfb(feats)
+        if save_decoded:
+            if self.conf["output_feat_type"] == "mcep":
+                self._save_decoded_world(feats)
+            else:
+                self._save_decoded_mlfb(feats)
 
     def _store_features(self, batch, outputs, cv_spkr_name, tdir):
         def inv_trans(k, feat):
