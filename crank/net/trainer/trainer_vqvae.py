@@ -92,7 +92,7 @@ class VQVAETrainer(BaseTrainer):
             batch["in_feats"], enc_h, dec_h, spkrvec=spkrvec
         )
         self._generate_cvwav(
-            batch, outputs, None, tdir=tdir, save_hdf5=True, n_samples=-1
+            batch, outputs, None, tdir=tdir, save_hdf5=True, save_decoded=False, n_samples=-1
         )
 
     @torch.no_grad()
@@ -107,6 +107,7 @@ class VQVAETrainer(BaseTrainer):
                 cv_spkr_name,
                 tdir="eval_wav",
                 save_hdf5=True,
+                save_decoded=False,
                 n_samples=-1,
             )
 
