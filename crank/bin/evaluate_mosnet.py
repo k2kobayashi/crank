@@ -14,7 +14,6 @@ import sys
 from pathlib import Path
 import speechmetrics
 
-
 def main():
     parser = argparse.ArgumentParser(
         description="Use MOSnet to predict quality scores.",
@@ -65,7 +64,7 @@ def main():
     pairwise_scores = {}
     for k, v in scores.items():
         orgspk, tarspk, _ = k.split("-")
-        pair = orgspk + "-" + tarspk
+        pair = orgspk + " " + tarspk
         if pair not in pairwise_scores:
             pairwise_scores[pair] = []
         pairwise_scores[pair].append(v)

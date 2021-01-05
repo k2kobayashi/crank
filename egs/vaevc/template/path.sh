@@ -14,6 +14,7 @@ export CUDA_DEVICE_ORDER=PCI_BUS_ID
 export OMP_NUM_THREADS=1
 export PYTHONIOENCODING=UTF-8
 export MPL_BACKEND=Agg
+export TF_CPP_MIN_LOG_LEVEL=3
 
 # check installation
 if ! python -c "import crank" > /dev/null 2>&1 ; then

@@ -144,7 +144,7 @@ def main():
     pairwise_MCD = {}
     for k, v in MCD_list:
         orgspk, tarspk, _ = k.split("-")
-        pair = orgspk + "-" + tarspk
+        pair = orgspk + " " + tarspk
         if pair not in pairwise_MCD:
             pairwise_MCD[pair] = []
         pairwise_MCD[pair].append(v)
