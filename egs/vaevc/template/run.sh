@@ -227,7 +227,11 @@ if [ "${stage}" -le 6 ] && [ "${stop_stage}" -ge 6 ]; then
         echo "successfully finished decoding."
 
         # rename
-        find "${outdir}/wav" -name '*_gen.wav' | sed -e "p;s/_gen//" | xargs -n2 mv
+        echo "Rename decoded files "
+        ${train_cmd} "${outdir}/rename_decoded.log" \
+            python -m crank.bin.rename_decoded  \
+                --outwavdir "${outdir}"/wav
+        echo "successfully renamed decoded waveforms."
     else
         echo "Not supported decoder type. GL and PWG are available."
     fi

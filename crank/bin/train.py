@@ -125,7 +125,7 @@ def main():
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument("--flag", help='flag ["train", "eval", "reconstruction"]')
     parser.add_argument("--n_jobs", type=int, default=-1, help="# of CPUs")
-    parser.add_argument("--conf", type=str, help="ymal file for network parameters")
+    parser.add_argument("--conf", type=str, help="yaml file for network parameters")
     parser.add_argument("--checkpoint", type=str, default=None, help="Resume")
     parser.add_argument("--scpdir", type=str, help="scp directory")
     parser.add_argument("--featdir", type=str, help="output feature directory")
