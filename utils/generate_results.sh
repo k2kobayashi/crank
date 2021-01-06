@@ -29,8 +29,8 @@ PWG_dir=exp/${confname}/eval_${voc_confname}_wav
 # shellcheck disable=SC2012
 result_dir=$PWG_dir/$(basename "$(ls -dt "${PWG_dir}"/* | head -1)")
 
-mcd=$(head -n -4 < "$result_dir"/mcd.log | tac | head -n -4 | tac | awk '{if($1!=$2) print $1, $2, $3}' | awk '{sum+=$3} END {print sum/NR}')
-mosnet=$(head -n -2 "$result_dir"/mosnet.log | tac | head -n -9 | tac | awk '{if($1!=$2) print $1, $2, $3}' | awk '{sum+=$3} END {print sum/NR}')
+mcd=$(head -n -2 < "$result_dir"/mcd.log | tac | head -n -4 | tac | awk '{if($1!=$2) print $1, $2, $3}' | awk '{sum+=$3} END {print sum/NR}')
+mosnet=$(head -n -2 "$result_dir"/mosnet.log | tac | head -n -8 | tac | awk '{if($1!=$2) print $1, $2, $3}' | awk '{sum+=$3} END {print sum/NR}')
 echo "# $recipe: $confname.conf"
 echo "- mcd"
 echo "  - $mcd"
