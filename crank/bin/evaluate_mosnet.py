@@ -14,19 +14,15 @@ import sys
 from pathlib import Path
 import speechmetrics
 
+
 def main():
     parser = argparse.ArgumentParser(
         description="Use MOSnet to predict quality scores.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
+    parser.add_argument("--outwavdir", type=str, help="Converted waveform directory")
     parser.add_argument(
-        "--outwavdir", type=str, required=True, help="Converted waveform directory"
-    )
-    parser.add_argument(
-        "--out",
-        "-O",
-        type=str,
-        help="The output filename. " "If omitted, then output to sys.stdout",
+        "--out", type=str, help="If omitted, then output to sys.stdout",
     )
     args = parser.parse_args()
 
@@ -38,7 +34,7 @@ def main():
     )
 
     # load converted files.
-    converted_files = sorted(list(Path(args.outwavdir).glob("*.wav")))
+    converted_files = sorted(list(Path(args.outwavdir).rglob("*.wav")))
     logging.info(f"number of utterances = {len(converted_files)}")
 
     # construct metric class

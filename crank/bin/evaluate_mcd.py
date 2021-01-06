@@ -82,28 +82,16 @@ def calculate(cv_path, gt_file_list, conf, spkr_conf):
 def main():
 
     parser = argparse.ArgumentParser(description="calculate MCD.")
-    parser.add_argument("--conf", type=str, required=True, help="Configuration file")
+    parser.add_argument("--conf", type=str, help="configuration file")
+    parser.add_argument("--spkr_conf", type=str, help="speaker configuration file")
     parser.add_argument(
-        "--spkr_conf", type=str, required=True, help="Speaker configuration file"
+        "--featdir", type=str, help="root directory of ground truth h5",
     )
+    parser.add_argument("--outwavdir", type=str, help="converted waveform directory")
     parser.add_argument(
-        "--featdir",
-        type=str,
-        required=True,
-        help="Root directory of ground truth feature h5 files",
+        "--out", type=str, help="if omitted, then output to sys.stdout",
     )
-    parser.add_argument(
-        "--outwavdir", type=str, required=True, help="Converted waveform directory"
-    )
-    parser.add_argument(
-        "--out",
-        "-O",
-        type=str,
-        help="The output filename. " "If omitted, then output to sys.stdout",
-    )
-    parser.add_argument(
-        "--n_jobs", default=1, type=int, help="number of parallel jobs"
-    )
+    parser.add_argument("--n_jobs", default=1, type=int, help="number of parallel jobs")
     args = parser.parse_args()
 
     # logging info
@@ -121,7 +109,7 @@ def main():
     if conf["output_feat_type"] == "mcep":
         converted_files = sorted(list(Path(args.outwavdir).glob("*.h5")))
     else:
-        converted_files = sorted(list(Path(args.outwavdir).glob("*.wav")))
+        converted_files = sorted(list(Path(args.outwavdir).rglob("*.wav")))
     logging.info(f"number of utterances = {len(converted_files)}")
 
     # load ground truth scp
