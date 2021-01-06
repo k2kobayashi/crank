@@ -141,7 +141,7 @@ $ touch downloads/.done
 The initialization process generates kaldi-like scp files.
 
 ```sh
-$ ./run.sh --stage 1 --stop_stage 1
+$ ./run.sh --stage 0 --stop_stage 1
 ```
 
 Then you modify speaker-dependent parameters in ```conf/spkr.yml``` using generated figures.
@@ -153,7 +153,7 @@ Page 20~22 in [slide](https://www.slideshare.net/NU_I_TODALAB/hands-on-voice-con
 After preparing configuration, you run it.
 
 ```sh
-$ ./run.sh --stage 2 --stop_stage 5
+$ ./run.sh --stage 2 --stop_stage 7
 ```
 
 ## Achknowledgements
