@@ -109,9 +109,10 @@ class BaseDataset(Dataset):
                 sample[self.conf["input_feat_type"]]
             )
         sample = self._zero_padding(sample)
-        sample["mask"][: self.conf["receptive_size"]] = False
         sample["cycle_mask"] = np.copy(sample["mask"])
-        sample["cycle_mask"][: self.conf["receptive_size"] * 2] = False
+        if self.conf["causal"]:
+            sample["mask"][: self.conf["receptive_size"]] = False
+            sample["cycle_mask"][: self.conf["receptive_size"] * 2] = False
         return sample
 
     def _post_getitem(self, sample):
