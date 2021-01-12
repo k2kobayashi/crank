@@ -22,11 +22,7 @@ from torch.utils.data import Dataset
 
 class BaseDataset(Dataset):
     def __init__(
-        self,
-        conf,
-        scp,
-        scaler,
-        phase="train",
+        self, conf, scp, scaler, phase="train",
     ):
         self.conf = conf
         self.h5list = list(scp[phase]["feats"].values())
@@ -81,7 +77,8 @@ class BaseDataset(Dataset):
             [s for s in list(self.spkrdict.keys()) if s != sample["org_spkr_name"]]
         )
         sample["flen"] = sample[self.conf["input_feat_type"]].shape[0]
-        sample["mask"] = np.ones([sample["flen"]], dtype=bool)[:, np.newaxis]
+        sample["mask"] = np.ones(sample["flen"], dtype=bool)[:, np.newaxis]
+        sample["cycle_mask"] = np.ones([sample["flen"]], dtype=bool)[:, np.newaxis]
         sample["org_h_onehot"], sample["org_h"] = self._get_spkrcode(
             sample["org_spkr_name"], sample["flen"]
         )
@@ -112,6 +109,9 @@ class BaseDataset(Dataset):
                 sample[self.conf["input_feat_type"]]
             )
         sample = self._zero_padding(sample)
+        sample["mask"][: self.conf["receptive_size"]] = False
+        sample["cycle_mask"] = np.copy(sample["mask"])
+        sample["cycle_mask"][: self.conf["receptive_size"] * 2] = False
         return sample
 
     def _post_getitem(self, sample):
@@ -149,6 +149,7 @@ class BaseDataset(Dataset):
                 if k in ["org_h", "cv_h"]:
                     # padding -100 for ignore_index
                     sample[k] = padding(v, dlen, self.batch_len, value=-100, p=p)
+                    # sample[k][: self.conf["receptive_size"]] = -100
                     sample[k] = sample[k].astype(np.long)
                 elif k in ["mask"]:
                     sample[k] = padding(v, dlen, self.batch_len, value=False, p=p)

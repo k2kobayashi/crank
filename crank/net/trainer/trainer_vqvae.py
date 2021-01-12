@@ -92,7 +92,13 @@ class VQVAETrainer(BaseTrainer):
             batch["in_feats"], enc_h, dec_h, spkrvec=spkrvec
         )
         self._generate_cvwav(
-            batch, outputs, None, tdir=tdir, save_hdf5=True, save_decoded=False, n_samples=-1
+            batch,
+            outputs,
+            None,
+            tdir=tdir,
+            save_hdf5=True,
+            save_decoded=False,
+            n_samples=-1,
         )
 
     @torch.no_grad()
@@ -223,7 +229,6 @@ class VQVAETrainer(BaseTrainer):
             h = batch["cv_h"].reshape(-1)
             return self.criterion["ce"](fake, h)
 
-        mask = batch["mask"]
         for c in range(self.conf["n_cycles"]):
             for io in ["cv", "recon"]:
                 lbl = f"{c}cyc_{io}"
@@ -231,6 +236,7 @@ class VQVAETrainer(BaseTrainer):
                 if io == "cv":
                     loss[f"C_fake_{lbl}"] = calculate_spkrcls_loss(batch, o)
                 elif io == "recon":
+                    mask = batch["cycle_mask"]
                     target = batch["in_feats"]
                     decoded = o["decoded"]
                     loss[f"G_l1_{lbl}"] = self.criterion["fl1"](

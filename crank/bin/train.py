@@ -166,6 +166,8 @@ def main():
             max_step = max([int(s) for s in steps])
             checkpoint = str([p for p in pkls if str(max_step) in str(p)][0])
             model, resume = load_checkpoint(model, checkpoint)
+    conf["receptive_size"] = model["G"].receptive_size
+    logging.info("receptive_size: {}".format(conf["receptive_size"]))
 
     # load others
     scaler = joblib.load(featdir / "scaler.pkl")

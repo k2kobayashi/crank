@@ -22,6 +22,7 @@ class VQVAE2(nn.Module):
         super(VQVAE2, self).__init__()
         self.conf = conf
         self.spkr_size = spkr_size
+        self.receptive_size = 0
         self._construct_net()
 
         if self.conf["use_spkr_embedding"]:
@@ -207,6 +208,10 @@ class VQVAE2(nn.Module):
                     use_causal_conv=self.conf["causal"],
                     upsample_conditional_features=False,
                 )
+            )
+            self.receptive_size += (
+                self.encoders[-1].receptive_field_size
+                + self.decoders[-1].receptive_field_size
             )
             self.quantizers.append(
                 Quantizer(
