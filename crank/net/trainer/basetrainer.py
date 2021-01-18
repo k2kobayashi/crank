@@ -25,8 +25,12 @@ from tqdm import tqdm
 
 
 def TrainerWrapper(trainer_type, **ka):
-    from crank.net.trainer import (CycleGANTrainer, LSGANTrainer,
-                                   StarGANTrainer, VQVAETrainer)
+    from crank.net.trainer import (
+        CycleGANTrainer,
+        LSGANTrainer,
+        StarGANTrainer,
+        VQVAETrainer,
+    )
 
     if trainer_type == "vqvae":
         trainer = VQVAETrainer(**ka)
@@ -75,7 +79,7 @@ class BaseTrainer(object):
 
         self.spkrs = dataloader["spkrs"]
         self.n_spkrs = len(self.spkrs)
-        self.n_cv_spkrs = 4 if self.n_spkrs > 4 else self.n_cv_spkrs
+        self.n_cv_spkrs = 4 if self.n_spkrs > 4 else self.n_spkrs
         self.n_dev_samples = 5
 
         self.resume_steps = resume
