@@ -168,24 +168,20 @@ class BaseDataset(Dataset):
                                         dlen,
                                         self.batch_len,
                                         value=-100,
-                                        p=p)
-                    sample[k][:self.conf["receptive_size"]] = -100
-                    sample[k] = sample[k].astype(np.long)
+                                        p=p).astype(np.long)
                 elif k in ["mask"]:
                     sample[k] = padding(v,
                                         dlen,
                                         self.batch_len,
                                         value=False,
-                                        p=p)
-                    sample[k] = sample[k].astype(bool)
+                                        p=p).astype(bool)
                 else:
                     # padding 0 for continuous values
                     sample[k] = padding(v,
                                         dlen,
                                         self.batch_len,
                                         value=0.0,
-                                        p=p)
-                    sample[k] = sample[k].astype(np.float32)
+                                        p=p).astype(np.float32)
                 assert (sample[k].shape[0] == self.batch_len
                         ), "ERROR in padding: {}, dlen{}, p{}, v{}".format(
                             k, dlen, p, sample[k].shape[0])
