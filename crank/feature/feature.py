@@ -5,7 +5,6 @@
 # Copyright (c) 2020 Kazuhiro KOBAYASHI <root.4mac@gmail.com>
 #
 # Distributed under terms of the MIT license.
-
 """Feature extractor.
 
 Extract features such as mlfb and mcep.
@@ -81,7 +80,8 @@ class Feature(object):
         )
         # analyze world based features
         self.feats["f0"], self.feats["spc"], self.feats["ap"] = feat.analyze(x)
-        self.feats["uv"], self.feats["cf0"] = convert_continuos_f0(self.feats["f0"])
+        self.feats["uv"], self.feats["cf0"] = convert_continuos_f0(
+            self.feats["f0"])
         self.feats["lf0"] = np.log(self.feats["f0"] + EPS)
         self.feats["lcf0"] = np.log(self.feats["cf0"])
         if f0_only:
@@ -89,9 +89,8 @@ class Feature(object):
 
         if self.conf["fftl"] != 256 and self.conf["fs"] > 16000:
             # NOTE: 256 fft_size sometimes causes errors
-            self.feats["mcep"] = feat.mcep(
-                dim=self.conf["mcep_dim"], alpha=self.conf["mcep_alpha"]
-            )
+            self.feats["mcep"] = feat.mcep(dim=self.conf["mcep_dim"],
+                                           alpha=self.conf["mcep_alpha"])
             self.feats["npow"] = feat.npow()
             self.feats["cap"] = feat.codeap()
             cap = self.feats["cap"]
@@ -106,9 +105,9 @@ class Feature(object):
 
     def _synthesize_world_features(self, flbl):
         # constract Synthesizer class
-        synthesizer = Synthesizer(
-            fs=self.conf["fs"], fftl=self.conf["fftl"], shiftms=self.conf["shiftms"]
-        )
+        synthesizer = Synthesizer(fs=self.conf["fs"],
+                                  fftl=self.conf["fftl"],
+                                  shiftms=self.conf["shiftms"])
 
         # analysis/synthesis using F0, mcep, and ap
         anasyn = synthesizer.synthesis(
@@ -176,17 +175,15 @@ class Feature(object):
 
 def itug_729_window(length):
     """ITU-G. 729 window function."""
-
     def cos_win(x, length):
         return np.cos((2 * np.pi * x) / (2 * length / 3 - 1))
 
     def hamming_win(x, length):
         return 0.54 - 0.46 * np.cos(
-            (2 * np.pi * (x - length / 6)) / (5 * length / 3 - 1)
-        )
+            (2 * np.pi * (x - length / 6)) / (5 * length / 3 - 1))
 
     win = np.zeros(length)
     arange = np.arange(length)
-    win[-(length // 6) :] = cos_win(arange[: length // 6], length)
-    win[: -(length // 6)] = hamming_win(arange[length // 6 :], length)
+    win[-(length // 6):] = cos_win(arange[:length // 6], length)
+    win[:-(length // 6)] = hamming_win(arange[length // 6:], length)
     return win

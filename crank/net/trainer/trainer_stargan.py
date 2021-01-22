@@ -5,7 +5,6 @@
 # Copyright (c) 2020 K. Kobayashi <root.4mac@gmail.com>
 #
 # Distributed under terms of the MIT license.
-
 """
 StarGAN trainer
 
@@ -55,9 +54,9 @@ class StarGANTrainer(LSGANTrainer):
         feats = batch["in_feats"]
 
         # VQVAE and its cyclic loss
-        cycle_outputs = self.model["G"].cycle_forward(
-            feats, enc_h, dec_h, enc_h_cv, dec_h_cv, spkrvec, spkrvec_cv
-        )
+        cycle_outputs = self.model["G"].cycle_forward(feats, enc_h, dec_h,
+                                                      enc_h_cv, dec_h_cv,
+                                                      spkrvec, spkrvec_cv)
         vqvae_outputs = cycle_outputs[0]["org"]
         if self.conf["use_vqvae_loss"]:
             loss = self.calculate_vqvae_loss(batch, vqvae_outputs, loss)
@@ -73,11 +72,18 @@ class StarGANTrainer(LSGANTrainer):
             encoder_detach=self.conf["encoder_detach"],
         )
         loss = self.calculate_adv_loss(
-            batch, adv_outputs["decoded"], batch["cv_h"], batch["mask"], loss,
+            batch,
+            adv_outputs["decoded"],
+            batch["cv_h"],
+            batch["decoder_mask"],
+            loss,
         )
 
         if self.conf["use_spkradv_training"]:
-            loss = self.calculate_spkradv_loss(batch, vqvae_outputs, loss, phase=phase)
+            loss = self.calculate_spkradv_loss(batch,
+                                               vqvae_outputs,
+                                               loss,
+                                               phase=phase)
 
         if phase == "train" and not self.stop_generator:
             self.step_model(loss, model="G")
@@ -94,17 +100,24 @@ class StarGANTrainer(LSGANTrainer):
         # real
         real_inputs = self.get_D_inputs(batch, batch["in_feats"], label="org")
         real = return_sample(real_inputs)
-        loss = self.calculate_discriminator_loss(
-            real, batch["org_h"], batch["mask"], loss, label="real"
-        )
+        loss = self.calculate_discriminator_loss(real,
+                                                 batch["org_h"],
+                                                 batch["decoder_mask"],
+                                                 loss,
+                                                 label="real")
 
         # fake
-        outputs = self.model["G"].forward(feats, enc_h_cv, dec_h_cv, spkrvec_cv)
-        fake_inputs = self.get_D_inputs(batch, outputs["decoded"].detach(), label="cv")
+        outputs = self.model["G"].forward(feats, enc_h_cv, dec_h_cv,
+                                          spkrvec_cv)
+        fake_inputs = self.get_D_inputs(batch,
+                                        outputs["decoded"].detach(),
+                                        label="cv")
         cv_fake = return_sample(fake_inputs)
-        loss = self.calculate_discriminator_loss(
-            cv_fake, batch["cv_h"], batch["mask"], loss, label="fake"
-        )
+        loss = self.calculate_discriminator_loss(cv_fake,
+                                                 batch["cv_h"],
+                                                 batch["decoder_mask"],
+                                                 loss,
+                                                 label="fake")
 
         if phase == "train":
             self.step_model(loss, model="D")
