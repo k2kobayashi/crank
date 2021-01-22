@@ -5,7 +5,6 @@
 # Copyright (c) 2020 Kazuhiro KOBAYASHI <root.4mac@gmail.com>
 #
 # Distributed under terms of the MIT license.
-
 """
 Train VQ-VAE2 model
 
@@ -39,7 +38,8 @@ warnings.simplefilter(action="ignore")
 logging.basicConfig(
     level=logging.INFO,
     stream=sys.stdout,
-    format="%(asctime)s (%(module)s:%(lineno)d) " "%(levelname)s: %(message)s",
+    format="%(asctime)s (%(module)s:%(lineno)d) "
+    "%(levelname)s: %(message)s",
 )
 
 # Fix random variables
@@ -123,13 +123,18 @@ def main():
     # options for python
     description = "Train VQ-VAE model"
     parser = argparse.ArgumentParser(description=description)
-    parser.add_argument("--flag", help='flag ["train", "eval", "reconstruction"]')
+    parser.add_argument("--flag",
+                        help='flag ["train", "eval", "reconstruction"]')
     parser.add_argument("--n_jobs", type=int, default=-1, help="# of CPUs")
-    parser.add_argument("--conf", type=str, help="yaml file for network parameters")
+    parser.add_argument("--conf",
+                        type=str,
+                        help="yaml file for network parameters")
     parser.add_argument("--checkpoint", type=str, default=None, help="Resume")
     parser.add_argument("--scpdir", type=str, help="scp directory")
     parser.add_argument("--featdir", type=str, help="output feature directory")
-    parser.add_argument("--featsscp", type=str, help="specify feats.scp not scpdir")
+    parser.add_argument("--featsscp",
+                        type=str,
+                        help="specify feats.scp not scpdir")
     parser.add_argument("--expdir", type=str, help="exp directory")
     args = parser.parse_args()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -166,17 +171,24 @@ def main():
             max_step = max([int(s) for s in steps])
             checkpoint = str([p for p in pkls if str(max_step) in str(p)][0])
             model, resume = load_checkpoint(model, checkpoint)
-    conf["receptive_size"] = model["G"].receptive_size
-    logging.info("receptive_size: {}".format(conf["receptive_size"]))
+    conf["encoder_receptive_size"] = model["G"].encoder_receptive_size
+    conf["decoder_receptive_size"] = model["G"].decoder_receptive_size
+    logging.info("encoder and decoder receptive_size: {}, {}".format(
+        conf["encoder_receptive_size"], conf["decoder_receptive_size"]))
 
     # load others
     scaler = joblib.load(featdir / "scaler.pkl")
     optimizer = get_optimizer(conf, model)
     criterion = get_criterion(conf)
-    dataloader = get_dataloader(conf, scp, scaler, n_jobs=args.n_jobs, flag=args.flag)
+    dataloader = get_dataloader(conf,
+                                scp,
+                                scaler,
+                                n_jobs=args.n_jobs,
+                                flag=args.flag)
     scheduler = get_scheduler(conf, optimizer)
     writer = {
-        "train": SummaryWriter(logdir=args.expdir + "/runs/train-" + expdir.name),
+        "train":
+        SummaryWriter(logdir=args.expdir + "/runs/train-" + expdir.name),
         "dev": SummaryWriter(logdir=args.expdir + "/runs/dev-" + expdir.name),
     }
 

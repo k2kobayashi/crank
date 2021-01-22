@@ -5,7 +5,6 @@
 # Copyright (c) 2020 K. KOBAYASHI <root.4mac@gmail.com>
 #
 # Distributed under terms of the MIT license.
-
 """
 BaseTrainer class
 

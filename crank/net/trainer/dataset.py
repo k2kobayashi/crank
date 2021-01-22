@@ -5,7 +5,6 @@
 # Copyright (c) 2020 Kazuhiro KOBAYASHI <root.4mac@gmail.com>
 #
 # Distributed under terms of the MIT license.
-
 """
 Base Dataset
 
@@ -109,10 +108,16 @@ class BaseDataset(Dataset):
                 sample[self.conf["input_feat_type"]]
             )
         sample = self._zero_padding(sample)
-        sample["cycle_mask"] = np.copy(sample["mask"])
+        for ed in ["encoder_mask", "decoder_mask",
+                   "cycle_encoder_mask", "cycle_decoder_mask"]:
+            sample[ed] = np.copy(sample["mask"])
         if self.conf["causal"]:
-            sample["mask"][: self.conf["receptive_size"]] = False
-            sample["cycle_mask"][: self.conf["receptive_size"] * 2] = False
+            er = self.conf["encoder_receptive_size"]
+            dr = self.conf["decoder_receptive_size"]
+            sample["encoder_mask"][:er] = False
+            sample["decoder_mask"][: er + dr] = False
+            sample["cycle_encoder_mask"][: er * 2 + dr] = False
+            sample["cycle_decoder_mask"][: (er + dr) * 2] = False
         return sample
 
     def _post_getitem(self, sample):
