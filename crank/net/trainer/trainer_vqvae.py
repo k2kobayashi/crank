@@ -11,6 +11,7 @@ VQVAE trainer
 """
 
 import random
+
 import torch
 from crank.net.trainer import BaseTrainer
 from torch.nn.utils import clip_grad_norm
@@ -217,9 +218,12 @@ class VQVAETrainer(BaseTrainer):
         dmask = batch["decoder_mask"]
         target = batch["out_feats"]
         decoded = outputs["decoded"]
-        loss["G_l1"] = self.criterion["fl1"](decoded, target, mask=dmask)
-        loss["G_mse"] = self.criterion["fmse"](decoded, target, mask=dmask)
-        loss["G_stft"] = self.criterion["fstft"](decoded, target)
+        loss["G_l1"] = self.criterion["fl1"](
+            decoded, target, mask=dmask, causal_size=self.conf["causal_size"])
+        loss["G_mse"] = self.criterion["fmse"](
+            decoded, target, mask=dmask, causal_size=self.conf["causal_size"])
+        loss["G_stft"] = self.criterion["fstft"](
+            decoded, target, causal_size=self.conf["causal_size"])
 
         # loss for vq
         encoded = outputs["encoded"]
@@ -260,14 +264,22 @@ class VQVAETrainer(BaseTrainer):
                     dmask = batch["cycle_decoder_mask"]
                     target = batch["in_feats"]
                     decoded = o["decoded"]
-                    loss[f"G_l1_{lbl}"] = self.criterion["fl1"](decoded,
-                                                                target,
-                                                                mask=dmask)
-                    loss[f"G_mse_{lbl}"] = self.criterion["fmse"](decoded,
-                                                                  target,
-                                                                  mask=dmask)
-                    loss[f"G_stft_{lbl}"] = self.criterion["fstft"](decoded,
-                                                                    target)
+                    loss[f"G_l1_{lbl}"] = self.criterion["fl1"](
+                        decoded,
+                        target,
+                        mask=dmask,
+                        causal_size=self.conf["causal_size"] * 2,
+                    )
+                    loss[f"G_mse_{lbl}"] = self.criterion["fmse"](
+                        decoded,
+                        target,
+                        mask=dmask,
+                        causal_size=self.conf["causal_size"] * 2,
+                    )
+                    loss[f"G_stft_{lbl}"] = self.criterion["fstft"](
+                        decoded,
+                        target,
+                        causal_size=self.conf["causal_size"] * 2)
 
                 for n in range(self.conf["n_vq_stacks"]):
                     loss[f"G_commit{n}_{lbl}"] = self.criterion["mse"](

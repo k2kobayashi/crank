@@ -5,8 +5,6 @@
 # Copyright (c) 2020 Kazuhiro KOBAYASHI <root.4mac@gmail.com>
 #
 # Distributed under terms of the MIT license.
-
-
 """
 CustomFeature Loss and Multi-resolution STFT Loss
 
@@ -18,10 +16,14 @@ import torch.nn.functional as F
 
 
 class CustomFeatureLoss(nn.Module):
-    def __init__(self, loss_type="l1", causal_size=0, stft_params={}, device="cuda"):
+    def __init__(self,
+                 loss_type="l1",
+                 causal=False,
+                 stft_params={},
+                 device="cuda"):
         super(CustomFeatureLoss, self).__init__()
         self.loss_type = loss_type
-        self.causal_size = causal_size
+        self.causal = causal
         if loss_type == "l1":
             self.loss_func = nn.L1Loss()
         elif loss_type == "mse":
@@ -29,18 +31,19 @@ class CustomFeatureLoss(nn.Module):
         elif loss_type == "stft":
             self.loss_func = MultiSizeSTFTLoss(**stft_params, device=device)
 
-    def forward(self, x, y, mask=None):
-        if self.causal_size > 0:
-            x = x[:, self.causal_size :]
-            y = y[:, : -self.causal_size]
-            if mask is not None:
-                mask = mask[:, self.causal_size :]
-        elif self.causal_size < 0:
-            cs = -self.causal_size
-            y = y[:, cs:]
-            x = x[:, :-cs]
-            if mask is not None:
-                mask = mask[:, :-cs]
+    def forward(self, x, y, mask=None, causal_size=0):
+        if self.causal:
+            if causal_size > 0:
+                x = x[:, causal_size:]
+                y = y[:, :-causal_size]
+                if mask is not None:
+                    mask = mask[:, causal_size:]
+            elif causal_size < 0:
+                cs = -causal_size
+                y = y[:, cs:]
+                x = x[:, :-cs]
+                if mask is not None:
+                    mask = mask[:, :-cs]
 
         if mask is not None:
             x = x.masked_select(mask)
@@ -55,16 +58,24 @@ def stft(x, fft_size, hop_size, win_size, window):
         x : input tensor (B, T, D)
     """
     x = x.transpose(1, 2).reshape(-1, x.size(1))
-    x_stft = torch.stft(x, fft_size, win_size, hop_size, window, return_complex=False)
+    x_stft = torch.stft(x,
+                        fft_size,
+                        win_size,
+                        hop_size,
+                        window,
+                        return_complex=False)
     real, imag = x_stft[..., 0], x_stft[..., 1]
-    y = torch.clamp(real ** 2 + imag ** 2, min=1e-7).transpose(2, 1)
+    y = torch.clamp(real**2 + imag**2, min=1e-7).transpose(2, 1)
     return torch.sqrt(y)
 
 
 class STFTLoss(nn.Module):
-    def __init__(
-        self, fft_size=32, win_size=20, hop_size=10, logratio=0.0, device="cuda"
-    ):
+    def __init__(self,
+                 fft_size=32,
+                 win_size=20,
+                 hop_size=10,
+                 logratio=0.0,
+                 device="cuda"):
         super(STFTLoss, self).__init__()
         self.fft_size = fft_size
         self.win_size = win_size
@@ -77,8 +88,10 @@ class STFTLoss(nn.Module):
         Args:
             x, y: input Tensor (B, T, D)
         """
-        x_mag = stft(x, self.fft_size, self.win_size, self.hop_size, self.window)
-        y_mag = stft(y, self.fft_size, self.win_size, self.hop_size, self.window)
+        x_mag = stft(x, self.fft_size, self.win_size, self.hop_size,
+                     self.window)
+        y_mag = stft(y, self.fft_size, self.win_size, self.hop_size,
+                     self.window)
 
         mag_loss = F.l1_loss(x_mag, y_mag)
         lmag_loss = F.l1_loss(x_mag.log(), y_mag.log())
@@ -97,10 +110,14 @@ class MultiSizeSTFTLoss(nn.Module):
     ):
         super(MultiSizeSTFTLoss, self).__init__()
         self.loss_layers = torch.nn.ModuleList()
-        for (fft_size, win_size, hop_size) in zip(fft_sizes, win_sizes, hop_sizes):
+        for (fft_size, win_size, hop_size) in zip(fft_sizes, win_sizes,
+                                                  hop_sizes):
             self.loss_layers.append(
-                STFTLoss(fft_size, hop_size, win_size, logratio=logratio, device=device)
-            )
+                STFTLoss(fft_size,
+                         hop_size,
+                         win_size,
+                         logratio=logratio,
+                         device=device))
 
     def forward(self, x, y):
         """
