@@ -84,8 +84,6 @@ class BaseDataset(Dataset):
         ])
         sample["flen"] = sample[self.conf["input_feat_type"]].shape[0]
         sample["mask"] = np.ones(sample["flen"], dtype=bool)[:, np.newaxis]
-        sample["cycle_mask"] = np.ones([sample["flen"]],
-                                       dtype=bool)[:, np.newaxis]
         sample["org_h_onehot"], sample["org_h"] = self._get_spkrcode(
             sample["org_spkr_name"], sample["flen"])
         sample["cv_h_onehot"], sample["cv_h"] = self._get_spkrcode(
@@ -128,6 +126,7 @@ class BaseDataset(Dataset):
             sample["decoder_mask"][:er + dr] = False
             sample["cycle_encoder_mask"][:er * 2 + dr] = False
             sample["cycle_decoder_mask"][:(er + dr) * 2] = False
+        del sample["mask"]
         return sample
 
     def _post_getitem(self, sample):

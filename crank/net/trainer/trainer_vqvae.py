@@ -178,11 +178,17 @@ class VQVAETrainer(BaseTrainer):
                                               enc_h,
                                               dec_h,
                                               spkrvec=spkrvec)
-            advspkr_class = self.model["SPKRADV"].forward(
-                outputs["encoded_unmod"], detach=True)
+            if self.conf["causal"]:
+                # discard causal area
+                er = self.model["G"].encoder_receptive_size
+                encoded = [e[:, er:] for e in outputs["encoded_unmod"]]
+            else:
+                er = 0
+                encoded = outputs["encoded_unmod"]
+            advspkr_class = self.model["SPKRADV"].forward(encoded, detach=True)
             spkradv_loss = self.criterion["ce"](
                 advspkr_class.reshape(-1, advspkr_class.size(2)),
-                batch["org_h"].reshape(-1),
+                batch["org_h"][:, er:].reshape(-1),
             )
             loss["SPKRADV"] = self.conf["alpha"]["ce"] * spkradv_loss
             if phase == "train":
@@ -295,10 +301,17 @@ class VQVAETrainer(BaseTrainer):
         return loss
 
     def calculate_spkradv_loss(self, batch, outputs, loss, phase="train"):
-        advspkr_class = self.model["SPKRADV"].forward(outputs["encoded_unmod"])
+        if self.conf["causal"]:
+            # discard causal area
+            er = self.model["G"].encoder_receptive_size
+            encoded = [e[:, er:] for e in outputs["encoded_unmod"]]
+        else:
+            er = 0
+            encoded = outputs["encoded_unmod"]
+        advspkr_class = self.model["SPKRADV"].forward(encoded)
         loss["G_spkradv"] = self.criterion["ce"](
             advspkr_class.reshape(-1, advspkr_class.size(2)),
-            batch["org_h"].reshape(-1),
+            batch["org_h"][:, er:].reshape(-1),
         )
         loss["G"] += self.conf["alpha"]["ce"] * loss["G_spkradv"]
         return loss
