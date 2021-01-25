@@ -10,10 +10,10 @@ Train VQ-VAE2 model
 
 """
 
-import re
 import argparse
 import logging
 import random
+import re
 import sys
 import warnings
 from pathlib import Path
@@ -24,14 +24,11 @@ import torch
 from crank.net.module.spkradv import SpeakerAdversarialNetwork
 from crank.net.module.vqvae2 import VQVAE2
 from crank.net.trainer import TrainerWrapper
-from crank.net.trainer.utils import (
-    get_criterion,
-    get_dataloader,
-    get_optimizer,
-    get_scheduler,
-)
+from crank.net.trainer.utils import (get_criterion, get_dataloader,
+                                     get_optimizer, get_scheduler)
 from crank.utils import load_yaml, open_featsscp, open_scpdir
-from parallel_wavegan.models import ParallelWaveGANDiscriminator
+from parallel_wavegan.models import (ParallelWaveGANDiscriminator,
+                                     ResidualParallelWaveGANDiscriminator)
 from tensorboardX import SummaryWriter
 
 warnings.simplefilter(action="ignore")
@@ -62,18 +59,27 @@ def get_model(conf, spkr_size=0, device="cuda"):
 
     # spkr classifier network
     if conf["use_spkr_classifier"]:
-        C = ParallelWaveGANDiscriminator(
-            in_channels=conf["input_size"],
-            out_channels=spkr_size,
-            kernel_size=conf["spkr_classifier_kernel_size"],
-            layers=conf["n_spkr_classifier_layers"],
-            conv_channels=64,
-            dilation_factor=1,
-            nonlinear_activation="LeakyReLU",
-            nonlinear_activation_params={"negative_slope": 0.2},
-            bias=True,
-            use_weight_norm=True,
-        )
+        if conf["use_residual_network"]:
+            C = ResidualParallelWaveGANDiscriminator(
+                in_channels=conf["input_size"],
+                out_channels=spkr_size,
+                kernel_size=conf["spkr_classifier_kernel_size"],
+                layers=conf["n_spkr_classifier_layers"],
+                stacks=conf["n_spkr_classifier_layers"],
+            )
+        else:
+            C = ParallelWaveGANDiscriminator(
+                in_channels=conf["input_size"],
+                out_channels=spkr_size,
+                kernel_size=conf["spkr_classifier_kernel_size"],
+                layers=conf["n_spkr_classifier_layers"],
+                conv_channels=64,
+                dilation_factor=1,
+                nonlinear_activation="LeakyReLU",
+                nonlinear_activation_params={"negative_slope": 0.2},
+                bias=True,
+                use_weight_norm=True,
+            )
         models.update({"C": C.to(device)})
         logging.info(models["C"])
 
@@ -91,6 +97,15 @@ def get_model(conf, spkr_size=0, device="cuda"):
             output_channels = 1
         if conf["acgan_flag"]:
             output_channels += spkr_size
+    if conf["use_residual_network"]:
+        D = ResidualParallelWaveGANDiscriminator(
+            in_channels=input_channels,
+            out_channels=output_channels,
+            kernel_size=conf["discriminator_kernel_size"],
+            layers=conf["n_discriminator_layers"],
+            stacks=conf["n_discriminator_layers"],
+        )
+    else:
         D = ParallelWaveGANDiscriminator(
             in_channels=input_channels,
             out_channels=output_channels,
@@ -103,8 +118,8 @@ def get_model(conf, spkr_size=0, device="cuda"):
             bias=True,
             use_weight_norm=True,
         )
-        models.update({"D": D.to(device)})
-        logging.info(models["D"])
+    models.update({"D": D.to(device)})
+    logging.info(models["D"])
     return models
 
 

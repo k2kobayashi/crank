@@ -5,14 +5,14 @@
 # Copyright (c) 2020 Kazuhiro KOBAYASHI <root.4mac@gmail.com>
 #
 # Distributed under terms of the MIT license.
-
 """Speaker advarsarial network.
 
 """
 
 import torch
 import torch.nn as nn
-from parallel_wavegan.models import ParallelWaveGANDiscriminator
+from parallel_wavegan.models import (ParallelWaveGANDiscriminator,
+                                     ResidualParallelWaveGANDiscriminator)
 
 
 class SpeakerAdversarialNetwork(nn.Module):
@@ -32,18 +32,30 @@ class SpeakerAdversarialNetwork(nn.Module):
 
     def _construct_net(self):
         self.grl = GradientReversalLayer(scale=self.conf["spkradv_lambda"])
-        self.classifier = ParallelWaveGANDiscriminator(
-            in_channels=sum(self.conf["emb_dim"][: self.conf["n_vq_stacks"]]),
-            out_channels=self.spkr_size,
-            kernel_size=self.conf["spkradv_kernel_size"],
-            layers=self.conf["n_spkradv_layers"],
-            conv_channels=64,
-            dilation_factor=1,
-            nonlinear_activation="LeakyReLU",
-            nonlinear_activation_params={"negative_slope": 0.2},
-            bias=True,
-            use_weight_norm=True,
-        )
+
+        if self.conf["use_residual_network"]:
+            self.classifier = ResidualParallelWaveGANDiscriminator(
+                in_channels=sum(
+                    self.conf["emb_dim"][:self.conf["n_vq_stacks"]]),
+                out_channels=self.spkr_size,
+                kernel_size=self.conf["spkradv_kernel_size"],
+                layers=self.conf["n_spkradv_layers"],
+                stacks=self.conf["n_spkradv_layers"] // 2,
+            )
+        else:
+            self.classifier = ParallelWaveGANDiscriminator(
+                in_channels=sum(
+                    self.conf["emb_dim"][:self.conf["n_vq_stacks"]]),
+                out_channels=self.spkr_size,
+                kernel_size=self.conf["spkradv_kernel_size"],
+                layers=self.conf["n_spkradv_layers"],
+                conv_channels=64,
+                dilation_factor=1,
+                nonlinear_activation="LeakyReLU",
+                nonlinear_activation_params={"negative_slope": 0.2},
+                bias=True,
+                use_weight_norm=True,
+            )
 
 
 class GradientReversalFunction(torch.autograd.Function):
@@ -54,7 +66,7 @@ class GradientReversalFunction(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, grad_backward):
-        (scale,) = ctx.saved_tensors
+        (scale, ) = ctx.saved_tensors
         return scale * -grad_backward, None
 
 
