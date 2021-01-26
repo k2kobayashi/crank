@@ -33,29 +33,29 @@ class SpeakerAdversarialNetwork(nn.Module):
     def _construct_net(self):
         self.grl = GradientReversalLayer(scale=self.conf["spkradv_lambda"])
 
-        if self.conf["use_residual_network"]:
-            self.classifier = ResidualParallelWaveGANDiscriminator(
-                in_channels=sum(
-                    self.conf["emb_dim"][:self.conf["n_vq_stacks"]]),
-                out_channels=self.spkr_size,
-                kernel_size=self.conf["spkradv_kernel_size"],
-                layers=self.conf["n_spkradv_layers"],
-                stacks=self.conf["n_spkradv_layers"] // 2,
-            )
-        else:
-            self.classifier = ParallelWaveGANDiscriminator(
-                in_channels=sum(
-                    self.conf["emb_dim"][:self.conf["n_vq_stacks"]]),
-                out_channels=self.spkr_size,
-                kernel_size=self.conf["spkradv_kernel_size"],
-                layers=self.conf["n_spkradv_layers"],
-                conv_channels=64,
-                dilation_factor=1,
-                nonlinear_activation="LeakyReLU",
-                nonlinear_activation_params={"negative_slope": 0.2},
-                bias=True,
-                use_weight_norm=True,
-            )
+        # TODO: investigate peformance of residual network
+        # if self.conf["use_residual_network"]:
+        #     self.classifier = ResidualParallelWaveGANDiscriminator(
+        #         in_channels=sum(
+        #             self.conf["emb_dim"][:self.conf["n_vq_stacks"]]),
+        #         out_channels=self.spkr_size,
+        #         kernel_size=self.conf["spkradv_kernel_size"],
+        #         layers=self.conf["n_spkradv_layers"],
+        #         stacks=self.conf["n_spkradv_layers"] // 2,
+        #     )
+        # else:
+        self.classifier = ParallelWaveGANDiscriminator(
+            in_channels=sum(self.conf["emb_dim"][:self.conf["n_vq_stacks"]]),
+            out_channels=self.spkr_size,
+            kernel_size=self.conf["spkradv_kernel_size"],
+            layers=self.conf["n_spkradv_layers"],
+            conv_channels=64,
+            dilation_factor=1,
+            nonlinear_activation="LeakyReLU",
+            nonlinear_activation_params={"negative_slope": 0.2},
+            bias=True,
+            use_weight_norm=True,
+        )
 
 
 class GradientReversalFunction(torch.autograd.Function):

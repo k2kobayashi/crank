@@ -59,27 +59,28 @@ def get_model(conf, spkr_size=0, device="cuda"):
 
     # spkr classifier network
     if conf["use_spkr_classifier"]:
-        if conf["use_residual_network"]:
-            C = ResidualParallelWaveGANDiscriminator(
-                in_channels=conf["input_size"],
-                out_channels=spkr_size,
-                kernel_size=conf["spkr_classifier_kernel_size"],
-                layers=conf["n_spkr_classifier_layers"],
-                stacks=conf["n_spkr_classifier_layers"],
-            )
-        else:
-            C = ParallelWaveGANDiscriminator(
-                in_channels=conf["input_size"],
-                out_channels=spkr_size,
-                kernel_size=conf["spkr_classifier_kernel_size"],
-                layers=conf["n_spkr_classifier_layers"],
-                conv_channels=64,
-                dilation_factor=1,
-                nonlinear_activation="LeakyReLU",
-                nonlinear_activation_params={"negative_slope": 0.2},
-                bias=True,
-                use_weight_norm=True,
-            )
+        # TODO: investigate peformance of residual network
+        # if conf["use_residual_network"]:
+        #     C = ResidualParallelWaveGANDiscriminator(
+        #         in_channels=conf["input_size"],
+        #         out_channels=spkr_size,
+        #         kernel_size=conf["spkr_classifier_kernel_size"],
+        #         layers=conf["n_spkr_classifier_layers"],
+        #         stacks=conf["n_spkr_classifier_layers"],
+        #     )
+        # else:
+        C = ParallelWaveGANDiscriminator(
+            in_channels=conf["input_size"],
+            out_channels=spkr_size,
+            kernel_size=conf["spkr_classifier_kernel_size"],
+            layers=conf["n_spkr_classifier_layers"],
+            conv_channels=64,
+            dilation_factor=1,
+            nonlinear_activation="LeakyReLU",
+            nonlinear_activation_params={"negative_slope": 0.2},
+            bias=True,
+            use_weight_norm=True,
+        )
         models.update({"C": C.to(device)})
         logging.info(models["C"])
 
