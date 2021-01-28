@@ -54,20 +54,20 @@ class StarGANTrainer(LSGANTrainer):
         dec_h, spkrvec = self._get_dec_h(batch)
         dec_h_cv, spkrvec_cv = self._get_dec_h(batch, use_cvfeats=True)
         feats = batch["in_feats"]
-
-        # VQVAE and its cyclic loss
         cycle_outputs = self.model["G"].cycle_forward(feats, enc_h, dec_h,
                                                       enc_h_cv, dec_h_cv,
                                                       spkrvec, spkrvec_cv)
-        vqvae_outputs = cycle_outputs[0]["org"]
         if self.conf["use_vqvae_loss"]:
-            loss = self.calculate_vqvae_loss(batch, vqvae_outputs, loss)
-        if self.conf["use_spkradv_training"]:
-            loss = self.calculate_spkradv_loss(batch,
-                                               vqvae_outputs,
-                                               loss,
-                                               phase=phase)
+            loss = self.calculate_vqvae_loss(batch, cycle_outputs[0]["org"],
+                                             loss)
         loss = self.calculate_cyclevqvae_loss(batch, cycle_outputs, loss)
+        if self.conf["use_spkradv_training"]:
+            for label in ["cv", "recon"]:
+                loss = self.calculate_spkradv_loss(batch,
+                                                   cycle_outputs[0][label],
+                                                   loss,
+                                                   label=label,
+                                                   phase=phase)
 
         # adv loss
         loss = self.calculate_adv_loss(

@@ -136,6 +136,7 @@ class VQVAETrainer(BaseTrainer):
             loss = self.calculate_spkradv_loss(batch,
                                                outputs,
                                                loss,
+                                               label="org",
                                                phase=phase)
 
         loss["objective"] += loss["G"]
@@ -153,16 +154,18 @@ class VQVAETrainer(BaseTrainer):
         cycle_outputs = self.model["G"].cycle_forward(feats, enc_h, dec_h,
                                                       enc_h_cv, dec_h_cv,
                                                       spkrvec, spkrvec_cv)
-        vqvae_outputs = cycle_outputs[0]["org"]
         if self.conf["use_vqvae_loss"]:
-            loss = self.calculate_vqvae_loss(batch, vqvae_outputs, loss)
+            loss = self.calculate_vqvae_loss(batch, cycle_outputs[0]["org"],
+                                             loss)
         loss = self.calculate_cyclevqvae_loss(batch, cycle_outputs, loss)
 
         if self.conf["use_spkradv_training"]:
-            loss = self.calculate_spkradv_loss(batch,
-                                               vqvae_outputs,
-                                               loss,
-                                               phase=phase)
+            for label in ["cv", "recon"]:
+                loss = self.calculate_spkradv_loss(batch,
+                                                   cycle_outputs[0][label],
+                                                   loss,
+                                                   label=label,
+                                                   phase=phase)
 
         loss["objective"] += loss["G"]
         if phase == "train":
@@ -270,22 +273,22 @@ class VQVAETrainer(BaseTrainer):
                     dmask = batch["cycle_decoder_mask"]
                     target = batch["in_feats"]
                     decoded = o["decoded"]
+                    cs = self.conf["causal_size"] * 2 if self.conf[
+                        "causal"] else 0
                     loss[f"G_l1_{lbl}"] = self.criterion["fl1"](
                         decoded,
                         target,
                         mask=dmask,
-                        causal_size=self.conf["causal_size"] * 2,
+                        causal_size=cs,
                     )
                     loss[f"G_mse_{lbl}"] = self.criterion["fmse"](
                         decoded,
                         target,
                         mask=dmask,
-                        causal_size=self.conf["causal_size"] * 2,
+                        causal_size=cs,
                     )
                     loss[f"G_stft_{lbl}"] = self.criterion["fstft"](
-                        decoded,
-                        target,
-                        causal_size=self.conf["causal_size"] * 2)
+                        decoded, target, causal_size=cs)
 
                 for n in range(self.conf["n_vq_stacks"]):
                     loss[f"G_commit{n}_{lbl}"] = self.criterion["mse"](
@@ -300,7 +303,12 @@ class VQVAETrainer(BaseTrainer):
         loss = self._parse_cyclevqvae_loss(loss)
         return loss
 
-    def calculate_spkradv_loss(self, batch, outputs, loss, phase="train"):
+    def calculate_spkradv_loss(self,
+                               batch,
+                               outputs,
+                               loss,
+                               label="org",
+                               phase="train"):
         if self.conf["causal"]:
             # discard causal area
             er = self.model["G"].encoder_receptive_size
@@ -309,11 +317,11 @@ class VQVAETrainer(BaseTrainer):
             er = 0
             encoded = outputs["encoded_unmod"]
         advspkr_class = self.model["SPKRADV"].forward(encoded)
-        loss["G_spkradv"] = self.criterion["ce"](
+        loss[f"G_spkradv_{label}"] = self.criterion["ce"](
             advspkr_class.reshape(-1, advspkr_class.size(2)),
             batch["org_h"][:, er:].reshape(-1),
         )
-        loss["G"] += self.conf["alpha"]["ce"] * loss["G_spkradv"]
+        loss["G"] += self.conf["alpha"]["ce"] * loss[f"G_spkradv_{label}"]
         return loss
 
     def _parse_vqvae_loss(self, loss):
