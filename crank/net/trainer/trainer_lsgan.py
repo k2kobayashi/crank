@@ -172,7 +172,8 @@ class LSGANTrainer(VQVAETrainer):
                                      h,
                                      mask,
                                      loss,
-                                     label="real"):
+                                     label="real",
+                                     updates=None):
         if self.conf["acgan_flag"]:
             sample, spkr_cls = torch.split(sample, [1, self.n_spkrs], dim=2)
             loss = self.calculate_acgan_loss(spkr_cls,
@@ -186,7 +187,8 @@ class LSGANTrainer(VQVAETrainer):
         else:
             correct_label = torch.zeros_like(sample)
         loss[f"D_{label}"] = self.criterion["mse"](sample, correct_label)
-        loss["D"] += self.conf["alpha"][label] * loss[f"D_{label}"]
+        if updates is None or label in updates:
+            loss["D"] += self.conf["alpha"][label] * loss[f"D_{label}"]
         return loss
 
     def calculate_acgan_loss(self, spkr_cls, h, loss, label="adv", model="G"):

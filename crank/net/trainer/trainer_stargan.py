@@ -10,6 +10,8 @@ StarGAN trainer
 
 """
 
+import random
+
 from crank.net.trainer import LSGANTrainer
 
 
@@ -88,7 +90,11 @@ class StarGANTrainer(LSGANTrainer):
         dec_h_cv, spkrvec_cv = self._get_dec_h(batch, use_cvfeats=True)
         feats = batch["in_feats"]
 
-        # real
+        if self.conf["switch_update"]:
+            updates = random.choice(["real", "fake"])
+        else:
+            updates = ["real", "fake"]
+
         real_inputs = self.get_D_inputs(batch, batch["in_feats"], label="org")
         loss = self.calculate_discriminator_loss(
             return_sample(real_inputs),
@@ -96,9 +102,9 @@ class StarGANTrainer(LSGANTrainer):
             batch["decoder_mask"],
             loss,
             label="real",
+            updates=updates,
         )
 
-        # fake
         outputs = self.model["G"].forward(feats, enc_h_cv, dec_h_cv,
                                           spkrvec_cv)
         fake_inputs = self.get_D_inputs(batch,
@@ -110,6 +116,7 @@ class StarGANTrainer(LSGANTrainer):
             batch["decoder_mask"],
             loss,
             label="fake",
+            updates=updates,
         )
 
         if phase == "train":
