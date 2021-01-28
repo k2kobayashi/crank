@@ -321,7 +321,12 @@ class VQVAETrainer(BaseTrainer):
             advspkr_class.reshape(-1, advspkr_class.size(2)),
             batch["org_h"][:, er:].reshape(-1),
         )
-        loss["G"] += self.conf["alpha"]["ce"] * loss[f"G_spkradv_{label}"]
+        if not label == "cv":
+            loss["G"] += self.conf["alpha"]["ce"] * loss[f"G_spkradv_{label}"]
+        else:
+            loss["G"] += (self.conf["alpha"]["cycle"] *
+                          self.conf["alpha"]["ce"] *
+                          loss[f"G_spkradv_{label}"])
         return loss
 
     def _parse_vqvae_loss(self, loss):
