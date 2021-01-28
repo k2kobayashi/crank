@@ -62,7 +62,7 @@ class StarGANTrainer(LSGANTrainer):
                                              loss)
         loss = self.calculate_cyclevqvae_loss(batch, cycle_outputs, loss)
         if self.conf["use_spkradv_training"]:
-            for label in ["cv", "recon"]:
+            for label in ["org", "cv"]:
                 loss = self.calculate_spkradv_loss(batch,
                                                    cycle_outputs[0][label],
                                                    loss,
