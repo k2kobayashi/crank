@@ -160,7 +160,7 @@ class VQVAETrainer(BaseTrainer):
         loss = self.calculate_cyclevqvae_loss(batch, cycle_outputs, loss)
 
         if self.conf["use_spkradv_training"]:
-            for label in ["org", "cv"]:
+            for label in ["cv", "recon"]:
                 loss = self.calculate_spkradv_loss(batch,
                                                    cycle_outputs[0][label],
                                                    loss,
@@ -321,7 +321,7 @@ class VQVAETrainer(BaseTrainer):
             advspkr_class.reshape(-1, advspkr_class.size(2)),
             batch["org_h"][:, er:].reshape(-1),
         )
-        if not label == "cv":
+        if not label == "recon":
             loss["G"] += self.conf["alpha"]["ce"] * loss[f"G_spkradv_{label}"]
         else:
             loss["G"] += (self.conf["alpha"]["cycle"] *

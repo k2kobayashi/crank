@@ -73,13 +73,14 @@ class VQVAE2(nn.Module):
         for n in range(self.conf["n_cycles"]):
             enc = self.encode(x, enc_h=org_enc_h)
             org_enc_unmod = [e.clone() for e in enc]
+            cv_enc_unmod = [e.clone() for e in enc]
             org_enc, org_dec, org_emb_idxs, _, org_qidxs = self.decode(
                 enc, org_dec_h)
             cv_enc, cv_dec, cv_emb_idxs, _, cv_qidxs = self.decode(
                 enc, cv_dec_h)
 
             enc = self.encode(cv_dec, enc_h=cv_enc_h)
-            cv_enc_unmod = [e.clone() for e in enc]
+            recon_enc_unmod = [e.clone() for e in enc]
             recon_enc, recon_dec, recon_emb_idxs, _, recon_qidxs = self.decode(
                 enc, org_dec_h)
             outputs.append({
@@ -105,7 +106,7 @@ class VQVAE2(nn.Module):
                     recon_dec,
                     recon_emb_idxs,
                     recon_qidxs,
-                    None,
+                    recon_enc_unmod,
                 ),
             })
             x = recon_dec.clone().detach()
