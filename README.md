@@ -26,7 +26,7 @@ $ sudo apt install ffmpeg   # mosnet dependency
     - jsv_ver1
 
 ### Conversion samples
-You can access several audio samples in following [URL](https://k2kobayashi.github.io/crankSamples/).
+You can access several converted audio samples of VCC 2018 dataset in the [URL](https://k2kobayashi.github.io/crankSamples/).
 - [vcc2020v1](https://drive.google.com/file/d/1uInvCwggpBYmpplYxuIOidvJkPmav8kE/view?usp=sharing)
 - [vcc2018v1](https://drive.google.com/file/d/1-Z_Y9pahPQcKR0rqdhu4elI6Hz686qX6/view?usp=sharing)
 
