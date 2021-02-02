@@ -26,6 +26,7 @@ $ sudo apt install ffmpeg   # mosnet dependency
     - jsv_ver1
 
 ### Conversion samples
+You can access several audio samples in following [URL](https://k2kobayashi.github.io/crankSamples/).
 - [vcc2020v1](https://drive.google.com/file/d/1uInvCwggpBYmpplYxuIOidvJkPmav8kE/view?usp=sharing)
 - [vcc2018v1](https://drive.google.com/file/d/1-Z_Y9pahPQcKR0rqdhu4elI6Hz686qX6/view?usp=sharing)
 
@@ -154,6 +155,16 @@ After preparing configuration, you run it.
 
 ```sh
 $ ./run.sh --stage 2 --stop_stage 7
+```
+
+## Citation
+
+Please cite this paper when you use crank.
+
+```
+K. Kobayashi, W-C. Huang, Y-C. Wu, P.L. Tobing, T. Hayashi, T. Toda,
+"crank: an open-source software for nonparallel voice conversion based on vector-quantized variational autoencoder",
+Proc. ICASSP, 2021. (accepted)
 ```
 
 ## Achknowledgements
