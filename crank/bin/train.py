@@ -98,31 +98,32 @@ def get_model(conf, spkr_size=0, device="cuda"):
             output_channels = 1
         if conf["acgan_flag"]:
             output_channels += spkr_size
-    if conf["use_residual_network"]:
-        D = ResidualParallelWaveGANDiscriminator(
-            in_channels=input_channels,
-            out_channels=output_channels,
-            kernel_size=conf["discriminator_kernel_size"],
-            layers=conf["n_discriminator_layers"] *
-            conf["n_discriminator_stacks"],
-            stacks=conf["n_discriminator_stacks"],
-            dropout=conf["discriminator_dropout"],
-        )
-    else:
-        D = ParallelWaveGANDiscriminator(
-            in_channels=input_channels,
-            out_channels=output_channels,
-            kernel_size=conf["discriminator_kernel_size"],
-            layers=conf["n_discriminator_layers"] * ["n_discriminator_stacks"],
-            conv_channels=64,
-            dilation_factor=1,
-            nonlinear_activation="LeakyReLU",
-            nonlinear_activation_params={"negative_slope": 0.2},
-            bias=True,
-            use_weight_norm=True,
-        )
-    models.update({"D": D.to(device)})
-    logging.info(models["D"])
+        if conf["use_residual_network"]:
+            D = ResidualParallelWaveGANDiscriminator(
+                in_channels=input_channels,
+                out_channels=output_channels,
+                kernel_size=conf["discriminator_kernel_size"],
+                layers=conf["n_discriminator_layers"] *
+                conf["n_discriminator_stacks"],
+                stacks=conf["n_discriminator_stacks"],
+                dropout=conf["discriminator_dropout"],
+            )
+        else:
+            D = ParallelWaveGANDiscriminator(
+                in_channels=input_channels,
+                out_channels=output_channels,
+                kernel_size=conf["discriminator_kernel_size"],
+                layers=conf["n_discriminator_layers"] *
+                ["n_discriminator_stacks"],
+                conv_channels=64,
+                dilation_factor=1,
+                nonlinear_activation="LeakyReLU",
+                nonlinear_activation_params={"negative_slope": 0.2},
+                bias=True,
+                use_weight_norm=True,
+            )
+        models.update({"D": D.to(device)})
+        logging.info(models["D"])
     return models
 
 
