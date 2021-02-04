@@ -158,6 +158,8 @@ class Feature(object):
                 hop_size=self.conf["hop_size"],
                 fmin=self.conf["fmin"],
                 fmax=self.conf["fmax"],
+                window=self.windows[win_type],
+                n_iters=self.conf["n_iteration"],
                 plot=True,
             )
 

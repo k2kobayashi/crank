@@ -85,9 +85,11 @@ def mlfb2wav(
     hop_size=220,
     fmin=80,
     fmax=7600,
+    window="hann",
+    n_iters=100,
 ):
-    spc = logmelspc_to_linearspc(mlfb, fs, n_mels, fftl, fmin=80, fmax=7600)
-    return griffin_lim(spc, fftl, hop_size, win_length, window="hann", n_iters=100)
+    spc = logmelspc_to_linearspc(mlfb, fs, n_mels, fftl, fmin=fmin, fmax=fmax)
+    return griffin_lim(spc, fftl, hop_size, win_length, window=window, n_iters=n_iters)
 
 
 def mlfb2wavf(
@@ -100,6 +102,8 @@ def mlfb2wavf(
     hop_size=220,
     fmin=80,
     fmax=7600,
+    window="hann",
+    n_iters=100,
     plot=False,
 ):
     Path(wavf).parent.mkdir(parents=True, exist_ok=True)
@@ -113,6 +117,8 @@ def mlfb2wavf(
             hop_size=hop_size,
             fmin=fmin,
             fmax=fmax,
+            window=window,
+            n_iters=n_iters,
         )
         sf.write(str(wavf), wav, fs)
     except librosa.util.exceptions.ParameterError:
@@ -204,6 +210,7 @@ def logmelspc_to_linearspc(lmspc, fs, n_mels, n_fft, fmin=None, fmax=None):
     """
     assert lmspc.shape[1] == n_mels
     EPS = 1e-10
+    print(fs, n_mels, n_fft, fmin)
     fmin = 0 if fmin is None else fmin
     fmax = fs / 2 if fmax is None else fmax
     mspc = np.power(10.0, lmspc)
