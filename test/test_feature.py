@@ -25,7 +25,8 @@ def test_feature():
     spkr_conf = load_yaml(spkrymlf)
     feat = Feature(datadir, conf["feature"], spkr_conf["SF1"])
     feat.analyze(
-        datadir / "SF1_10001.wav", synth_flag=True,
+        datadir / "SF1_10001.wav",
+        synth_flag=True,
     )
     (datadir / "SF1_10001.h5").unlink()
     (datadir / "SF1_10001_anasyn.wav").unlink()
@@ -36,14 +37,15 @@ def test_feature_8k():
     conf["feature"].update(
         {
             "fs": 8000,
-            "fftl": 256,
-            "fmin": 80,
-            "fmax": 3800,
-            "hop_size": 80,
+            "fftl": 1024,
+            "win_length": 160,
+            "fmin": 50,
+            "fmax": 4000,
+            "hop_size": 40,
             "mlfb_dim": 80,
         }
     )
     spkr_conf = load_yaml(datadir / "spkr.yml")
     feat = Feature(datadir, conf["feature"], spkr_conf["SF1"])
-    feat.analyze(datadir / "SF1_10001_8k.wav", synth_flag=False)
+    feat.analyze(datadir / "SF1_10001_8k.wav", synth_flag=True)
     (datadir / "SF1_10001_8k.h5").unlink()

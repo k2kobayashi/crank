@@ -47,7 +47,7 @@ class Feature(object):
 
             # analyze world features, cf0, uv, then synthesize
             self._analyze_world_features(x)
-            if synth_flag and self.conf["fftl"] != 256:
+            if synth_flag and self.conf["fftl"] != 256 and self.conf["fs"] != 8000:
                 self._synthesize_world_features(flbl)
 
             # save as hdf5
@@ -80,8 +80,7 @@ class Feature(object):
         )
         # analyze world based features
         self.feats["f0"], self.feats["spc"], self.feats["ap"] = feat.analyze(x)
-        self.feats["uv"], self.feats["cf0"] = convert_continuos_f0(
-            self.feats["f0"])
+        self.feats["uv"], self.feats["cf0"] = convert_continuos_f0(self.feats["f0"])
         self.feats["lf0"] = np.log(self.feats["f0"] + EPS)
         self.feats["lcf0"] = np.log(self.feats["cf0"])
         if f0_only:
@@ -89,8 +88,9 @@ class Feature(object):
 
         if self.conf["fftl"] != 256 and self.conf["fs"] > 16000:
             # NOTE: 256 fft_size sometimes causes errors
-            self.feats["mcep"] = feat.mcep(dim=self.conf["mcep_dim"],
-                                           alpha=self.conf["mcep_alpha"])
+            self.feats["mcep"] = feat.mcep(
+                dim=self.conf["mcep_dim"], alpha=self.conf["mcep_alpha"]
+            )
             self.feats["npow"] = feat.npow()
             self.feats["cap"] = feat.codeap()
             cap = self.feats["cap"]
@@ -105,9 +105,9 @@ class Feature(object):
 
     def _synthesize_world_features(self, flbl):
         # constract Synthesizer class
-        synthesizer = Synthesizer(fs=self.conf["fs"],
-                                  fftl=self.conf["fftl"],
-                                  shiftms=self.conf["shiftms"])
+        synthesizer = Synthesizer(
+            fs=self.conf["fs"], fftl=self.conf["fftl"], shiftms=self.conf["shiftms"]
+        )
 
         # analysis/synthesis using F0, mcep, and ap
         anasyn = synthesizer.synthesis(
@@ -133,7 +133,7 @@ class Feature(object):
                 self.conf["fs"],
                 hop_size=self.conf["hop_size"],
                 fft_size=self.conf["fftl"],
-                win_length=self.conf["fftl"],
+                win_length=self.conf["win_length"],
                 window=self.windows[win_type],
                 num_mels=self.conf["mlfb_dim"],
                 fmin=self.conf["fmin"],
@@ -154,6 +154,7 @@ class Feature(object):
                 fs=self.conf["fs"],
                 n_mels=self.conf["mlfb_dim"],
                 fftl=self.conf["fftl"],
+                win_length=self.conf["win_length"],
                 hop_size=self.conf["hop_size"],
                 fmin=self.conf["fmin"],
                 fmax=self.conf["fmax"],
@@ -165,25 +166,27 @@ class Feature(object):
         assert "hann" in self.conf["window_types"]
         for win_type in self.conf["window_types"]:
             if win_type == "hann":
-                win = sp.hann(self.conf["fftl"])
+                win = sp.hann(self.conf["win_length"])
             elif win_type == "hamming":
-                win = sp.hamming(self.conf["fftl"])
+                win = sp.hamming(self.conf["win_length"])
             elif win_type == "itu-g":
-                win = itug_729_window(self.conf["fftl"])
+                win = itug_729_window(self.conf["win_length"])
             self.windows[win_type] = win
 
 
 def itug_729_window(length):
     """ITU-G. 729 window function."""
+
     def cos_win(x, length):
         return np.cos((2 * np.pi * x) / (2 * length / 3 - 1))
 
     def hamming_win(x, length):
         return 0.54 - 0.46 * np.cos(
-            (2 * np.pi * (x - length / 6)) / (5 * length / 3 - 1))
+            (2 * np.pi * (x - length / 6)) / (5 * length / 3 - 1)
+        )
 
     win = np.zeros(length)
     arange = np.arange(length)
-    win[-(length // 6):] = cos_win(arange[:length // 6], length)
-    win[:-(length // 6)] = hamming_win(arange[length // 6:], length)
+    win[-(length // 6) :] = cos_win(arange[: length // 6], length)
+    win[: -(length // 6)] = hamming_win(arange[length // 6 :], length)
     return win
