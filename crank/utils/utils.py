@@ -210,7 +210,6 @@ def logmelspc_to_linearspc(lmspc, fs, n_mels, n_fft, fmin=None, fmax=None):
     """
     assert lmspc.shape[1] == n_mels
     EPS = 1e-10
-    print(fs, n_mels, n_fft, fmin)
     fmin = 0 if fmin is None else fmin
     fmax = fs / 2 if fmax is None else fmax
     mspc = np.power(10.0, lmspc)
