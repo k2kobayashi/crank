@@ -37,7 +37,8 @@ def TrainerWrapper(trainer_type, **ka):
         trainer = StarGANTrainer(**ka)
     else:
         raise NotImplementedError(
-            "conf['trainer_type']: {} is not supported.".format(trainer_type))
+            "conf['trainer_type']: {} is not supported.".format(trainer_type)
+        )
     return trainer
 
 
@@ -85,9 +86,7 @@ class BaseTrainer(object):
                 self.scheduler[k].step(self.steps)
 
         self.finish_train = False
-        self.tqdm = tqdm(initial=self.steps,
-                         total=self.conf["n_steps"],
-                         desc="train")
+        self.tqdm = tqdm(initial=self.steps, total=self.conf["n_steps"], desc="train")
 
     @abstractmethod
     def train(self):
@@ -129,9 +128,7 @@ class BaseTrainer(object):
         checkpoint = self.expdir / "checkpoint_{}steps.pkl".format(self.steps)
         state_dict = {
             "steps": self.steps,
-            "model": {
-                "G": self.model["G"].state_dict()
-            },
+            "model": {"G": self.model["G"].state_dict()},
         }
         for m in ["SPKRADV", "D", "C"]:
             if m in self.model.keys():
@@ -166,9 +163,11 @@ class BaseTrainer(object):
             self.check_custom_start()
 
     def _dev_step(self):
-        if (self.steps % self.conf["dev_steps"] == 0
-                and self.steps > self.conf["dev_steps"] - 1
-                and self.steps != self.resume_steps):
+        if (
+            self.steps % self.conf["dev_steps"] == 0
+            and self.steps > self.conf["dev_steps"] - 1
+            and self.steps != self.resume_steps
+        ):
             dev_loss_values = self._get_loss_dict()
             for dev_idx, batch in enumerate(self.dataloader["dev"]):
                 batch = to_device(batch, self.device)
@@ -178,9 +177,7 @@ class BaseTrainer(object):
             self._print_loss_values(dev_loss_values, phase="dev")
 
     def _eval_steps(self):
-        eval_tqdm = tqdm(initial=0,
-                         total=len(self.dataloader["eval"]),
-                         desc="eval")
+        eval_tqdm = tqdm(initial=0, total=len(self.dataloader["eval"]), desc="eval")
         for batch in self.dataloader["eval"]:
             batch = to_device(batch, self.device)
             self.eval(batch)
@@ -201,13 +198,7 @@ class BaseTrainer(object):
             recon_tqdm.close()
 
     def _get_loss_dict(self):
-        loss_dict = {
-            "objective": 0.0,
-            "G": 0.0,
-            "D": 0.0,
-            "C": 0.0,
-            "SPKRADV": 0.0
-        }
+        loss_dict = {"objective": 0.0, "G": 0.0, "D": 0.0, "C": 0.0, "SPKRADV": 0.0}
         return loss_dict
 
     def _parse_loss(self, loss):
@@ -230,13 +221,15 @@ class BaseTrainer(object):
         if self.steps % self.conf["n_steps_print_loss"] == 0:
             for k in loss.keys():
                 if isinstance(loss[k], torch.Tensor):
-                    self.writer[phase].add_scalar("loss/{}".format(k),
-                                                  loss[k].item(), self.steps)
+                    self.writer[phase].add_scalar(
+                        "loss/{}".format(k), loss[k].item(), self.steps
+                    )
             self.writer[phase].flush()
 
     def _check_save_model(self):
         if (self.resume_steps != self.steps) and (
-                self.steps % self.conf["n_steps_save_model"] == 0):
+            self.steps % self.conf["n_steps_save_model"] == 0
+        ):
             self.save_model()
 
     def _step_update(self):
@@ -261,8 +254,7 @@ class BaseTrainer(object):
             return None
 
     def _get_dec_h(self, batch, use_cvfeats=False, cv_spkr_name=None):
-        h, h_onehot = self._get_spkr_conditions(batch, cv_spkr_name,
-                                                use_cvfeats)
+        h, h_onehot = self._get_spkr_conditions(batch, cv_spkr_name, use_cvfeats)
         if self.conf["decoder_f0"]:
             f0 = self._get_f0_condition(batch, cv_spkr_name, use_cvfeats)
         else:
@@ -299,8 +291,7 @@ class BaseTrainer(object):
             spkr_num = self.spkrs[cv_spkr_name]
             h_onehot_np = create_one_hot(T, self.n_spkrs, spkr_num, B=B)
             h_onehot = torch.tensor(h_onehot_np).to(self.device)
-            h = (torch.ones(
-                (B, T)).long() * self.spkrs[cv_spkr_name]).to(self.device)
+            h = (torch.ones((B, T)).long() * self.spkrs[cv_spkr_name]).to(self.device)
         else:
             if use_cvfeats:
                 # use randomly selected cv speaker by dataset
@@ -316,10 +307,10 @@ class BaseTrainer(object):
     def _get_cvf0(self, batch, spkr_name):
         cv_lcf0s = []
         for n in range(batch["in_feats"].size(0)):
-            org_lcf0 = self.scaler["lcf0"].inverse_transform(
-                to_numpy(batch["lcf0"][n]))
-            cv_lcf0 = convert_f0(self.scaler, org_lcf0,
-                                 batch["org_spkr_name"][n], spkr_name)
+            org_lcf0 = self.scaler["lcf0"].inverse_transform(to_numpy(batch["lcf0"][n]))
+            cv_lcf0 = convert_f0(
+                self.scaler, org_lcf0, batch["org_spkr_name"][n], spkr_name
+            )
             normed_cv_lcf0 = self.scaler["lcf0"].transform(cv_lcf0)
             cv_lcf0s.append(torch.tensor(normed_cv_lcf0))
         return torch.stack(cv_lcf0s, dim=0).float().to(self.device)
@@ -337,8 +328,7 @@ class BaseTrainer(object):
         tdir = self.expdir / tdir / str(self.steps)
         feats = self._store_features(batch, outputs, cv_spkr_name, tdir)
         if not (n_samples == -1 or n_samples > len(feats.keys())):
-            feats = dict(
-                (k, feats[k]) for k in random.sample(feats.keys(), n_samples))
+            feats = dict((k, feats[k]) for k in random.sample(feats.keys(), n_samples))
         for k in feats.keys():
             Path(k).parent.mkdir(parents=True, exist_ok=True)
         if save_hdf5:
@@ -372,10 +362,8 @@ class BaseTrainer(object):
                 if not self.conf["use_mcep_0th"]:
                     org_mcep_0th = to_numpy(batch["mcep_0th"][n][:flen])
                     org_mcep = to_numpy(batch["in_feats"][n][:flen])
-                    feat = np.ascontiguousarray(np.hstack([org_mcep_0th,
-                                                           feat]))
-                    rmcep = np.ascontiguousarray(
-                        np.hstack([org_mcep_0th, org_mcep]))
+                    feat = np.ascontiguousarray(np.hstack([org_mcep_0th, feat]))
+                    rmcep = np.ascontiguousarray(np.hstack([org_mcep_0th, org_mcep]))
                     feats[wavf]["rmcep"] = inv_trans(feat_type, rmcep)
                 else:
                     feats[wavf]["rmcep"] = None
@@ -394,43 +382,50 @@ class BaseTrainer(object):
         return feats
 
     def _save_decoded_to_hdf5(self, feats):
-        type_features = [
-            "feats", "normed_feat", "f0", "lcf0", "normed_lcf0", "uv"
-        ]
+        type_features = ["feats", "normed_feat", "f0", "lcf0", "normed_lcf0", "uv"]
         if self.conf["output_feat_type"] == "mcep":
             type_features += ["cap"]
         for k in type_features:
-            Parallel(n_jobs=self.n_jobs)([
-                delayed(feat2hdf5)(feat[k], path, ext=k)
-                for path, feat in feats.items()
-            ])
+            Parallel(n_jobs=self.n_jobs)(
+                [
+                    delayed(feat2hdf5)(feat[k], path, ext=k)
+                    for path, feat in feats.items()
+                ]
+            )
 
     def _save_decoded_mlfb(self, feats):
-        Parallel(n_jobs=self.n_jobs)([
-            delayed(mlfb2wavf)(
-                feats[wavf]["feats"],
-                wavf,
-                fs=self.feat_conf["fs"],
-                n_mels=self.feat_conf["mlfb_dim"],
-                fftl=self.feat_conf["fftl"],
-                hop_size=self.feat_conf["hop_size"],
-                fmin=self.feat_conf["fmin"],
-                fmax=self.feat_conf["fmax"],
-                plot=True,
-            ) for wavf in feats.keys()
-        ])
+        Parallel(n_jobs=self.n_jobs)(
+            [
+                delayed(mlfb2wavf)(
+                    feats[wavf]["feats"],
+                    wavf,
+                    fs=self.feat_conf["fs"],
+                    n_mels=self.feat_conf["mlfb_dim"],
+                    fftl=self.feat_conf["fftl"],
+                    win_length=self.feat_conf["win_length"],
+                    hop_size=self.feat_conf["hop_size"],
+                    fmin=self.feat_conf["fmin"],
+                    fmax=self.feat_conf["fmax"],
+                    plot=True,
+                )
+                for wavf in feats.keys()
+            ]
+        )
 
     def _save_decoded_world(self, feats):
-        Parallel(n_jobs=self.n_jobs)([
-            delayed(world2wav)(
-                feats[k]["f0"][:, 0].astype(np.float64),
-                feats[k]["feats"].astype(np.float64),
-                feats[k]["cap"].astype(np.float64),
-                rmcep=feats[k]["rmcep"].astype(np.float64),
-                wavf=k,
-                fs=self.conf["feature"]["fs"],
-                fftl=self.conf["feature"]["fftl"],
-                shiftms=self.conf["feature"]["shiftms"],
-                alpha=self.conf["feature"]["mcep_alpha"],
-            ) for k in feats.keys()
-        ])
+        Parallel(n_jobs=self.n_jobs)(
+            [
+                delayed(world2wav)(
+                    feats[k]["f0"][:, 0].astype(np.float64),
+                    feats[k]["feats"].astype(np.float64),
+                    feats[k]["cap"].astype(np.float64),
+                    rmcep=feats[k]["rmcep"].astype(np.float64),
+                    wavf=k,
+                    fs=self.conf["feature"]["fs"],
+                    fftl=self.conf["feature"]["fftl"],
+                    shiftms=self.conf["feature"]["shiftms"],
+                    alpha=self.conf["feature"]["mcep_alpha"],
+                )
+                for k in feats.keys()
+            ]
+        )
