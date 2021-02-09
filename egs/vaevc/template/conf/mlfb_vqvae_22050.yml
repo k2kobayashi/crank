@@ -109,8 +109,10 @@ n_cycles: 1                    # # cycles of cyclic architecture
 n_steps_gan_start: 100000      # # of steps to start adv training
 gan_type: lsgan                # type of GAN ['lsgan']
 use_residual_network: true     # use ResidualParallelWaveGANDiscriminator
-n_discriminator_layers: 8      # # of discriminator layers
+n_discriminator_layers: 2      # # of discriminator layers
+n_discriminator_stacks: 4      # # of stacks for Discriminator
 discriminator_kernel_size: 5   # kernel_size for discriminator
+discriminator_dropout: 0.25    # dropout rate if use_residual_network
 train_first: D                 # updated first ['G', 'D']
 cvadv_flag: false              # calculate adv_loss using converted or reconstructed
 acgan_flag: false              # add additional classifier to discriminator
