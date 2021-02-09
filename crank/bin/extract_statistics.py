@@ -58,7 +58,11 @@ def main():
     scaler = {}
 
     # speaker independent scaler extraction
-    feats = ["mlfb", "mcep", "lcf0"]
+    feats = ["mlfb", "lcf0"]
+    # NOTE: need to be improved, require smart way
+    if conf["feature"]["fs"] != 8000:
+        feats.append("mcep")
+
     for win_type in conf["feature"]["window_types"]:
         if win_type != "hann":
             feats += [f"mlfb_{win_type}"]
