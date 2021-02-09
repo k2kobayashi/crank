@@ -33,9 +33,7 @@ class BaseDataset(Dataset):
         self.scaler = scaler
         self.batch_len = self.conf["batch_len"]
 
-        self.features = [
-            self.conf["input_feat_type"], self.conf["output_feat_type"]
-        ]
+        self.features = [self.conf["input_feat_type"], self.conf["output_feat_type"]]
         self.features += ["lcf0", "uv"]
         if "mcep" in self.features:
             self.features += ["cap"]
@@ -75,19 +73,20 @@ class BaseDataset(Dataset):
         sample = {}
         sample = self._read_features(sample, h5f)
         sample["flbl"] = str(
-            Path(Path(self.h5list[idx]).parent.stem) /
-            Path(self.h5list[idx]).stem)
+            Path(Path(self.h5list[idx]).parent.stem) / Path(self.h5list[idx]).stem
+        )
         sample["org_spkr_name"] = str(Path(h5f).parent.stem)
-        sample["cv_spkr_name"] = random.choice([
-            s for s in list(self.spkrdict.keys())
-            if s != sample["org_spkr_name"]
-        ])
+        sample["cv_spkr_name"] = random.choice(
+            [s for s in list(self.spkrdict.keys()) if s != sample["org_spkr_name"]]
+        )
         sample["flen"] = sample[self.conf["input_feat_type"]].shape[0]
         sample["mask"] = np.ones(sample["flen"], dtype=bool)[:, np.newaxis]
         sample["org_h_onehot"], sample["org_h"] = self._get_spkrcode(
-            sample["org_spkr_name"], sample["flen"])
+            sample["org_spkr_name"], sample["flen"]
+        )
         sample["cv_h_onehot"], sample["cv_h"] = self._get_spkrcode(
-            sample["cv_spkr_name"], sample["flen"])
+            sample["cv_spkr_name"], sample["flen"]
+        )
         sample["cv_lcf0"] = convert_f0(
             self.scaler,
             sample["lcf0"],
@@ -105,27 +104,27 @@ class BaseDataset(Dataset):
             sample["mcep_0th"] = sample["mcep"][..., :1]
             sample["mcep"] = sample["mcep"][..., 1:]
         if sample[self.conf["output_feat_type"]] == "excit":
-            sample["excit"] = np.hstack(sample["lcf0"], sample["uv"],
-                                        sample["cap"])
+            sample["excit"] = np.hstack(sample["lcf0"], sample["uv"], sample["cap"])
         if self.conf["spec_augment"]:
             raise NotImplementedError("SpecAugument currently disabled.")
             sample["spec_augment"] = self._spec_augment(
-                sample[self.conf["input_feat_type"]])
+                sample[self.conf["input_feat_type"]]
+            )
         sample = self._zero_padding(sample)
         for ed in [
-                "encoder_mask",
-                "decoder_mask",
-                "cycle_encoder_mask",
-                "cycle_decoder_mask",
+            "encoder_mask",
+            "decoder_mask",
+            "cycle_encoder_mask",
+            "cycle_decoder_mask",
         ]:
             sample[ed] = np.copy(sample["mask"])
         if self.conf["causal"]:
             er = self.conf["encoder_receptive_size"]
             dr = self.conf["decoder_receptive_size"]
             sample["encoder_mask"][:er] = False
-            sample["decoder_mask"][:er + dr] = False
-            sample["cycle_encoder_mask"][:er * 2 + dr] = False
-            sample["cycle_decoder_mask"][:(er + dr) * 2] = False
+            sample["decoder_mask"][: er + dr] = False
+            sample["cycle_encoder_mask"][: er * 2 + dr] = False
+            sample["cycle_decoder_mask"][: (er + dr) * 2] = False
         del sample["mask"]
         return sample
 
@@ -163,27 +162,23 @@ class BaseDataset(Dataset):
             if isinstance(v, np.ndarray):
                 if k in ["org_h", "cv_h"]:
                     # padding -100 for ignore_index
-                    sample[k] = padding(v,
-                                        dlen,
-                                        self.batch_len,
-                                        value=-100,
-                                        p=p).astype(np.long)
+                    sample[k] = padding(
+                        v, dlen, self.batch_len, value=-100, p=p
+                    ).astype(np.long)
                 elif k in ["mask"]:
-                    sample[k] = padding(v,
-                                        dlen,
-                                        self.batch_len,
-                                        value=False,
-                                        p=p).astype(bool)
+                    sample[k] = padding(
+                        v, dlen, self.batch_len, value=False, p=p
+                    ).astype(bool)
                 else:
                     # padding 0 for continuous values
-                    sample[k] = padding(v,
-                                        dlen,
-                                        self.batch_len,
-                                        value=0.0,
-                                        p=p).astype(np.float32)
-                assert (sample[k].shape[0] == self.batch_len
-                        ), "ERROR in padding: {}, dlen{}, p{}, v{}".format(
-                            k, dlen, p, sample[k].shape[0])
+                    sample[k] = padding(v, dlen, self.batch_len, value=0.0, p=p).astype(
+                        np.float32
+                    )
+                assert (
+                    sample[k].shape[0] == self.batch_len
+                ), "ERROR in padding: {}, dlen{}, p{}, v{}".format(
+                    k, dlen, p, sample[k].shape[0]
+                )
         return sample
 
     def _spec_augment(self, feats):
@@ -201,8 +196,8 @@ def apply_tfmask(feats, max_bin=27, max_time=100):
     t_point = random.randint(0, flen - t_mask)
 
     mask = np.ones((flen, dim), dtype="d")
-    mask[:, d_point:d_point + d_mask] = 0
-    mask[t_point:t_point + t_mask] = 0
+    mask[:, d_point : d_point + d_mask] = 0
+    mask[t_point : t_point + t_mask] = 0
     return feats * mask
 
 
@@ -231,15 +226,14 @@ def padding(x, dlen, batch_len, value=0.0, p=0):
         actual_dlen = batch_len - x.shape[0]
         if actual_dlen != 0:
             if len(x.shape) == 2:
-                x = np.concatenate(
-                    [x, np.ones((actual_dlen, x.shape[1])) * value])
+                x = np.concatenate([x, np.ones((actual_dlen, x.shape[1])) * value])
             elif len(x.shape) == 1:
                 x = np.concatenate([x, np.ones((actual_dlen)) * value])
         else:
             return x
     elif dlen < 0:
         # discard
-        x = x[p:p + batch_len]
+        x = x[p : p + batch_len]
     return x
 
 
@@ -254,5 +248,5 @@ def calculate_maxflen(flist):
 
 def convert_f0(scaler, lcf0, org_spkr_name, cv_spkr_name):
     return (lcf0 - scaler[org_spkr_name]["lcf0"].mean_) / np.sqrt(
-        scaler[org_spkr_name]["lcf0"].var_) * np.sqrt(scaler[cv_spkr_name][
-            "lcf0"].var_) + scaler[cv_spkr_name]["lcf0"].mean_
+        scaler[org_spkr_name]["lcf0"].var_
+    ) * np.sqrt(scaler[cv_spkr_name]["lcf0"].var_) + scaler[cv_spkr_name]["lcf0"].mean_

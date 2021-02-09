@@ -12,14 +12,14 @@ Extract speaker-independent statistics
 """
 
 import argparse
+import logging
+from pathlib import Path
+
 import h5py
 import joblib
-import logging
 import numpy as np
-from pathlib import Path
+from crank.utils import load_yaml, open_featsscp, open_scpdir
 from sklearn.preprocessing import StandardScaler
-
-from crank.utils import load_yaml, open_scpdir, open_featsscp
 
 logging.basicConfig(level=logging.INFO)
 

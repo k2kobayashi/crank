@@ -70,14 +70,10 @@ class VQVAETrainer(BaseTrainer):
     @torch.no_grad()
     def dev(self, batch):
         loss_values = self.train(batch, phase="dev")
-        for cv_spkr_name in random.sample(list(self.spkrs.keys()),
-                                          self.n_cv_spkrs):
+        for cv_spkr_name in random.sample(list(self.spkrs.keys()), self.n_cv_spkrs):
             enc_h = self._get_enc_h(batch)
             dec_h, spkrvec = self._get_dec_h(batch, cv_spkr_name=cv_spkr_name)
-            outputs = self.model["G"](batch["in_feats"],
-                                      enc_h,
-                                      dec_h,
-                                      spkrvec=spkrvec)
+            outputs = self.model["G"](batch["in_feats"], enc_h, dec_h, spkrvec=spkrvec)
             self._generate_cvwav(
                 batch,
                 outputs,
@@ -92,10 +88,9 @@ class VQVAETrainer(BaseTrainer):
     def reconstruction(self, batch, tdir="reconstruction"):
         enc_h = self._get_enc_h(batch)
         dec_h, spkrvec = self._get_dec_h(batch, cv_spkr_name=None)
-        outputs = self.model["G"].forward(batch["in_feats"],
-                                          enc_h,
-                                          dec_h,
-                                          spkrvec=spkrvec)
+        outputs = self.model["G"].forward(
+            batch["in_feats"], enc_h, dec_h, spkrvec=spkrvec
+        )
         self._generate_cvwav(
             batch,
             outputs,
@@ -111,10 +106,7 @@ class VQVAETrainer(BaseTrainer):
         for cv_spkr_name in self.spkrs.keys():
             enc_h = self._get_enc_h(batch)
             dec_h, spkrvec = self._get_dec_h(batch, cv_spkr_name=cv_spkr_name)
-            outputs = self.model["G"](batch["in_feats"],
-                                      enc_h,
-                                      dec_h,
-                                      spkrvec=spkrvec)
+            outputs = self.model["G"](batch["in_feats"], enc_h, dec_h, spkrvec=spkrvec)
             self._generate_cvwav(
                 batch,
                 outputs,
@@ -133,11 +125,9 @@ class VQVAETrainer(BaseTrainer):
         loss = self.calculate_vqvae_loss(batch, outputs, loss)
 
         if self.conf["use_spkradv_training"]:
-            loss = self.calculate_spkradv_loss(batch,
-                                               outputs,
-                                               loss,
-                                               label="org",
-                                               phase=phase)
+            loss = self.calculate_spkradv_loss(
+                batch, outputs, loss, label="org", phase=phase
+            )
 
         loss["objective"] += loss["G"]
         if phase == "train":
@@ -151,21 +141,18 @@ class VQVAETrainer(BaseTrainer):
         dec_h, spkrvec = self._get_dec_h(batch)
         dec_h_cv, spkrvec_cv = self._get_dec_h(batch, use_cvfeats=True)
         feats = batch["in_feats"]
-        cycle_outputs = self.model["G"].cycle_forward(feats, enc_h, dec_h,
-                                                      enc_h_cv, dec_h_cv,
-                                                      spkrvec, spkrvec_cv)
+        cycle_outputs = self.model["G"].cycle_forward(
+            feats, enc_h, dec_h, enc_h_cv, dec_h_cv, spkrvec, spkrvec_cv
+        )
         if self.conf["use_vqvae_loss"]:
-            loss = self.calculate_vqvae_loss(batch, cycle_outputs[0]["org"],
-                                             loss)
+            loss = self.calculate_vqvae_loss(batch, cycle_outputs[0]["org"], loss)
         loss = self.calculate_cyclevqvae_loss(batch, cycle_outputs, loss)
 
         if self.conf["use_spkradv_training"]:
             for label in ["cv", "recon"]:
-                loss = self.calculate_spkradv_loss(batch,
-                                                   cycle_outputs[0][label],
-                                                   loss,
-                                                   label=label,
-                                                   phase=phase)
+                loss = self.calculate_spkradv_loss(
+                    batch, cycle_outputs[0][label], loss, label=label, phase=phase
+                )
 
         loss["objective"] += loss["G"]
         if phase == "train":
@@ -177,10 +164,7 @@ class VQVAETrainer(BaseTrainer):
             enc_h = self._get_enc_h(batch)
             dec_h, spkrvec = self._get_dec_h(batch)
             feats = batch["in_feats"]
-            outputs = self.model["G"].forward(feats,
-                                              enc_h,
-                                              dec_h,
-                                              spkrvec=spkrvec)
+            outputs = self.model["G"].forward(feats, enc_h, dec_h, spkrvec=spkrvec)
             if self.conf["causal"]:
                 # discard causal area
                 er = self.model["G"].encoder_receptive_size
@@ -228,11 +212,14 @@ class VQVAETrainer(BaseTrainer):
         target = batch["out_feats"]
         decoded = outputs["decoded"]
         loss["G_l1"] = self.criterion["fl1"](
-            decoded, target, mask=dmask, causal_size=self.conf["causal_size"])
+            decoded, target, mask=dmask, causal_size=self.conf["causal_size"]
+        )
         loss["G_mse"] = self.criterion["fmse"](
-            decoded, target, mask=dmask, causal_size=self.conf["causal_size"])
+            decoded, target, mask=dmask, causal_size=self.conf["causal_size"]
+        )
         loss["G_stft"] = self.criterion["fstft"](
-            decoded, target, causal_size=self.conf["causal_size"])
+            decoded, target, causal_size=self.conf["causal_size"]
+        )
 
         # loss for vq
         encoded = outputs["encoded"]
@@ -273,8 +260,7 @@ class VQVAETrainer(BaseTrainer):
                     dmask = batch["cycle_decoder_mask"]
                     target = batch["in_feats"]
                     decoded = o["decoded"]
-                    cs = self.conf["causal_size"] * 2 if self.conf[
-                        "causal"] else 0
+                    cs = self.conf["causal_size"] * 2 if self.conf["causal"] else 0
                     loss[f"G_l1_{lbl}"] = self.criterion["fl1"](
                         decoded,
                         target,
@@ -288,7 +274,8 @@ class VQVAETrainer(BaseTrainer):
                         causal_size=cs,
                     )
                     loss[f"G_stft_{lbl}"] = self.criterion["fstft"](
-                        decoded, target, causal_size=cs)
+                        decoded, target, causal_size=cs
+                    )
 
                 for n in range(self.conf["n_vq_stacks"]):
                     loss[f"G_commit{n}_{lbl}"] = self.criterion["mse"](
@@ -303,12 +290,7 @@ class VQVAETrainer(BaseTrainer):
         loss = self._parse_cyclevqvae_loss(loss)
         return loss
 
-    def calculate_spkradv_loss(self,
-                               batch,
-                               outputs,
-                               loss,
-                               label="org",
-                               phase="train"):
+    def calculate_spkradv_loss(self, batch, outputs, loss, label="org", phase="train"):
         if self.conf["causal"]:
             # discard causal area
             er = self.model["G"].encoder_receptive_size
@@ -324,9 +306,11 @@ class VQVAETrainer(BaseTrainer):
         if not label == "recon":
             loss["G"] += self.conf["alpha"]["ce"] * loss[f"G_spkradv_{label}"]
         else:
-            loss["G"] += (self.conf["alpha"]["cycle"] *
-                          self.conf["alpha"]["ce"] *
-                          loss[f"G_spkradv_{label}"])
+            loss["G"] += (
+                self.conf["alpha"]["cycle"]
+                * self.conf["alpha"]["ce"]
+                * loss[f"G_spkradv_{label}"]
+            )
         return loss
 
     def _parse_vqvae_loss(self, loss):
@@ -348,28 +332,37 @@ class VQVAETrainer(BaseTrainer):
             for io in ["cv", "recon"]:
                 lbl = f"{c}cyc_{io}"
                 for n in range(self.conf["n_vq_stacks"]):
-                    loss["G"] += (alpha_cycle * self.conf["alpha"]["commit"] *
-                                  loss[f"G_commit{n}_{lbl}"])
+                    loss["G"] += (
+                        alpha_cycle
+                        * self.conf["alpha"]["commit"]
+                        * loss[f"G_commit{n}_{lbl}"]
+                    )
                     if not self.conf["ema_flag"]:
-                        loss["G"] += (alpha_cycle *
-                                      self.conf["alpha"]["dict"] *
-                                      loss[f"G_dict{n}_{lbl}"])
+                        loss["G"] += (
+                            alpha_cycle
+                            * self.conf["alpha"]["dict"]
+                            * loss[f"G_dict{n}_{lbl}"]
+                        )
 
                 if io == "recon":
                     for k in ["l1", "mse", "stft"]:
-                        loss["G"] += (alpha_cycle * self.conf["alpha"][k] *
-                                      loss[f"G_{k}_{lbl}"])
+                        loss["G"] += (
+                            alpha_cycle * self.conf["alpha"][k] * loss[f"G_{k}_{lbl}"]
+                        )
                 elif io == "cv":
-                    loss["G"] += (alpha_cycle * self.conf["alpha"]["ce"] *
-                                  loss[f"C_fake_{lbl}"])
+                    loss["G"] += (
+                        alpha_cycle * self.conf["alpha"]["ce"] * loss[f"C_fake_{lbl}"]
+                    )
         return loss
 
     def _check_cycle_start(self):
-        if (self.conf["use_cyclic_training"]
-                and self.steps > self.conf["n_steps_cycle_start"]):
+        if (
+            self.conf["use_cyclic_training"]
+            and self.steps > self.conf["n_steps_cycle_start"]
+        ):
             self.cycle_flag = True
 
-        if self.conf["use_cyclic_training"] and not self.conf[
-                "use_spkr_classifier"]:
+        if self.conf["use_cyclic_training"] and not self.conf["use_spkr_classifier"]:
             raise ValueError(
-                "use_cyclic_training requires use_spkr_classifier to be true")
+                "use_cyclic_training requires use_spkr_classifier to be true"
+            )

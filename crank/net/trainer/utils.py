@@ -21,20 +21,13 @@ from torch.utils.data import DataLoader
 
 def get_criterion(conf, device="cuda"):
     criterion = {
-        "mse":
-        nn.MSELoss(),
-        "l1":
-        nn.L1Loss(),
-        "ce":
-        nn.CrossEntropyLoss(ignore_index=-100),
-        "kld":
-        nn.KLDivLoss(reduction="mean"),
-        "fmse":
-        CustomFeatureLoss(loss_type="mse", causal=conf["causal"]),
-        "fl1":
-        CustomFeatureLoss(loss_type="l1", causal=conf["causal"]),
-        "fstft":
-        CustomFeatureLoss(
+        "mse": nn.MSELoss(),
+        "l1": nn.L1Loss(),
+        "ce": nn.CrossEntropyLoss(ignore_index=-100),
+        "kld": nn.KLDivLoss(reduction="mean"),
+        "fmse": CustomFeatureLoss(loss_type="mse", causal=conf["causal"]),
+        "fl1": CustomFeatureLoss(loss_type="l1", causal=conf["causal"]),
+        "fstft": CustomFeatureLoss(
             loss_type="stft",
             stft_params=conf["stft_params"],
             causal=conf["causal"],
@@ -58,8 +51,9 @@ def get_optimizer(conf, model):
     optimizer = {}
     for m in ["G", "D", "C", "SPKRADV"]:
         if m in model:
-            opt = return_optim(model[m], conf["optim"][m]["type"],
-                               conf["optim"][m]["lr"])
+            opt = return_optim(
+                model[m], conf["optim"][m]["type"], conf["optim"][m]["lr"]
+            )
             optimizer[m] = opt
     return optimizer
 
@@ -83,7 +77,8 @@ def get_scheduler(conf, optimizer):
 def get_dataloader(conf, scp, scaler, flag="train", n_jobs=10):
     if flag in ["train", "reconstruction"]:
         feats = list(scp["train"]["feats"].values()) + list(
-            scp["dev"]["feats"].values())
+            scp["dev"]["feats"].values()
+        )
     elif flag in ["eval"]:
         feats = list(scp["eval"]["feats"].values())
 
@@ -97,21 +92,15 @@ def get_dataloader(conf, scp, scaler, flag="train", n_jobs=10):
     dev_dataset = BaseDataset(conf, scp, phase="dev", scaler=scaler)
     eval_dataset = BaseDataset(conf, scp, phase="eval", scaler=scaler)
     dataloader = {
-        "spkrs":
-        spkrs,
-        "train":
-        DataLoader(tr_dataset,
-                   batch_size=conf["batch_size"],
-                   shuffle=True,
-                   num_workers=n_jobs),
-        "dev":
-        DataLoader(dev_dataset,
-                   batch_size=conf["batch_size"],
-                   shuffle=True,
-                   num_workers=n_jobs),
-        "eval":
-        DataLoader(eval_dataset,
-                   batch_size=conf["batch_size"],
-                   num_workers=n_jobs),
+        "spkrs": spkrs,
+        "train": DataLoader(
+            tr_dataset, batch_size=conf["batch_size"], shuffle=True, num_workers=n_jobs
+        ),
+        "dev": DataLoader(
+            dev_dataset, batch_size=conf["batch_size"], shuffle=True, num_workers=n_jobs
+        ),
+        "eval": DataLoader(
+            eval_dataset, batch_size=conf["batch_size"], num_workers=n_jobs
+        ),
     }
     return dataloader
