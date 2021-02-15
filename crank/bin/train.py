@@ -24,19 +24,24 @@ import torch
 from crank.net.module.spkradv import SpeakerAdversarialNetwork
 from crank.net.module.vqvae2 import VQVAE2
 from crank.net.trainer import TrainerWrapper
-from crank.net.trainer.utils import (get_criterion, get_dataloader,
-                                     get_optimizer, get_scheduler)
+from crank.net.trainer.utils import (
+    get_criterion,
+    get_dataloader,
+    get_optimizer,
+    get_scheduler,
+)
 from crank.utils import load_yaml, open_featsscp, open_scpdir
-from parallel_wavegan.models import (ParallelWaveGANDiscriminator,
-                                     ResidualParallelWaveGANDiscriminator)
+from parallel_wavegan.models import (
+    ParallelWaveGANDiscriminator,
+    ResidualParallelWaveGANDiscriminator,
+)
 from tensorboardX import SummaryWriter
 
 warnings.simplefilter(action="ignore")
 logging.basicConfig(
     level=logging.INFO,
     stream=sys.stdout,
-    format="%(asctime)s (%(module)s:%(lineno)d) "
-    "%(levelname)s: %(message)s",
+    format="%(asctime)s (%(module)s:%(lineno)d) " "%(levelname)s: %(message)s",
 )
 
 # Fix random variables
@@ -103,8 +108,7 @@ def get_model(conf, spkr_size=0, device="cuda"):
                 in_channels=input_channels,
                 out_channels=output_channels,
                 kernel_size=conf["discriminator_kernel_size"],
-                layers=conf["n_discriminator_layers"] *
-                conf["n_discriminator_stacks"],
+                layers=conf["n_discriminator_layers"] * conf["n_discriminator_stacks"],
                 stacks=conf["n_discriminator_stacks"],
                 dropout=conf["discriminator_dropout"],
             )
@@ -113,8 +117,7 @@ def get_model(conf, spkr_size=0, device="cuda"):
                 in_channels=input_channels,
                 out_channels=output_channels,
                 kernel_size=conf["discriminator_kernel_size"],
-                layers=conf["n_discriminator_layers"] *
-                ["n_discriminator_stacks"],
+                layers=conf["n_discriminator_layers"] * ["n_discriminator_stacks"],
                 conv_channels=64,
                 dilation_factor=1,
                 nonlinear_activation="LeakyReLU",
@@ -142,18 +145,13 @@ def main():
     # options for python
     description = "Train VQ-VAE model"
     parser = argparse.ArgumentParser(description=description)
-    parser.add_argument("--flag",
-                        help='flag ["train", "eval", "reconstruction"]')
+    parser.add_argument("--flag", help='flag ["train", "eval", "reconstruction"]')
     parser.add_argument("--n_jobs", type=int, default=-1, help="# of CPUs")
-    parser.add_argument("--conf",
-                        type=str,
-                        help="yaml file for network parameters")
+    parser.add_argument("--conf", type=str, help="yaml file for network parameters")
     parser.add_argument("--checkpoint", type=str, default=None, help="Resume")
     parser.add_argument("--scpdir", type=str, help="scp directory")
     parser.add_argument("--featdir", type=str, help="output feature directory")
-    parser.add_argument("--featsscp",
-                        type=str,
-                        help="specify feats.scp not scpdir")
+    parser.add_argument("--featsscp", type=str, help="specify feats.scp not scpdir")
     parser.add_argument("--expdir", type=str, help="exp directory")
     args = parser.parse_args()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -192,22 +190,20 @@ def main():
             model, resume = load_checkpoint(model, checkpoint)
     conf["encoder_receptive_size"] = model["G"].encoder_receptive_size
     conf["decoder_receptive_size"] = model["G"].decoder_receptive_size
-    logging.info("encoder and decoder receptive_size: {}, {}".format(
-        conf["encoder_receptive_size"], conf["decoder_receptive_size"]))
+    logging.info(
+        "encoder and decoder receptive_size: {}, {}".format(
+            conf["encoder_receptive_size"], conf["decoder_receptive_size"]
+        )
+    )
 
     # load others
     scaler = joblib.load(featdir / "scaler.pkl")
     optimizer = get_optimizer(conf, model)
     criterion = get_criterion(conf)
-    dataloader = get_dataloader(conf,
-                                scp,
-                                scaler,
-                                n_jobs=args.n_jobs,
-                                flag=args.flag)
+    dataloader = get_dataloader(conf, scp, scaler, n_jobs=args.n_jobs, flag=args.flag)
     scheduler = get_scheduler(conf, optimizer)
     writer = {
-        "train":
-        SummaryWriter(logdir=args.expdir + "/runs/train-" + expdir.name),
+        "train": SummaryWriter(logdir=args.expdir + "/runs/train-" + expdir.name),
         "dev": SummaryWriter(logdir=args.expdir + "/runs/dev-" + expdir.name),
     }
 

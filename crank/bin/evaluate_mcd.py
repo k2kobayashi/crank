@@ -85,11 +85,15 @@ def main():
     parser.add_argument("--conf", type=str, help="configuration file")
     parser.add_argument("--spkr_conf", type=str, help="speaker configuration file")
     parser.add_argument(
-        "--featdir", type=str, help="root directory of ground truth h5",
+        "--featdir",
+        type=str,
+        help="root directory of ground truth h5",
     )
     parser.add_argument("--outwavdir", type=str, help="converted waveform directory")
     parser.add_argument(
-        "--out", type=str, help="if omitted, then output to sys.stdout",
+        "--out",
+        type=str,
+        help="if omitted, then output to sys.stdout",
     )
     parser.add_argument("--n_jobs", default=1, type=int, help="number of parallel jobs")
     args = parser.parse_args()

@@ -11,8 +11,10 @@
 
 import torch
 import torch.nn as nn
-from parallel_wavegan.models import (ParallelWaveGANDiscriminator,
-                                     ResidualParallelWaveGANDiscriminator)
+from parallel_wavegan.models import (
+    ParallelWaveGANDiscriminator,
+    ResidualParallelWaveGANDiscriminator,
+)
 
 
 class SpeakerAdversarialNetwork(nn.Module):
@@ -45,7 +47,7 @@ class SpeakerAdversarialNetwork(nn.Module):
         #     )
         # else:
         self.classifier = ParallelWaveGANDiscriminator(
-            in_channels=sum(self.conf["emb_dim"][:self.conf["n_vq_stacks"]]),
+            in_channels=sum(self.conf["emb_dim"][: self.conf["n_vq_stacks"]]),
             out_channels=self.spkr_size,
             kernel_size=self.conf["spkradv_kernel_size"],
             layers=self.conf["n_spkradv_layers"],
@@ -66,7 +68,7 @@ class GradientReversalFunction(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, grad_backward):
-        (scale, ) = ctx.saved_tensors
+        (scale,) = ctx.saved_tensors
         return scale * -grad_backward, None
 
 
