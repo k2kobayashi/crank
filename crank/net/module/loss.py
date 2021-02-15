@@ -5,8 +5,6 @@
 # Copyright (c) 2020 Kazuhiro KOBAYASHI <root.4mac@gmail.com>
 #
 # Distributed under terms of the MIT license.
-
-
 """
 CustomFeature Loss and Multi-resolution STFT Loss
 
@@ -18,10 +16,10 @@ import torch.nn.functional as F
 
 
 class CustomFeatureLoss(nn.Module):
-    def __init__(self, loss_type="l1", causal_size=0, stft_params={}, device="cuda"):
+    def __init__(self, loss_type="l1", causal=False, stft_params={}, device="cuda"):
         super(CustomFeatureLoss, self).__init__()
         self.loss_type = loss_type
-        self.causal_size = causal_size
+        self.causal = causal
         if loss_type == "l1":
             self.loss_func = nn.L1Loss()
         elif loss_type == "mse":
@@ -29,18 +27,19 @@ class CustomFeatureLoss(nn.Module):
         elif loss_type == "stft":
             self.loss_func = MultiSizeSTFTLoss(**stft_params, device=device)
 
-    def forward(self, x, y, mask=None):
-        if self.causal_size > 0:
-            x = x[:, self.causal_size :]
-            y = y[:, : -self.causal_size]
-            if mask is not None:
-                mask = mask[:, self.causal_size :]
-        elif self.causal_size < 0:
-            cs = -self.causal_size
-            y = y[:, cs:]
-            x = x[:, :-cs]
-            if mask is not None:
-                mask = mask[:, :-cs]
+    def forward(self, x, y, mask=None, causal_size=0):
+        if self.causal:
+            if causal_size > 0:
+                x = x[:, causal_size:]
+                y = y[:, :-causal_size]
+                if mask is not None:
+                    mask = mask[:, causal_size:]
+            elif causal_size < 0:
+                cs = -causal_size
+                y = y[:, cs:]
+                x = x[:, :-cs]
+                if mask is not None:
+                    mask = mask[:, :-cs]
 
         if mask is not None:
             x = x.masked_select(mask)

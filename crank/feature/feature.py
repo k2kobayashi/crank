@@ -5,7 +5,6 @@
 # Copyright (c) 2020 Kazuhiro KOBAYASHI <root.4mac@gmail.com>
 #
 # Distributed under terms of the MIT license.
-
 """Feature extractor.
 
 Extract features such as mlfb and mcep.
@@ -48,7 +47,7 @@ class Feature(object):
 
             # analyze world features, cf0, uv, then synthesize
             self._analyze_world_features(x)
-            if synth_flag and self.conf["fftl"] != 256:
+            if synth_flag and self.conf["fftl"] != 256 and self.conf["fs"] != 8000:
                 self._synthesize_world_features(flbl)
 
             # save as hdf5
@@ -134,7 +133,7 @@ class Feature(object):
                 self.conf["fs"],
                 hop_size=self.conf["hop_size"],
                 fft_size=self.conf["fftl"],
-                win_length=self.conf["fftl"],
+                win_length=self.conf["win_length"],
                 window=self.windows[win_type],
                 num_mels=self.conf["mlfb_dim"],
                 fmin=self.conf["fmin"],
@@ -155,9 +154,12 @@ class Feature(object):
                 fs=self.conf["fs"],
                 n_mels=self.conf["mlfb_dim"],
                 fftl=self.conf["fftl"],
+                win_length=self.conf["win_length"],
                 hop_size=self.conf["hop_size"],
                 fmin=self.conf["fmin"],
                 fmax=self.conf["fmax"],
+                window=self.windows[win_type],
+                n_iters=self.conf["n_iteration"],
                 plot=True,
             )
 
@@ -166,11 +168,11 @@ class Feature(object):
         assert "hann" in self.conf["window_types"]
         for win_type in self.conf["window_types"]:
             if win_type == "hann":
-                win = sp.hann(self.conf["fftl"])
+                win = sp.hann(self.conf["win_length"])
             elif win_type == "hamming":
-                win = sp.hamming(self.conf["fftl"])
+                win = sp.hamming(self.conf["win_length"])
             elif win_type == "itu-g":
-                win = itug_729_window(self.conf["fftl"])
+                win = itug_729_window(self.conf["win_length"])
             self.windows[win_type] = win
 
 

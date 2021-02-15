@@ -12,14 +12,14 @@ Extract speaker-independent statistics
 """
 
 import argparse
+import logging
+from pathlib import Path
+
 import h5py
 import joblib
-import logging
 import numpy as np
-from pathlib import Path
+from crank.utils import load_yaml, open_featsscp, open_scpdir
 from sklearn.preprocessing import StandardScaler
-
-from crank.utils import load_yaml, open_scpdir, open_featsscp
 
 logging.basicConfig(level=logging.INFO)
 
@@ -58,7 +58,11 @@ def main():
     scaler = {}
 
     # speaker independent scaler extraction
-    feats = ["mlfb", "mcep", "lcf0"]
+    feats = ["mlfb", "lcf0"]
+    # NOTE: need to be improved, require smart way
+    if conf["feature"]["fs"] != 8000:
+        feats.append("mcep")
+
     for win_type in conf["feature"]["window_types"]:
         if win_type != "hann":
             feats += [f"mlfb_{win_type}"]

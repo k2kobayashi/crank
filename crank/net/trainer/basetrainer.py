@@ -5,7 +5,6 @@
 # Copyright (c) 2020 K. KOBAYASHI <root.4mac@gmail.com>
 #
 # Distributed under terms of the MIT license.
-
 """
 BaseTrainer class
 
@@ -25,8 +24,12 @@ from tqdm import tqdm
 
 
 def TrainerWrapper(trainer_type, **ka):
-    from crank.net.trainer import (CycleGANTrainer, LSGANTrainer,
-                                   StarGANTrainer, VQVAETrainer)
+    from crank.net.trainer import (
+        CycleGANTrainer,
+        LSGANTrainer,
+        StarGANTrainer,
+        VQVAETrainer,
+    )
 
     if trainer_type == "vqvae":
         trainer = VQVAETrainer(**ka)
@@ -75,7 +78,7 @@ class BaseTrainer(object):
 
         self.spkrs = dataloader["spkrs"]
         self.n_spkrs = len(self.spkrs)
-        self.n_cv_spkrs = 4 if self.n_spkrs > 4 else self.n_cv_spkrs
+        self.n_cv_spkrs = 4 if self.n_spkrs > 4 else self.n_spkrs
         self.n_dev_samples = 5
 
         self.resume_steps = resume
@@ -403,6 +406,7 @@ class BaseTrainer(object):
                     fs=self.feat_conf["fs"],
                     n_mels=self.feat_conf["mlfb_dim"],
                     fftl=self.feat_conf["fftl"],
+                    win_length=self.feat_conf["win_length"],
                     hop_size=self.feat_conf["hop_size"],
                     fmin=self.feat_conf["fmin"],
                     fmax=self.feat_conf["fmax"],

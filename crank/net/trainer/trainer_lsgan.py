@@ -5,7 +5,6 @@
 # Copyright (c) 2020 K. Kobayashi <root.4mac@gmail.com>
 #
 # Distributed under terms of the MIT license.
-
 """
 LSGAN trainer
 
@@ -107,7 +106,7 @@ class LSGANTrainer(VQVAETrainer):
             encoder_detach=self.conf["encoder_detach"],
         )
         loss = self.calculate_adv_loss(
-            batch, adv_outputs["decoded"], h, batch["mask"], loss
+            batch, adv_outputs["decoded"], h, batch["decoder_mask"], loss
         )
         if phase == "train" and not self.stop_generator:
             self.step_model(loss, model="G")
@@ -119,7 +118,7 @@ class LSGANTrainer(VQVAETrainer):
 
         enc_h = self._get_enc_h(batch)
         feats = batch["in_feats"]
-        mask = batch["mask"]
+        mask = batch["decoder_mask"]
         if self.conf["cvadv_flag"]:
             dec_h, spkrvec = self._get_dec_h(batch, use_cvfeats=True)
             h = batch["cv_h"]
@@ -157,7 +156,9 @@ class LSGANTrainer(VQVAETrainer):
         loss["G"] += self.conf["alpha"]["adv"] * loss["D_adv"]
         return loss
 
-    def calculate_discriminator_loss(self, sample, h, mask, loss, label="real"):
+    def calculate_discriminator_loss(
+        self, sample, h, mask, loss, label="real", updates=None
+    ):
         if self.conf["acgan_flag"]:
             sample, spkr_cls = torch.split(sample, [1, self.n_spkrs], dim=2)
             loss = self.calculate_acgan_loss(spkr_cls, h, loss, label=label, model="D")
@@ -167,7 +168,8 @@ class LSGANTrainer(VQVAETrainer):
         else:
             correct_label = torch.zeros_like(sample)
         loss[f"D_{label}"] = self.criterion["mse"](sample, correct_label)
-        loss["D"] += self.conf["alpha"][label] * loss[f"D_{label}"]
+        if updates is None or label in updates:
+            loss["D"] += self.conf["alpha"][label] * loss[f"D_{label}"]
         return loss
 
     def calculate_acgan_loss(self, spkr_cls, h, loss, label="adv", model="G"):

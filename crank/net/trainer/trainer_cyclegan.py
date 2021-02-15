@@ -5,7 +5,6 @@
 # Copyright (c) 2020 K. Kobayashi <root.4mac@gmail.com>
 #
 # Distributed under terms of the MIT license.
-
 """
 Cyclic VQVAE w/ LSGAN trainer
 
@@ -98,7 +97,7 @@ class CycleGANTrainer(LSGANTrainer):
         def return_sample(x):
             return self.model["D"](x.transpose(1, 2)).transpose(1, 2)
 
-        mask = batch["mask"]
+        mask = batch["decoder_mask"]
         for c in range(self.conf["n_cycles"]):
             for io in ["org", "cv"]:
                 lbl = f"{c}cyc_{io}"
@@ -128,7 +127,6 @@ class CycleGANTrainer(LSGANTrainer):
         def return_sample(x):
             return self.model["D"](x.transpose(1, 2)).transpose(1, 2)
 
-        mask = batch["mask"]
         for c in range(self.conf["n_cycles"]):
             lbl = f"{c}cyc"
             real_inputs = self.get_D_inputs(batch, batch["in_feats"], label="org")
@@ -154,18 +152,23 @@ class CycleGANTrainer(LSGANTrainer):
                         sample[k], [1, self.n_spkrs], dim=2
                     )
                     loss[f"D_ce_{k}_{lbl}"] = self.criterion["ce"](
-                        spkr_cls.reshape(-1, spkr_cls.size(2)), h.reshape(-1),
+                        spkr_cls.reshape(-1, spkr_cls.size(2)),
+                        h.reshape(-1),
                     )
                     if not (self.conf["use_real_only_acgan"] and k == "org_fake"):
                         loss["D"] += (
                             self.conf["alpha"]["acgan"] * loss[f"D_ce_{k}_{lbl}"]
                         )
 
-            real_sample = sample["real"].masked_select(mask)
+            real_sample = sample["real"].masked_select(batch["decoder_mask"])
             loss[f"D_real_{lbl}"] = self.criterion["mse"](
                 real_sample, torch.ones_like(real_sample)
             )
             fake_key = random.choice(["org_fake", "cv_fake"])
+            if fake_key == "org_fake":
+                mask = batch["cycle_decoder_mask"]
+            else:
+                mask = batch["decoder_mask"]
             fake_sample = sample[fake_key].masked_select(mask)
             loss[f"D_fake_{lbl}"] = self.criterion["mse"](
                 fake_sample, torch.zeros_like(fake_sample)

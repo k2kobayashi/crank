@@ -5,7 +5,6 @@
 # Copyright (c) 2020 K. Kobayashi <root.4mac@gmail.com>
 #
 # Distributed under terms of the MIT license.
-
 """
 Utilities for trainer
 
@@ -26,12 +25,12 @@ def get_criterion(conf, device="cuda"):
         "l1": nn.L1Loss(),
         "ce": nn.CrossEntropyLoss(ignore_index=-100),
         "kld": nn.KLDivLoss(reduction="mean"),
-        "fmse": CustomFeatureLoss(loss_type="mse", causal_size=conf["causal_size"]),
-        "fl1": CustomFeatureLoss(loss_type="l1", causal_size=conf["causal_size"]),
+        "fmse": CustomFeatureLoss(loss_type="mse", causal=conf["causal"]),
+        "fl1": CustomFeatureLoss(loss_type="l1", causal=conf["causal"]),
         "fstft": CustomFeatureLoss(
             loss_type="stft",
-            causal_size=conf["causal_size"],
             stft_params=conf["stft_params"],
+            causal=conf["causal"],
             device=device,
         ),
     }

@@ -11,24 +11,23 @@ Utilities
 
 """
 
+import logging
+from distutils.version import LooseVersion
+from pathlib import Path
+
+import librosa
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import numpy as np
+import soundfile as sf
 import torch
 import yaml
-import numpy as np
-from pathlib import Path
-import soundfile as sf
-import librosa
-import logging
-import matplotlib as mpl
-
-from distutils.version import LooseVersion
-from sprocket.util import HDF5
 from scipy.interpolate import interp1d
 from scipy.signal import firwin, lfilter
-import matplotlib.pyplot as plt
 from sprocket.speech import Synthesizer
+from sprocket.util import HDF5
 
 mpl.use("Agg")  # noqa
-EPS = 1e-10
 
 
 def open_featsscp(featsscp):
@@ -77,9 +76,20 @@ def plot_mlfb(mlfb, path, ext="png"):
     plt.close()
 
 
-def mlfb2wav(mlfb, fs=22050, n_mels=80, fftl=1024, hop_size=220, fmin=80, fmax=7600):
-    spc = logmelspc_to_linearspc(mlfb, fs, n_mels, fftl, fmin=80, fmax=7600)
-    return griffin_lim(spc, fftl, hop_size, fftl, window="hann", n_iters=100)
+def mlfb2wav(
+    mlfb,
+    fs=22050,
+    n_mels=80,
+    fftl=1024,
+    win_length=1024,
+    hop_size=220,
+    fmin=80,
+    fmax=7600,
+    window="hann",
+    n_iters=100,
+):
+    spc = logmelspc_to_linearspc(mlfb, fs, n_mels, fftl, fmin=fmin, fmax=fmax)
+    return griffin_lim(spc, fftl, hop_size, win_length, window=window, n_iters=n_iters)
 
 
 def mlfb2wavf(
@@ -88,9 +98,12 @@ def mlfb2wavf(
     fs=22050,
     n_mels=80,
     fftl=1024,
+    win_length=1024,
     hop_size=220,
     fmin=80,
     fmax=7600,
+    window="hann",
+    n_iters=100,
     plot=False,
 ):
     Path(wavf).parent.mkdir(parents=True, exist_ok=True)
@@ -100,9 +113,12 @@ def mlfb2wavf(
             fs=fs,
             n_mels=n_mels,
             fftl=fftl,
+            win_length=win_length,
             hop_size=hop_size,
             fmin=fmin,
             fmax=fmax,
+            window=window,
+            n_iters=n_iters,
         )
         sf.write(str(wavf), wav, fs)
     except librosa.util.exceptions.ParameterError:
@@ -193,12 +209,14 @@ def logmelspc_to_linearspc(lmspc, fs, n_mels, n_fft, fmin=None, fmax=None):
         ndarray: Linear spectrogram (T, n_fft // 2 + 1).
     """
     assert lmspc.shape[1] == n_mels
+    EPS = 1e-10
     fmin = 0 if fmin is None else fmin
     fmax = fs / 2 if fmax is None else fmax
     mspc = np.power(10.0, lmspc)
     mel_basis = librosa.filters.mel(fs, n_fft, n_mels, fmin, fmax)
     inv_mel_basis = np.linalg.pinv(mel_basis)
-    spc = np.maximum(EPS, np.dot(inv_mel_basis, mspc.T).T)
+    # spc = np.maximum(EPS, np.matmul(inv_mel_basis, mspc.T).T)
+    spc = np.matmul(inv_mel_basis, mspc.T).T
     return spc
 
 
@@ -221,33 +239,19 @@ def griffin_lim(spc, n_fft, n_shift, win_length, window="hann", n_iters=100):
     # assert the size of input linear spectrogram
     assert spc.shape[1] == n_fft // 2 + 1
 
-    if LooseVersion(librosa.__version__) >= LooseVersion("0.7.0"):
-        # use librosa's fast Grriffin-Lim algorithm
-        spc = np.abs(spc.T)
-        y = librosa.griffinlim(
+    # use librosa's fast Grriffin-Lim algorithm
+    spc = np.abs(spc.T)
+    y = np.clip(
+        librosa.core.griffinlim(
             S=spc,
             n_iter=n_iters,
             hop_length=n_shift,
             win_length=win_length,
             window=window,
-        )
-    else:
-        # use slower version of Grriffin-Lim algorithm
-        logging.warning(
-            "librosa version is old. use slow version of Grriffin-Lim algorithm."
-            "if you want to use fast Griffin-Lim, please update librosa via "
-            "`source ./path.sh && pip install librosa==0.7.0`."
-        )
-        cspc = np.abs(spc).astype(np.complex).T
-        angles = np.exp(2j * np.pi * np.random.rand(*cspc.shape))
-        y = librosa.istft(cspc * angles, n_shift, win_length, window=window)
-        for i in range(n_iters):
-            angles = np.exp(
-                1j
-                * np.angle(librosa.stft(y, n_fft, n_shift, win_length, window=window))
-            )
-            y = librosa.istft(cspc * angles, n_shift, win_length, window=window)
-
+        ),
+        -1,
+        0.999969482421875,
+    )
     return y
 
 

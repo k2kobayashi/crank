@@ -5,7 +5,6 @@
 # Copyright (c) 2020 Kazuhiro KOBAYASHI <root.4mac@gmail.com>
 #
 # Distributed under terms of the MIT license.
-
 """
 Base Dataset
 
@@ -81,7 +80,7 @@ class BaseDataset(Dataset):
             [s for s in list(self.spkrdict.keys()) if s != sample["org_spkr_name"]]
         )
         sample["flen"] = sample[self.conf["input_feat_type"]].shape[0]
-        sample["mask"] = np.ones([sample["flen"]], dtype=bool)[:, np.newaxis]
+        sample["mask"] = np.ones(sample["flen"], dtype=bool)[:, np.newaxis]
         sample["org_h_onehot"], sample["org_h"] = self._get_spkrcode(
             sample["org_spkr_name"], sample["flen"]
         )
@@ -112,6 +111,21 @@ class BaseDataset(Dataset):
                 sample[self.conf["input_feat_type"]]
             )
         sample = self._zero_padding(sample)
+        for ed in [
+            "encoder_mask",
+            "decoder_mask",
+            "cycle_encoder_mask",
+            "cycle_decoder_mask",
+        ]:
+            sample[ed] = np.copy(sample["mask"])
+        if self.conf["causal"]:
+            er = self.conf["encoder_receptive_size"]
+            dr = self.conf["decoder_receptive_size"]
+            sample["encoder_mask"][:er] = False
+            sample["decoder_mask"][: er + dr] = False
+            sample["cycle_encoder_mask"][: er * 2 + dr] = False
+            sample["cycle_decoder_mask"][: (er + dr) * 2] = False
+        del sample["mask"]
         return sample
 
     def _post_getitem(self, sample):
@@ -148,15 +162,18 @@ class BaseDataset(Dataset):
             if isinstance(v, np.ndarray):
                 if k in ["org_h", "cv_h"]:
                     # padding -100 for ignore_index
-                    sample[k] = padding(v, dlen, self.batch_len, value=-100, p=p)
-                    sample[k] = sample[k].astype(np.long)
+                    sample[k] = padding(
+                        v, dlen, self.batch_len, value=-100, p=p
+                    ).astype(np.long)
                 elif k in ["mask"]:
-                    sample[k] = padding(v, dlen, self.batch_len, value=False, p=p)
-                    sample[k] = sample[k].astype(bool)
+                    sample[k] = padding(
+                        v, dlen, self.batch_len, value=False, p=p
+                    ).astype(bool)
                 else:
                     # padding 0 for continuous values
-                    sample[k] = padding(v, dlen, self.batch_len, value=0.0, p=p)
-                    sample[k] = sample[k].astype(np.float32)
+                    sample[k] = padding(v, dlen, self.batch_len, value=0.0, p=p).astype(
+                        np.float32
+                    )
                 assert (
                     sample[k].shape[0] == self.batch_len
                 ), "ERROR in padding: {}, dlen{}, p{}, v{}".format(

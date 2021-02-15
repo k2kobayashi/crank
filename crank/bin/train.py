@@ -5,16 +5,15 @@
 # Copyright (c) 2020 Kazuhiro KOBAYASHI <root.4mac@gmail.com>
 #
 # Distributed under terms of the MIT license.
-
 """
 Train VQ-VAE2 model
 
 """
 
-import re
 import argparse
 import logging
 import random
+import re
 import sys
 import warnings
 from pathlib import Path
@@ -32,7 +31,10 @@ from crank.net.trainer.utils import (
     get_scheduler,
 )
 from crank.utils import load_yaml, open_featsscp, open_scpdir
-from parallel_wavegan.models import ParallelWaveGANDiscriminator
+from parallel_wavegan.models import (
+    ParallelWaveGANDiscriminator,
+    ResidualParallelWaveGANDiscriminator,
+)
 from tensorboardX import SummaryWriter
 
 warnings.simplefilter(action="ignore")
@@ -62,6 +64,16 @@ def get_model(conf, spkr_size=0, device="cuda"):
 
     # spkr classifier network
     if conf["use_spkr_classifier"]:
+        # TODO: investigate peformance of residual network
+        # if conf["use_residual_network"]:
+        #     C = ResidualParallelWaveGANDiscriminator(
+        #         in_channels=conf["input_size"],
+        #         out_channels=spkr_size,
+        #         kernel_size=conf["spkr_classifier_kernel_size"],
+        #         layers=conf["n_spkr_classifier_layers"],
+        #         stacks=conf["n_spkr_classifier_layers"],
+        #     )
+        # else:
         C = ParallelWaveGANDiscriminator(
             in_channels=conf["input_size"],
             out_channels=spkr_size,
@@ -91,18 +103,28 @@ def get_model(conf, spkr_size=0, device="cuda"):
             output_channels = 1
         if conf["acgan_flag"]:
             output_channels += spkr_size
-        D = ParallelWaveGANDiscriminator(
-            in_channels=input_channels,
-            out_channels=output_channels,
-            kernel_size=conf["discriminator_kernel_size"],
-            layers=conf["n_discriminator_layers"],
-            conv_channels=64,
-            dilation_factor=1,
-            nonlinear_activation="LeakyReLU",
-            nonlinear_activation_params={"negative_slope": 0.2},
-            bias=True,
-            use_weight_norm=True,
-        )
+        if conf["use_residual_network"]:
+            D = ResidualParallelWaveGANDiscriminator(
+                in_channels=input_channels,
+                out_channels=output_channels,
+                kernel_size=conf["discriminator_kernel_size"],
+                layers=conf["n_discriminator_layers"] * conf["n_discriminator_stacks"],
+                stacks=conf["n_discriminator_stacks"],
+                dropout=conf["discriminator_dropout"],
+            )
+        else:
+            D = ParallelWaveGANDiscriminator(
+                in_channels=input_channels,
+                out_channels=output_channels,
+                kernel_size=conf["discriminator_kernel_size"],
+                layers=conf["n_discriminator_layers"] * ["n_discriminator_stacks"],
+                conv_channels=64,
+                dilation_factor=1,
+                nonlinear_activation="LeakyReLU",
+                nonlinear_activation_params={"negative_slope": 0.2},
+                bias=True,
+                use_weight_norm=True,
+            )
         models.update({"D": D.to(device)})
         logging.info(models["D"])
     return models
@@ -166,6 +188,13 @@ def main():
             max_step = max([int(s) for s in steps])
             checkpoint = str([p for p in pkls if str(max_step) in str(p)][0])
             model, resume = load_checkpoint(model, checkpoint)
+    conf["encoder_receptive_size"] = model["G"].encoder_receptive_size
+    conf["decoder_receptive_size"] = model["G"].decoder_receptive_size
+    logging.info(
+        "encoder and decoder receptive_size: {}, {}".format(
+            conf["encoder_receptive_size"], conf["decoder_receptive_size"]
+        )
+    )
 
     # load others
     scaler = joblib.load(featdir / "scaler.pkl")

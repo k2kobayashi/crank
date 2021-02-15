@@ -22,7 +22,9 @@ def main():
     )
     parser.add_argument("--outwavdir", type=str, help="Converted waveform directory")
     parser.add_argument(
-        "--out", type=str, help="If omitted, then output to sys.stdout",
+        "--out",
+        type=str,
+        help="If omitted, then output to sys.stdout",
     )
     args = parser.parse_args()
 

@@ -5,7 +5,6 @@
 # Copyright (c) 2020 Kazuhiro KOBAYASHI <root.4mac@gmail.com>
 #
 # Distributed under terms of the MIT license.
-
 """
 VQVAE class
 
@@ -22,6 +21,8 @@ class VQVAE2(nn.Module):
         super(VQVAE2, self).__init__()
         self.conf = conf
         self.spkr_size = spkr_size
+        self.encoder_receptive_size = 0
+        self.decoder_receptive_size = 0
         self._construct_net()
 
         if self.conf["use_spkr_embedding"]:
@@ -66,28 +67,37 @@ class VQVAE2(nn.Module):
         for n in range(self.conf["n_cycles"]):
             enc = self.encode(x, enc_h=org_enc_h)
             org_enc_unmod = [e.clone() for e in enc]
-            org_enc, org_dec, org_emb_idxs, _, org_qidxs = self.decode(
-                enc, org_dec_h, use_ema=True
-            )
-            cv_enc, cv_dec, cv_emb_idxs, _, cv_qidxs = self.decode(
-                enc, cv_dec_h, use_ema=True
-            )
+            cv_enc_unmod = [e.clone() for e in enc]
+            org_enc, org_dec, org_emb_idxs, _, org_qidxs = self.decode(enc, org_dec_h)
+            cv_enc, cv_dec, cv_emb_idxs, _, cv_qidxs = self.decode(enc, cv_dec_h)
 
             enc = self.encode(cv_dec, enc_h=cv_enc_h)
-            cv_enc_unmod = [e.clone() for e in enc]
+            recon_enc_unmod = [e.clone() for e in enc]
             recon_enc, recon_dec, recon_emb_idxs, _, recon_qidxs = self.decode(
-                enc, org_dec_h, use_ema=True
+                enc, org_dec_h
             )
             outputs.append(
                 {
                     "org": self.make_dict(
-                        org_enc, org_dec, org_emb_idxs, org_qidxs, org_enc_unmod,
+                        org_enc,
+                        org_dec,
+                        org_emb_idxs,
+                        org_qidxs,
+                        org_enc_unmod,
                     ),
                     "cv": self.make_dict(
-                        cv_enc, cv_dec, cv_emb_idxs, cv_qidxs, cv_enc_unmod,
+                        cv_enc,
+                        cv_dec,
+                        cv_emb_idxs,
+                        cv_qidxs,
+                        cv_enc_unmod,
                     ),
                     "recon": self.make_dict(
-                        recon_enc, recon_dec, recon_emb_idxs, recon_qidxs, None,
+                        recon_enc,
+                        recon_dec,
+                        recon_emb_idxs,
+                        recon_qidxs,
+                        recon_enc_unmod,
                     ),
                 }
             )
@@ -208,6 +218,8 @@ class VQVAE2(nn.Module):
                     upsample_conditional_features=False,
                 )
             )
+            self.encoder_receptive_size += self.encoders[-1].receptive_field_size
+            self.decoder_receptive_size += self.decoders[-1].receptive_field_size
             self.quantizers.append(
                 Quantizer(
                     self.conf["emb_dim"][n],
