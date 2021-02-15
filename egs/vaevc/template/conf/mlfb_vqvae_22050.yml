@@ -114,6 +114,7 @@ n_discriminator_stacks: 4      # # of stacks for Discriminator
 discriminator_kernel_size: 5   # kernel_size for discriminator
 discriminator_dropout: 0.25    # dropout rate if use_residual_network
 train_first: D                 # updated first ['G', 'D']
+switch_update: False           # Update only using either real or fake at 1 iteration
 cvadv_flag: false              # calculate adv_loss using converted or reconstructed
 acgan_flag: false              # add additional classifier to discriminator
 encoder_detach: false          # detach encoder and VQ for adv_loss (update decoder only)
