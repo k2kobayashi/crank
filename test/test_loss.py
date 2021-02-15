@@ -16,7 +16,8 @@
 """
 
 import torch
-from crank.net.module.loss import MultiSizeSTFTLoss, STFTLoss, CustomFeatureLoss
+from crank.net.module.loss import (CustomFeatureLoss, MultiSizeSTFTLoss,
+                                   STFTLoss)
 
 B, T, D = 3, 1000, 10
 
@@ -43,10 +44,11 @@ def test_customloss():
     mask = x.ge(0)
     for c in [-8, -2, 0, 2, 8]:
         for loss_type in ["l1", "mse", "stft"]:
+
             criterion = CustomFeatureLoss(
-                loss_type=loss_type, causal_size=c, device="cpu"
+                loss_type=loss_type, causal=True, device="cpu"
             )
             if loss_type != "stft":
-                _ = criterion(x, y, mask=mask)
+                _ = criterion(x, y, mask=mask, causal_size=c)
             else:
                 _ = criterion(x, y)
