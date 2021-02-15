@@ -10,6 +10,7 @@ slurm-*.out
 .nfs*
 *.out
 .autoenv.zsh
+.vscode
 
 __pycache__/
 .pytest_cache/
