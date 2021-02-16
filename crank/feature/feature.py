@@ -122,14 +122,14 @@ class Feature(object):
 
     def _analyze_mlfb(self, wavf):
         # read wav file as float format
-        x, fs = sf.read(str(wavf))
+        self.feats["raw"], fs = sf.read(str(wavf))
         for win_type in self.windows.keys():
             if win_type == "hann":
                 feat_name = "mlfb"
             else:
                 feat_name = f"mlfb_{win_type}"
             self.feats[feat_name] = logmelfilterbank(
-                x,
+                self.feats["raw"],
                 self.conf["fs"],
                 hop_size=self.conf["hop_size"],
                 fft_size=self.conf["fftl"],
