@@ -24,12 +24,8 @@ from tqdm import tqdm
 
 
 def TrainerWrapper(trainer_type, **ka):
-    from crank.net.trainer import (
-        CycleGANTrainer,
-        LSGANTrainer,
-        StarGANTrainer,
-        VQVAETrainer,
-    )
+    from crank.net.trainer import (CycleGANTrainer, LSGANTrainer,
+                                   StarGANTrainer, VQVAETrainer)
 
     if trainer_type == "vqvae":
         trainer = VQVAETrainer(**ka)

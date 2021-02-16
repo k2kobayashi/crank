@@ -20,15 +20,13 @@ from parallel_wavegan.models import ParallelWaveGANGenerator
 def raw_preprocessing(func):
     def wrapper_func(*args, **kwargs):
         conf = args[0].conf
-        if conf["input_feat_type"] == "raw":
-            print("use_raw")
+        if conf["use_raw"]:
             # estimate mlfb on the fly
             args = list(args)
             mlfb = args[0].mlfb_layer(args[1])
             args[1] = mlfb
             result = func(*args, **kwargs)
         else:
-            print("use_mlfb")
             result = func(*args, **kwargs)
         return result
 
@@ -49,13 +47,14 @@ class VQVAE2(nn.Module):
                 self.spkr_size, self.conf["spkr_embedding_size"]
             )
 
-        if self.conf["input_feat_type"] == "raw":
+        if self.conf["use_raw"]:
             self.mlfb_layer = LogMelFilterBankLayer(
                 fs=conf["feature"]["fs"],
                 hop_size=conf["feature"]["hop_size"],
                 fft_size=conf["feature"]["fftl"],
                 win_length=conf["feature"]["win_length"],
                 window="hann",
+                center=False,
                 n_mels=conf["feature"]["mlfb_dim"],
                 fmin=conf["feature"]["fmin"],
                 fmax=conf["feature"]["fmax"],

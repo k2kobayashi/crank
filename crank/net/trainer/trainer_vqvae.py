@@ -71,9 +71,10 @@ class VQVAETrainer(BaseTrainer):
     def dev(self, batch):
         loss_values = self.train(batch, phase="dev")
         for cv_spkr_name in random.sample(list(self.spkrs.keys()), self.n_cv_spkrs):
+            feats = batch["in_feats"] if not self.conf["use_raw"] else batch["raw"]
             enc_h = self._get_enc_h(batch)
             dec_h, spkrvec = self._get_dec_h(batch, cv_spkr_name=cv_spkr_name)
-            outputs = self.model["G"](batch["in_feats"], enc_h, dec_h, spkrvec=spkrvec)
+            outputs = self.model["G"](feats, enc_h, dec_h, spkrvec=spkrvec)
             self._generate_cvwav(
                 batch,
                 outputs,
@@ -86,11 +87,10 @@ class VQVAETrainer(BaseTrainer):
 
     @torch.no_grad()
     def reconstruction(self, batch, tdir="reconstruction"):
+        feats = batch["in_feats"] if not self.conf["use_raw"] else batch["raw"]
         enc_h = self._get_enc_h(batch)
         dec_h, spkrvec = self._get_dec_h(batch, cv_spkr_name=None)
-        outputs = self.model["G"].forward(
-            batch["in_feats"], enc_h, dec_h, spkrvec=spkrvec
-        )
+        outputs = self.model["G"].forward(feats, enc_h, dec_h, spkrvec=spkrvec)
         self._generate_cvwav(
             batch,
             outputs,
@@ -106,7 +106,8 @@ class VQVAETrainer(BaseTrainer):
         for cv_spkr_name in self.spkrs.keys():
             enc_h = self._get_enc_h(batch)
             dec_h, spkrvec = self._get_dec_h(batch, cv_spkr_name=cv_spkr_name)
-            outputs = self.model["G"](batch["in_feats"], enc_h, dec_h, spkrvec=spkrvec)
+            feats = batch["in_feats"] if not self.conf["use_raw"] else batch["raw"]
+            outputs = self.model["G"](feats, enc_h, dec_h, spkrvec=spkrvec)
             self._generate_cvwav(
                 batch,
                 outputs,
@@ -120,7 +121,7 @@ class VQVAETrainer(BaseTrainer):
     def forward_vqvae(self, batch, loss, phase="train"):
         enc_h = self._get_enc_h(batch)
         dec_h, spkrvec = self._get_dec_h(batch)
-        feats = batch["in_feats"]
+        feats = batch["in_feats"] if not self.conf["use_raw"] else batch["raw"]
         outputs = self.model["G"].forward(feats, enc_h, dec_h, spkrvec=spkrvec)
         loss = self.calculate_vqvae_loss(batch, outputs, loss)
 
@@ -140,7 +141,7 @@ class VQVAETrainer(BaseTrainer):
         enc_h_cv = self._get_enc_h(batch, use_cvfeats=True)
         dec_h, spkrvec = self._get_dec_h(batch)
         dec_h_cv, spkrvec_cv = self._get_dec_h(batch, use_cvfeats=True)
-        feats = batch["in_feats"]
+        feats = batch["in_feats"] if not self.conf["use_raw"] else batch["raw"]
         cycle_outputs = self.model["G"].cycle_forward(
             feats, enc_h, dec_h, enc_h_cv, dec_h_cv, spkrvec, spkrvec_cv
         )
@@ -163,7 +164,7 @@ class VQVAETrainer(BaseTrainer):
         if self.conf["use_spkradv_training"]:
             enc_h = self._get_enc_h(batch)
             dec_h, spkrvec = self._get_dec_h(batch)
-            feats = batch["in_feats"]
+            feats = batch["in_feats"] if not self.conf["use_raw"] else batch["raw"]
             outputs = self.model["G"].forward(feats, enc_h, dec_h, spkrvec=spkrvec)
             if self.conf["causal"]:
                 # discard causal area

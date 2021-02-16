@@ -33,11 +33,15 @@ class BaseDataset(Dataset):
         self.scaler = scaler
         self.batch_len = self.conf["batch_len"]
 
-        self.features = [self.conf["input_feat_type"], self.conf["output_feat_type"]]
+        self.features = [
+            self.conf["input_feat_type"],
+            self.conf["output_feat_type"],
+        ]
         self.features += ["lcf0", "uv"]
         if "mcep" in self.features:
             self.features += ["cap"]
-        self.features = set(self.features)
+        if conf["use_raw"]:
+            self.features += ["raw"]
         self.spkrdict = dict(zip(self.spkrlist, range(len(self.spkrlist))))
         self.n_spkrs = len(self.spkrdict)
 
@@ -79,7 +83,7 @@ class BaseDataset(Dataset):
         sample["cv_spkr_name"] = random.choice(
             [s for s in list(self.spkrdict.keys()) if s != sample["org_spkr_name"]]
         )
-        sample["flen"] = sample[self.conf["input_feat_type"]].shape[0]
+        sample["flen"] = sample[self.features[0]].shape[0]
         sample["mask"] = np.ones(sample["flen"], dtype=bool)[:, np.newaxis]
         sample["org_h_onehot"], sample["org_h"] = self._get_spkrcode(
             sample["org_spkr_name"], sample["flen"]
@@ -156,28 +160,47 @@ class BaseDataset(Dataset):
         return h_onehot, h
 
     def _zero_padding(self, sample):
-        dlen = self.batch_len - sample["flen"]
-        p = random.choice(list(range(0, abs(dlen)))) if dlen < 0 else 0
+        blen = self.batch_len
+        diff_frames = blen - sample["flen"]
+        offset = self.conf["feature"]["fftl"] // self.conf["feature"]["hop_size"]
+        if diff_frames < 0 and abs(diff_frames) > offset * 2:
+            # length of sample is larger than batch_len
+            p = random.choice(range(offset, abs(diff_frames) - offset))
+        else:
+            # use from its begining
+            p = 0
         for k, v in sample.items():
-            if isinstance(v, np.ndarray):
-                if k in ["org_h", "cv_h"]:
-                    # padding -100 for ignore_index
-                    sample[k] = padding(
-                        v, dlen, self.batch_len, value=-100, p=p
-                    ).astype(np.long)
-                elif k in ["mask"]:
-                    sample[k] = padding(
-                        v, dlen, self.batch_len, value=False, p=p
-                    ).astype(bool)
-                else:
-                    # padding 0 for continuous values
-                    sample[k] = padding(v, dlen, self.batch_len, value=0.0, p=p).astype(
-                        np.float32
-                    )
+            if not isinstance(v, np.ndarray):
+                continue
+
+            if k in ["org_h", "cv_h"]:
+                # padding -100 for ignore_index
+                sample[k] = padding(v, diff_frames, blen, value=-100, p=p).astype(
+                    np.long
+                )
+            elif k in ["mask"]:
+                sample[k] = padding(v, diff_frames, blen, value=False, p=p).astype(bool)
+            elif k in ["raw"]:
+                # padding 0 for raw samples
+                sample[k] = padding_raw(
+                    v.squeeze(),
+                    diff_frames,
+                    blen,
+                    self.conf["feature"]["fftl"],
+                    self.conf["feature"]["hop_size"],
+                    value=0.0,
+                    p=p,
+                ).astype(np.float)
+            else:
+                # padding 0 for continuous values
+                sample[k] = padding(v, diff_frames, blen, value=0.0, p=p).astype(
+                    np.float32
+                )
+            if k not in ["raw"]:
                 assert (
-                    sample[k].shape[0] == self.batch_len
-                ), "ERROR in padding: {}, dlen{}, p{}, v{}".format(
-                    k, dlen, p, sample[k].shape[0]
+                    sample[k].shape[0] == blen
+                ), "ERROR in padding: {}, diff_frames{}, p{}, v{}".format(
+                    k, diff_frames, p, sample[k].shape[0]
                 )
         return sample
 
@@ -234,6 +257,33 @@ def padding(x, dlen, batch_len, value=0.0, p=0):
     elif dlen < 0:
         # discard
         x = x[p : p + batch_len]
+    return x
+
+
+def padding_raw(x, dlen, batch_len, fftl, hop_size, value=0.0, p=0):
+    target_length = fftl + hop_size * batch_len - 1
+
+    if dlen > 0:
+        # padding
+        if len(x) < target_length - fftl:
+            x = np.pad(x, int(fftl // 2), mode="reflect")
+        if len(x) < target_length:
+            x = np.concatenate([x, np.zeros(target_length - len(x))])
+    else:
+        ph = p * hop_size
+        hfftl = fftl // 2
+        if p == 0:
+            x = np.concatenate([np.zeros(hfftl), x])
+            ph = hfftl + 1
+        # discard
+        assert ph > hfftl, "{}, {}, {}".format(ph, hfftl, p)
+
+        require_length = ph + target_length
+        if len(x) < require_length:
+            x = np.concatenate([x, np.zeros(require_length - len(x))])
+        x = x[ph - hfftl : ph + hfftl + hop_size * batch_len - 1]
+        # print(len(x), target_length, require_length, dlen, p)
+    assert len(x) == target_length
     return x
 
 

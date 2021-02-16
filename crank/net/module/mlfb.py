@@ -79,7 +79,7 @@ class STFTLayer(torch.nn.Module):
             pad_mode=self.pad_mode,
             return_complex=self.return_complex,
         )
-        return stft.transpose(1, 2)
+        return stft.transpose(1, 2).float()
 
 
 class LogMelFilterBankLayer(torch.nn.Module):
