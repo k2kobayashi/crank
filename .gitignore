@@ -11,6 +11,8 @@ slurm-*.out
 .autoenv.zsh
 .vscode
 *.png
+*.wav
+egs/vaevc
 
 __pycache__/
 .pytest_cache/
