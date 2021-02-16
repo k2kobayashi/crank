@@ -13,7 +13,26 @@ VQVAE class
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from crank.net.module.mlfb import LogMelFilterBankLayer
 from parallel_wavegan.models import ParallelWaveGANGenerator
+
+
+def raw_preprocessing(func):
+    def wrapper_func(*args, **kwargs):
+        conf = args[0].conf
+        if conf["input_feat_type"] == "raw":
+            print("use_raw")
+            # estimate mlfb on the fly
+            args = list(args)
+            mlfb = args[0].mlfb_layer(args[1])
+            args[1] = mlfb
+            result = func(*args, **kwargs)
+        else:
+            print("use_mlfb")
+            result = func(*args, **kwargs)
+        return result
+
+    return wrapper_func
 
 
 class VQVAE2(nn.Module):
@@ -30,6 +49,19 @@ class VQVAE2(nn.Module):
                 self.spkr_size, self.conf["spkr_embedding_size"]
             )
 
+        if self.conf["input_feat_type"] == "raw":
+            self.mlfb_layer = LogMelFilterBankLayer(
+                fs=conf["feature"]["fs"],
+                hop_size=conf["feature"]["hop_size"],
+                fft_size=conf["feature"]["fftl"],
+                win_length=conf["feature"]["win_length"],
+                window="hann",
+                n_mels=conf["feature"]["mlfb_dim"],
+                fmin=conf["feature"]["fmin"],
+                fmax=conf["feature"]["fmax"],
+            )
+
+    @raw_preprocessing
     def forward(
         self, x, enc_h, dec_h, spkrvec=None, use_ema=True, encoder_detach=False
     ):
@@ -46,12 +78,7 @@ class VQVAE2(nn.Module):
         outputs = self.make_dict(enc, dec, emb_idxs, qidxs, enc_unmod)
         return outputs
 
-    def _get_dec_h(self, dec_h, spkrvec):
-        if spkrvec is not None:
-            spkremb = self.spkr_embedding(spkrvec)
-            dec_h = spkremb if dec_h is None else torch.cat([dec_h, spkremb], axis=-1)
-        return dec_h
-
+    @raw_preprocessing
     def cycle_forward(
         self, x, org_enc_h, org_dec_h, cv_enc_h, cv_dec_h, org_spkrvec, cv_spkrvec
     ):
@@ -103,6 +130,12 @@ class VQVAE2(nn.Module):
             )
             x = recon_dec.clone().detach()
         return outputs
+
+    def _get_dec_h(self, dec_h, spkrvec):
+        if spkrvec is not None:
+            spkremb = self.spkr_embedding(spkrvec)
+            dec_h = spkremb if dec_h is None else torch.cat([dec_h, spkremb], axis=-1)
+        return dec_h
 
     def encode(self, x, enc_h=None):
         # encode

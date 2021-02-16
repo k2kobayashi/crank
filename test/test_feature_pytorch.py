@@ -16,22 +16,20 @@ import librosa
 import numpy as np
 import soundfile as sf
 import torch
-from crank.net.module.mlfb import LogMelFilterBankLayer, MLFBLayer, STFTLayer
+from crank.net.module.mlfb import LogMelFilterBankLayer, STFTLayer
 from crank.utils import load_yaml, plot_mlfb
+from parallel_wavegan.bin.preprocess import logmelfilterbank
 
 datadir = Path(__file__).parent / "data"
 ymlf = datadir / "mlfb_vqvae_22050.yml"
 spkrymlf = datadir / "spkr.yml"
 
-# extract feature by librosa
 conf = load_yaml(ymlf)
-
 wavf = datadir / "SF1_10001.wav"
 
 
 def test_feature_onthefly():
     # extract numpy
-    from parallel_wavegan.bin.preprocess import logmelfilterbank
 
     x, fs = sf.read(str(wavf))
     x = np.array(x, dtype=np.float)
@@ -60,7 +58,8 @@ def test_feature_onthefly():
         fmin=conf["feature"]["fmin"],
         fmax=conf["feature"]["fmax"],
     )
-    mlfb_torch = mlfb_layer(torch.from_numpy(x).float()).cpu().numpy()
+    raw = torch.from_numpy(x).unsqueeze(0).float()
+    mlfb_torch = mlfb_layer(raw).squeeze(0).cpu().numpy()
 
     plot_mlfb(mlfb_torch, datadir / "mlfb_torch.png")
     plot_mlfb(mlfb_np, datadir / "mlfb_np.png")
@@ -90,8 +89,10 @@ def test_stft_torch():
         win_length=conf["feature"]["win_length"],
         window="hann",
     )
-    stft = stft_layer(torch.from_numpy(x))
-    spc_torch = torch.sqrt(stft[..., 0] ** 2 + stft[..., 1] ** 2).cpu().numpy()
+    stft = stft_layer(torch.from_numpy(x).unsqueeze(0))
+    spc_torch = (
+        torch.sqrt(stft[..., 0] ** 2 + stft[..., 1] ** 2).squeeze(0).cpu().numpy()
+    )
     plot_mlfb(spc_torch, datadir / "spc_torch.png")
     plot_mlfb(spc_np, datadir / "spc_np.png")
 

@@ -74,7 +74,7 @@ class STFTLayer(torch.nn.Module):
             pad_mode="reflect",
             return_complex=self.return_complex,
         )
-        return stft.transpose(0, 1)
+        return stft.transpose(1, 2)
 
 
 class LogMelFilterBankLayer(torch.nn.Module):
