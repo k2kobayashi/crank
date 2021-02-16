@@ -29,8 +29,6 @@ wavf = datadir / "SF1_10001.wav"
 
 
 def test_feature_onthefly():
-    # extract numpy
-
     x, fs = sf.read(str(wavf))
     x = np.array(x, dtype=np.float)
 
@@ -63,6 +61,55 @@ def test_feature_onthefly():
 
     plot_mlfb(mlfb_torch, datadir / "mlfb_torch.png")
     plot_mlfb(mlfb_np, datadir / "mlfb_np.png")
+
+    np.testing.assert_equal(mlfb_np.shape, mlfb_torch.shape)
+    np.testing.assert_almost_equal(mlfb_np, mlfb_torch, decimal=4)
+
+
+def test_feature_onthefly_padding():
+    """check equivalent when discarding some frames like dataloader"""
+    x, fs = sf.read(str(wavf))
+    x = np.array(x, dtype=np.float)
+    mlfb_layer = LogMelFilterBankLayer(
+        fs=fs,
+        hop_size=conf["feature"]["hop_size"],
+        fft_size=conf["feature"]["fftl"],
+        win_length=conf["feature"]["win_length"],
+        window="hann",
+        center=False,
+        n_mels=conf["feature"]["mlfb_dim"],
+        fmin=conf["feature"]["fmin"],
+        fmax=conf["feature"]["fmax"],
+    )
+    batch_len = conf["batch_len"]
+    fftl = conf["feature"]["fftl"]
+    hop_size = conf["feature"]["hop_size"]
+
+    # create reference mel-filterbank
+    mlfb_np = logmelfilterbank(
+        x,
+        fs,
+        hop_size=conf["feature"]["hop_size"],
+        fft_size=conf["feature"]["fftl"],
+        win_length=conf["feature"]["win_length"],
+        window="hann",
+        num_mels=conf["feature"]["mlfb_dim"],
+        fmin=conf["feature"]["fmin"],
+        fmax=conf["feature"]["fmax"],
+    )
+    p = np.random.choice(range(0, 100, 1))
+    mlfb_np = mlfb_np[p : p + batch_len]
+    x_mod = x[
+        p * hop_size
+        - int(fftl // 2) : p * hop_size
+        + hop_size * batch_len
+        - 1
+        + int(fftl // 2)
+    ]
+
+    # extract feature by pytorch
+    raw = torch.from_numpy(x_mod).unsqueeze(0).float()
+    mlfb_torch = mlfb_layer(raw).squeeze(0).cpu().numpy()
 
     np.testing.assert_equal(mlfb_np.shape, mlfb_torch.shape)
     np.testing.assert_almost_equal(mlfb_np, mlfb_torch, decimal=4)

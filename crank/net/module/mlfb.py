@@ -49,6 +49,8 @@ class STFTLayer(torch.nn.Module):
         fft_size=1024,
         win_length=None,
         window="hann",
+        center=True,
+        pad_mode="reflect",
         return_complex=False,
     ):
         super().__init__()
@@ -56,6 +58,8 @@ class STFTLayer(torch.nn.Module):
         self.fft_size = fft_size
         self.win_length = fft_size if win_length is None else win_length
         self.window = window
+        self.center = center
+        self.pad_mode = pad_mode
         self.return_complex = return_complex
 
     def forward(self, x):
@@ -71,7 +75,8 @@ class STFTLayer(torch.nn.Module):
             win_length=self.win_length,
             hop_length=self.hop_size,
             window=window,
-            pad_mode="reflect",
+            center=self.center,
+            pad_mode=self.pad_mode,
             return_complex=self.return_complex,
         )
         return stft.transpose(1, 2)
@@ -85,12 +90,16 @@ class LogMelFilterBankLayer(torch.nn.Module):
         fft_size=1024,
         win_length=None,
         window="hann",
+        center=True,
+        pad_mode="reflect",
         n_mels=80,
         fmin=None,
         fmax=None,
     ):
         super().__init__()
-        self.stft_layer = STFTLayer(fs, hop_size, fft_size, win_length, window)
+        self.stft_layer = STFTLayer(
+            fs, hop_size, fft_size, win_length, window, center=center, pad_mode=pad_mode
+        )
         self.mlfb_layer = MLFBLayer(fs, fft_size, n_mels, fmin, fmax)
 
     def forward(self, x):
