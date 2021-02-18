@@ -42,6 +42,7 @@ class BaseDataset(Dataset):
             self.features += ["cap"]
         if conf["use_raw"]:
             self.features += ["raw"]
+        self.features = set(self.features)
         self.spkrdict = dict(zip(self.spkrlist, range(len(self.spkrlist))))
         self.n_spkrs = len(self.spkrdict)
 
@@ -83,7 +84,7 @@ class BaseDataset(Dataset):
         sample["cv_spkr_name"] = random.choice(
             [s for s in list(self.spkrdict.keys()) if s != sample["org_spkr_name"]]
         )
-        sample["flen"] = sample[self.features[0]].shape[0]
+        sample["flen"] = sample[self.conf["input_feat_type"]].shape[0]
         sample["mask"] = np.ones(sample["flen"], dtype=bool)[:, np.newaxis]
         sample["org_h_onehot"], sample["org_h"] = self._get_spkrcode(
             sample["org_spkr_name"], sample["flen"]
@@ -134,10 +135,9 @@ class BaseDataset(Dataset):
 
     def _post_getitem(self, sample):
         # TODO: input feature modification such as SpecAugument and noise augment
-        sample["in_feats"] = sample[self.conf["input_feat_type"]]
-        sample["out_feats"] = sample[self.conf["output_feat_type"]]
+        sample["in_feats"] = sample[self.conf["input_feat_type"]].copy()
+        sample["out_feats"] = sample[self.conf["output_feat_type"]].copy()
         # sample["in_mod"] = sample[self.conf["input_feat_type"]]
-        del sample[self.conf["input_feat_type"]]
         if self.conf["output_feat_type"] in sample.keys():
             del sample[self.conf["output_feat_type"]]
         return sample
@@ -282,7 +282,6 @@ def padding_raw(x, dlen, batch_len, fftl, hop_size, value=0.0, p=0):
         if len(x) < require_length:
             x = np.concatenate([x, np.zeros(require_length - len(x))])
         x = x[ph - hfftl : ph + hfftl + hop_size * batch_len - 1]
-        # print(len(x), target_length, require_length, dlen, p)
     assert len(x) == target_length
     return x
 

@@ -29,11 +29,16 @@ scaler = joblib.load(scalerf)
 
 
 @pytest.mark.parametrize(
-    "decoder_f0, use_mcep",
-    [(True, False), (False, False), (False, True)],
-    ids=["f0condition", "no_f0condition", "use_mcep"],
+    "decoder_f0, use_mcep, use_raw",
+    [
+        (True, False, False),
+        (False, False, False),
+        (False, True, False),
+        (True, False, True),
+    ],
+    ids=["f0condition", "no_f0condition", "use_mcep", "use_raw"],
 )
-def test_dataset(decoder_f0, use_mcep):
+def test_dataset(decoder_f0, use_mcep, use_raw):
     conf = load_yaml(ymlf)
     conf["decoder_f0"] = decoder_f0
     conf["receptive_size"] = 128
@@ -41,6 +46,10 @@ def test_dataset(decoder_f0, use_mcep):
         conf["input_feat_type"] = "mcep"
         conf["output_feat_type"] = "mcep"
         conf["ignore_scaler"] = ["mcep"]
+    if use_raw:
+        conf["input_feat_type"] = "raw"
+        conf["ignore_scaler"] = ["raw"]
+
     scp = {}
     scpdir = datadir / "scpdir"
     for phase in ["train", "dev", "eval"]:
@@ -53,10 +62,11 @@ def test_dataset(decoder_f0, use_mcep):
         for k, v in batch.items():
             if isinstance(v, torch.Tensor):
                 pass
-                # print(k, v.type(), v.size())
+                print(k, v.type(), v.size())
             else:
                 pass
                 # print(k, v, type(v))
+
         # print(torch.sum(batch["encoder_mask"], axis=1))
         # print(torch.sum(batch["cycle_encoder_mask"], axis=1))
         # print(batch[batch["in_key"][0]].size())
