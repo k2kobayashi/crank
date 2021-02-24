@@ -11,7 +11,10 @@
 """
 
 import librosa
+import scipy.signal
+
 import torch
+import torch.nn as nn
 
 
 class MLFBLayer(torch.nn.Module):
@@ -57,17 +60,46 @@ class STFTLayer(torch.nn.Module):
         self.hop_size = hop_size
         self.fft_size = fft_size
         self.win_length = fft_size if win_length is None else win_length
-        self.window = window
         self.center = center
         self.pad_mode = pad_mode
         self.return_complex = return_complex
+        """
+        prepare window parameter type of window
+        - "hann": hanning window
+        - "param": parameter-based window
+        - "conv": convolution-based window
+        """
+        self.window_type = window
+        if window == "param":
+            win = scipy.signal.get_window("hann", self.win_length).astype(float)
+            self.register_parameter(
+                "window", nn.Parameter(torch.from_numpy(win), requires_grad=True)
+            )
+        elif window == "conv":
+            kernel_size = 65
+            self.window_conv = nn.Sequential(
+                nn.Conv1d(
+                    in_channels=1,
+                    out_channels=24,
+                    kernel_size=kernel_size,
+                    stride=1,
+                    padding=(kernel_size - 1) // 2,
+                ),
+                nn.Sigmoid(),
+            )
+        else:
+            self.window = window
 
     def forward(self, x):
-        if isinstance(self.window, str):
+        if self.window_type == "param":
+            window = self.window
+        elif self.window_type == "conv":
+            x = x.unsqueeze(-1).transpose(1, 2)
+            x = torch.mean(self.window_conv(x).transpose(1, 2), -1)
+            window = None
+        else:
             f = getattr(torch, f"{self.window}_window")
             window = f(self.win_length, dtype=x.dtype, device=x.device)
-        else:
-            window = self.window
 
         stft = torch.stft(
             x,
@@ -98,7 +130,13 @@ class LogMelFilterBankLayer(torch.nn.Module):
     ):
         super().__init__()
         self.stft_layer = STFTLayer(
-            fs, hop_size, fft_size, win_length, window, center=center, pad_mode=pad_mode
+            fs,
+            hop_size,
+            fft_size,
+            win_length,
+            window,
+            center=center,
+            pad_mode=pad_mode,
         )
         self.mlfb_layer = MLFBLayer(fs, fft_size, n_mels, fmin, fmax)
 

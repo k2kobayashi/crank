@@ -16,8 +16,7 @@
 """
 
 import torch
-from crank.net.module.loss import (CustomFeatureLoss, MultiSizeSTFTLoss,
-                                   STFTLoss)
+from crank.net.module.loss import CustomFeatureLoss, MultiSizeSTFTLoss, STFTLoss
 
 B, T, D = 3, 1000, 10
 

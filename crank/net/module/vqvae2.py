@@ -53,7 +53,7 @@ class VQVAE2(nn.Module):
                 hop_size=conf["feature"]["hop_size"],
                 fft_size=conf["feature"]["fftl"],
                 win_length=conf["feature"]["win_length"],
-                window="hann",
+                window=self.conf["raw_window_type"],
                 center=False,
                 n_mels=conf["feature"]["mlfb_dim"],
                 fmin=conf["feature"]["fmin"],

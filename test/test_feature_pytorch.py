@@ -14,6 +14,7 @@ from pathlib import Path
 
 import librosa
 import numpy as np
+import pytest
 import soundfile as sf
 import torch
 from crank.net.module.mlfb import LogMelFilterBankLayer, STFTLayer
@@ -28,7 +29,12 @@ conf = load_yaml(ymlf)
 wavf = datadir / "SF1_10001.wav"
 
 
-def test_feature_onthefly():
+@pytest.mark.parametrize(
+    "window",
+    [("hann"), ("param"), ("conv")],
+    ids=["hann_window", "param_window", "conv_window"],
+)
+def test_feature_onthefly(window):
     x, fs = sf.read(str(wavf))
     x = np.array(x, dtype=np.float)
 
@@ -51,19 +57,22 @@ def test_feature_onthefly():
         hop_size=conf["feature"]["hop_size"],
         fft_size=conf["feature"]["fftl"],
         win_length=conf["feature"]["win_length"],
-        window="hann",
+        window=window,
+        center=False,
         n_mels=conf["feature"]["mlfb_dim"],
         fmin=conf["feature"]["fmin"],
         fmax=conf["feature"]["fmax"],
     )
+
     raw = torch.from_numpy(x).unsqueeze(0).float()
-    mlfb_torch = mlfb_layer(raw).squeeze(0).cpu().numpy()
+    mlfb_torch = mlfb_layer(raw).detach().squeeze(0).detach().cpu().numpy()
 
     plot_mlfb(mlfb_torch, datadir / "mlfb_torch.png")
     plot_mlfb(mlfb_np, datadir / "mlfb_np.png")
 
-    np.testing.assert_equal(mlfb_np.shape, mlfb_torch.shape)
-    np.testing.assert_almost_equal(mlfb_np, mlfb_torch, decimal=4)
+    if window == "han":
+        np.testing.assert_equal(mlfb_np.shape, mlfb_torch.shape)
+        np.testing.assert_almost_equal(mlfb_np, mlfb_torch, decimal=4)
 
 
 def test_feature_onthefly_padding():
@@ -109,7 +118,7 @@ def test_feature_onthefly_padding():
 
     # extract feature by pytorch
     raw = torch.from_numpy(x_mod).unsqueeze(0).float()
-    mlfb_torch = mlfb_layer(raw).squeeze(0).cpu().numpy()
+    mlfb_torch = mlfb_layer(raw).squeeze(0).detach().cpu().numpy()
 
     np.testing.assert_equal(mlfb_np.shape, mlfb_torch.shape)
     np.testing.assert_almost_equal(mlfb_np, mlfb_torch, decimal=4)
@@ -135,13 +144,18 @@ def test_stft_torch():
         fft_size=conf["feature"]["fftl"],
         win_length=conf["feature"]["win_length"],
         window="hann",
+        center=True,
     )
     stft = stft_layer(torch.from_numpy(x).unsqueeze(0))
     spc_torch = (
-        torch.sqrt(stft[..., 0] ** 2 + stft[..., 1] ** 2).squeeze(0).cpu().numpy()
+        torch.sqrt(stft[..., 0] ** 2 + stft[..., 1] ** 2)
+        .squeeze(0)
+        .detach()
+        .cpu()
+        .numpy()
     )
     plot_mlfb(spc_torch, datadir / "spc_torch.png")
     plot_mlfb(spc_np, datadir / "spc_np.png")
 
     np.testing.assert_equal(spc_np.shape, spc_torch.shape)
-    np.testing.assert_almost_equal(spc_np, spc_torch)
+    np.testing.assert_almost_equal(spc_np, spc_torch, decimal=5)

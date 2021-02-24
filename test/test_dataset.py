@@ -47,7 +47,8 @@ def test_dataset(decoder_f0, use_mcep, use_raw):
         conf["output_feat_type"] = "mcep"
         conf["ignore_scaler"] = ["mcep"]
     if use_raw:
-        conf["input_feat_type"] = "raw"
+        conf["use_raw"] = True
+        conf["input_feat_type"] = "mlfb"
         conf["ignore_scaler"] = ["raw"]
 
     scp = {}

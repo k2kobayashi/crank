@@ -184,7 +184,7 @@ class BaseDataset(Dataset):
                     self.conf["feature"]["hop_size"],
                     value=0.0,
                     p=p,
-                ).astype(np.float)
+                ).astype(np.float32)
             else:
                 # padding 0 for continuous values
                 sample[k] = padding(v, diff_frames, blen, value=0.0, p=p).astype(

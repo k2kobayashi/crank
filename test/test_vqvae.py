@@ -46,19 +46,22 @@ def test_vqvae():
         fmin=conf["feature"]["fmin"],
         fmax=conf["feature"]["fmax"],
     )
+    # NOTE: eigher discard frames or pad raw waveform for stft
+    T = mlfb_np.shape[0] - 8
 
-    T = mlfb_np.shape[0]
+    conf["use_raw"] = True
+    conf["input_feat_type"] = "mlfb"
+    conf["ignore_scaler"] = ["raw"]
+    fs = (conf["feature"]["fs"],)
 
-    conf["input_feat_type"] = "raw"
     model = VQVAE2(conf, spkr_size=SPKR_SIZE)
     enc_h = None
     dec_h = torch.randn((B, T, 2))
     spkrvec = torch.ones((B, T)) * 5
 
-    mlfb = torch.from_numpy(mlfb_np).float()
+    mlfb = torch.from_numpy(mlfb_np).float()  # noqa
     raw = torch.from_numpy(x).unsqueeze(0).float()
     y = model.forward(raw, enc_h, dec_h, spkrvec=spkrvec.long())
     # y = model.cycle_forward(
     #     mlfb, enc_h, dec_h, enc_h, dec_h, spkrvec.long(), spkrvec.long()
     # )
-    print(y.keys())
