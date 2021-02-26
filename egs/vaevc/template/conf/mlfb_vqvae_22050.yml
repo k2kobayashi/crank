@@ -18,6 +18,8 @@ feature:
 # general setting
 input_feat_type: mlfb    # input feature type ['mlfb', 'mcep']
 output_feat_type: mlfb   # output feature type ['mlfb', 'mcep', 'excit']
+use_raw: false           # use raw waveform as network inputs
+raw_window_type: hann    # window for raw ['hann', 'param', 'conv']
 trainer_type: vqvae      # trainer type ['vqvae', 'lsgan', 'cyclegan', 'stargan']
 input_size: 80           # input_size of G network ['mlfb_dim', 'mcep_dim+1']
 output_size: 80          # output_size of G network ['mlfb_dim', 'mcep_dim+1']
@@ -31,7 +33,7 @@ cache_dataset: true      # cache_dataset (NOTE: fix cv_spkr_label in a mini-batc
 spec_augment: false      # apply SpecAugment mask to input feature
 n_spec_augment: 0        # # of bands of spec_augment (both time and freq axises)
 use_mcep_0th: false      # model 0th order of mcep
-ignore_scaler: []        # ignore applying scaler ['mlfb', 'mcep', 'lcf0']
+ignore_scaler: ["raw"]        # ignore applying scaler ['mlfb', 'mcep', 'lcf0']
 
 # alpha
 alpha:
