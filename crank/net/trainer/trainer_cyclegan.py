@@ -14,7 +14,6 @@ import random
 
 import torch
 from crank.net.trainer import LSGANTrainer
-from torch.nn.utils import clip_grad_norm
 
 
 class CycleGANTrainer(LSGANTrainer):

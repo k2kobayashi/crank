@@ -183,6 +183,7 @@ if [ "${stage}" -le 6 ] && [ "${stop_stage}" -ge 6 ]; then
         echo "Griffin-Lim phase recovery"
         ${train_cmd} "${outdir}/griffin_lim_decode.log" \
             python -m crank.bin.griffin_lim \
+                --n_jobs "${n_jobs}" \
                 --conf "${conf}" \
                 --rootdir ${expdir}/"${confname}"/eval_wav/"${n_decode_steps}" \
                 --outdir "${outdir}/wav"

@@ -64,7 +64,7 @@ def get_model(conf, spkr_size=0, device="cuda"):
 
     # spkr classifier network
     if conf["use_spkr_classifier"]:
-        # TODO: investigate peformance of residual network
+        # TODO(k2kobayashi): investigate peformance of residual network
         # if conf["use_residual_network"]:
         #     C = ResidualParallelWaveGANDiscriminator(
         #         in_channels=conf["input_size"],

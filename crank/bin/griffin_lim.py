@@ -9,13 +9,12 @@
 
 import argparse
 import logging
-import os
 import sys
 from joblib import Parallel, delayed
+from pathlib import Path
 
 from crank.utils import mlfb2wavf, load_yaml
 from crank.net.trainer.dataset import read_feature
-from parallel_wavegan.utils import find_files
 
 
 def main():
@@ -23,14 +22,14 @@ def main():
         description="Convert filter banks to waveform using Griffin-Lim algorithm",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
+    parser.add_argument("--n_jobs", type=int, default=1, help="# of CPUs")
     parser.add_argument("--conf", type=str, required=True, help="Cofiguration file")
     parser.add_argument(
         "--rootdir",
         type=str,
-        required=True,
-        help="Root directory of filter bank h5 files",
+        help="Root dir for h5 files",
     )
-    parser.add_argument("--outdir", type=str, required=True, help="Output directory")
+    parser.add_argument("--outdir", type=str, help="Output directory")
     args = parser.parse_args()
 
     # logging info
@@ -53,7 +52,7 @@ def main():
     }
 
     # Main Griffin-Lim algorithm
-    Parallel(n_jobs=30)(
+    Parallel(n_jobs=args.n_jobs)(
         [
             delayed(mlfb2wavf)(
                 feats[wavf],
