@@ -20,11 +20,10 @@ from parallel_wavegan.models import ParallelWaveGANGenerator
 def raw_preprocessing(func):
     def wrapper_func(*args, **kwargs):
         conf = args[0].conf
-        if conf["use_raw"]:
+        if conf["use_raw"] or conf["use_sincconv"]:
             # estimate mlfb on the fly
             args = list(args)
-            mlfb = args[0].mlfb_layer(args[1])
-            args[1] = mlfb
+            args[1] = args[0].preprocess_layer(args[1])
             result = func(*args, **kwargs)
         else:
             result = func(*args, **kwargs)
@@ -47,8 +46,10 @@ class VQVAE2(nn.Module):
                 self.spkr_size, self.conf["spkr_embedding_size"]
             )
 
+        # self.conf["use_raw"] = False
+        self.conf["use_sincconv"] = False
         if self.conf["use_raw"]:
-            self.mlfb_layer = LogMelFilterBankLayer(
+            self.preprocess_layer = LogMelFilterBankLayer(
                 fs=conf["feature"]["fs"],
                 hop_size=conf["feature"]["hop_size"],
                 fft_size=conf["feature"]["fftl"],
@@ -58,6 +59,19 @@ class VQVAE2(nn.Module):
                 n_mels=conf["feature"]["mlfb_dim"],
                 fmin=conf["feature"]["fmin"],
                 fmax=conf["feature"]["fmax"],
+            )
+        elif self.conf["use_sincconv"]:
+            import numpy as np
+            from crank.net.module.sinc_conv import SincConvPreprocessingLayer
+
+            assert np.prod([4, 4, 4, 2]) == self.conf["feature"]["hop_size"]
+
+            self.preprocess_layer = SincConvPreprocessingLayer(
+                in_channels=1,
+                sincconv_channels=32,
+                sincconv_kernel_size=65,
+                out_channels=80,
+                kernel_sizes=[4, 4, 4, 2],
             )
 
     @raw_preprocessing

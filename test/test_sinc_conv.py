@@ -30,7 +30,6 @@ wavf = datadir / "SF1_10001.wav"
 
 
 def test_sincconv():
-
     sinc_conv = SincConvPreprocessingLayer(
         in_channels=1,
         sincconv_channels=32,
