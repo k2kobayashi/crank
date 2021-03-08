@@ -4,7 +4,7 @@ scipy
 joblib
 matplotlib
 sprocket-vc
-torch
+torch==1.7.1
 torchvision
 parallel_wavegan
 tensorboardX
