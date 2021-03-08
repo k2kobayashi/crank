@@ -13,3 +13,4 @@ pytorch_lamb
 tensorflow-gpu==2.4.0
 gdown
 museval
+typeguard
