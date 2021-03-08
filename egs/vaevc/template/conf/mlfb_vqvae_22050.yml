@@ -16,24 +16,28 @@ feature:
   window_types: [hann]   # type of window for mlfb extraction
 
 # general setting
-input_feat_type: mlfb    # input feature type ['mlfb', 'mcep']
-output_feat_type: mlfb   # output feature type ['mlfb', 'mcep', 'excit']
-use_raw: false           # use raw waveform as network inputs
-raw_window_type: hann    # window for raw ['hann', 'param', 'conv']
-trainer_type: vqvae      # trainer type ['vqvae', 'lsgan', 'cyclegan', 'stargan']
-input_size: 80           # input_size of G network ['mlfb_dim', 'mcep_dim+1']
-output_size: 80          # output_size of G network ['mlfb_dim', 'mcep_dim+1']
-n_steps: 200000          # # of training steps
-dev_steps: 2000          # # of development steps
-n_steps_save_model: 5000 # save model in each # steps
-n_steps_print_loss: 50   # print loss in each # steps
-batch_size: 50           # # of mini-batch in a batch
-batch_len: 500           # frame length (time_axis) of a mini-batch
-cache_dataset: true      # cache_dataset (NOTE: fix cv_spkr_label in a mini-batch)
-spec_augment: false      # apply SpecAugment mask to input feature
-n_spec_augment: 0        # # of bands of spec_augment (both time and freq axises)
-use_mcep_0th: false      # model 0th order of mcep
-ignore_scaler: ["raw"]        # ignore applying scaler ['mlfb', 'mcep', 'lcf0']
+input_feat_type: mlfb       # input feature type ['mlfb', 'mcep']
+output_feat_type: mlfb      # output feature type ['mlfb', 'mcep', 'excit']
+use_raw: true               # use raw waveform as network inputs
+use_sinc_conv: true         # use sinc conv for feature extraction (require use_raw)
+raw_window_type: hann       # window for raw ['hann', 'param', 'conv']
+trainer_type: vqvae         # trainer type ['vqvae', 'lsgan', 'cyclegan', 'stargan']
+input_size: 80              # input_size of G network ['mlfb_dim', 'mcep_dim+1']
+output_size: 80             # output_size of G network ['mlfb_dim', 'mcep_dim+1']
+n_steps: 200000             # # of training steps
+dev_steps: 2000             # # of development steps
+n_steps_save_model: 5000    # save model in each # steps
+n_steps_print_loss: 50      # print loss in each # steps
+batch_size: 50              # # of mini-batch in a batch
+batch_len: 500              # frame length (time_axis) of a mini-batch
+cache_dataset: true         # cache_dataset (NOTE: fix cv_spkr_label in a mini-batch)
+spec_augment: false         # apply SpecAugment mask to input feature
+n_spec_augment: 0           # # of bands of spec_augment (both time and freq axises)
+use_mcep_0th: false         # model 0th order of mcep
+ignore_scaler: ["raw"]      # ignore applying scaler ['mlfb', 'mcep', 'lcf0']
+sinc_conv_kernel_sizes: 65  # size of sinc conv filter
+sinc_conv_channels: 32      # size of sinc conv channels
+sinc_conv_down_sample_kernel_sizes: [4, 4, 4, 2]  # size of kernels for down sampling layers (must match hop_size) 
 
 # alpha
 alpha:

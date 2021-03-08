@@ -10,18 +10,20 @@ VQVAE class
 
 """
 
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from crank.net.module.mlfb import LogMelFilterBankLayer
+from crank.net.module.sinc_conv import SincConvPreprocessingLayer
 from parallel_wavegan.models import ParallelWaveGANGenerator
 
 
 def raw_preprocessing(func):
     def wrapper_func(*args, **kwargs):
         conf = args[0].conf
-        if conf["use_raw"] or conf["use_sincconv"]:
-            # estimate mlfb on the fly
+        if conf["use_raw"] or conf["use_sinc_conv"]:
+            # extract feature vector on the fly
             args = list(args)
             args[1] = args[0].preprocess_layer(args[1])
             result = func(*args, **kwargs)
@@ -46,8 +48,6 @@ class VQVAE2(nn.Module):
                 self.spkr_size, self.conf["spkr_embedding_size"]
             )
 
-        # self.conf["use_raw"] = False
-        self.conf["use_sincconv"] = False
         if self.conf["use_raw"]:
             self.preprocess_layer = LogMelFilterBankLayer(
                 fs=conf["feature"]["fs"],
@@ -60,18 +60,20 @@ class VQVAE2(nn.Module):
                 fmin=conf["feature"]["fmin"],
                 fmax=conf["feature"]["fmax"],
             )
-        elif self.conf["use_sincconv"]:
-            import numpy as np
-            from crank.net.module.sinc_conv import SincConvPreprocessingLayer
-
-            assert np.prod([4, 4, 4, 2]) == self.conf["feature"]["hop_size"]
-
+        elif self.conf["use_sinc_conv"]:
+            if (
+                np.prod(self.conf["sinc_conv_kernel_sizes"])
+                != self.conf["feature"]["hop_size"]
+            ):
+                raise ValueError(
+                    "Product of sinc_conv_kernel_sizes must be same as hop_size."
+                )
             self.preprocess_layer = SincConvPreprocessingLayer(
                 in_channels=1,
-                sincconv_channels=32,
-                sincconv_kernel_size=65,
-                out_channels=80,
-                kernel_sizes=[4, 4, 4, 2],
+                sinc_conv_channels=self.conf["sinc_conv_channels"],
+                sinc_conv_kernel_size=self.conf["sinc_conv_kernel_size"],
+                out_channels=self.conf["input_size"],
+                kernel_sizes=["sinc_conv_down_sample_kernel_sizes"],
             )
 
     @raw_preprocessing

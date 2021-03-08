@@ -162,7 +162,7 @@ class BaseDataset(Dataset):
     def _zero_padding(self, sample):
         blen = self.batch_len
         diff_frames = blen - sample["flen"]
-        p = random.choice(range(1, abs(diff_frames))) if diff_frames < 0 else 0
+        p = random.choice(range(0, abs(diff_frames))) + 1 if diff_frames < 0 else 0
         for k, v in sample.items():
             if not isinstance(v, np.ndarray):
                 continue
@@ -258,21 +258,17 @@ def padding_raw(x, dlen, batch_len, fftl, hop_size, value=0.0, p=0):
     target_length = fftl + hop_size * batch_len - 1
 
     if dlen > 0 or p == 0:
-        # padding
+        # padding both side
         if len(x) < target_length - fftl:
             x = np.pad(x, int(fftl // 2), mode="reflect")
-        if len(x) < target_length:
-            x = np.concatenate([x, np.zeros(target_length - len(x))])
     else:
         # pad left
         ph = p * hop_size
         hfftl = fftl // 2
         x = np.concatenate([np.zeros(hfftl), x[ph:]])
-
-        # pad right if necesarry
-        if len(x) < target_length:
-            x = np.concatenate([x, np.zeros(hfftl)])
-
+    if len(x) < target_length:
+        x = np.concatenate([x, np.zeros(target_length - len(x))])
+    else:
         x = x[:target_length]
     assert len(x) == target_length, print(len(x), target_length)
     return x
