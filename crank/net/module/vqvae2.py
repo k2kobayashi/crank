@@ -14,9 +14,10 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from parallel_wavegan.models import ParallelWaveGANGenerator
+
 from crank.net.module.mlfb import LogMelFilterBankLayer
 from crank.net.module.sinc_conv import SincConvPreprocessingLayer
-from parallel_wavegan.models import ParallelWaveGANGenerator
 
 
 def raw_preprocessing(func):
@@ -35,7 +36,7 @@ def raw_preprocessing(func):
 
 
 class VQVAE2(nn.Module):
-    def __init__(self, conf, spkr_size=0):
+    def __init__(self, conf, spkr_size=0, scaler=None):
         super(VQVAE2, self).__init__()
         self.conf = conf
         self.spkr_size = spkr_size
@@ -49,6 +50,9 @@ class VQVAE2(nn.Module):
             )
 
         if self.conf["use_raw"]:
+            mlfb_scaler = (
+                scaler["mlfb"] if self.conf["use_preprocessed_scaler"] else None
+            )
             self.preprocess_layer = LogMelFilterBankLayer(
                 fs=conf["feature"]["fs"],
                 hop_size=conf["feature"]["hop_size"],
@@ -59,6 +63,7 @@ class VQVAE2(nn.Module):
                 n_mels=conf["feature"]["mlfb_dim"],
                 fmin=conf["feature"]["fmin"],
                 fmax=conf["feature"]["fmax"],
+                scaler=mlfb_scaler,
             )
         elif self.conf["use_sinc_conv"]:
             if (

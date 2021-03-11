@@ -12,7 +12,6 @@
 
 import librosa
 import scipy.signal
-
 import torch
 import torch.nn as nn
 
@@ -114,7 +113,28 @@ class STFTLayer(torch.nn.Module):
         return stft.transpose(1, 2).float()
 
 
-class LogMelFilterBankLayer(torch.nn.Module):
+class MLFBScalerLayer(nn.Module):
+    def __init__(self, scaler):
+        super().__init__()
+        print(scaler.var_, scaler.mean_)
+
+        print(torch.from_numpy(scaler.mean_).float().size())
+        self.register_parameter(
+            "mean",
+            nn.Parameter(torch.from_numpy(scaler.mean_).float(), requires_grad=False),
+        )
+        self.register_parameter(
+            "std",
+            nn.Parameter(
+                torch.from_numpy(scaler.var_).float().sqrt(), requires_grad=False
+            ),
+        )
+
+    def forward(self, x):
+        return (x - self.mean) / self.std
+
+
+class LogMelFilterBankLayer(nn.Module):
     def __init__(
         self,
         fs=22050,
@@ -127,6 +147,7 @@ class LogMelFilterBankLayer(torch.nn.Module):
         n_mels=80,
         fmin=None,
         fmax=None,
+        scaler=None,
     ):
         super().__init__()
         self.stft_layer = STFTLayer(
@@ -139,9 +160,15 @@ class LogMelFilterBankLayer(torch.nn.Module):
             pad_mode=pad_mode,
         )
         self.mlfb_layer = MLFBLayer(fs, fft_size, n_mels, fmin, fmax)
+        if scaler is not None:
+            self.scaler_layer = MLFBScalerLayer(scaler)
+        else:
+            self.scaler_layer = None
 
     def forward(self, x):
         stft = self.stft_layer(x)
         amplitude = torch.sqrt(stft[..., 0] ** 2 + stft[..., 1] ** 2)
         mlfb = self.mlfb_layer(amplitude)
+        if self.scaler_layer is not None:
+            mlfb = self.scaler_layer(mlfb)
         return mlfb

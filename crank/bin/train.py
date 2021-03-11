@@ -21,6 +21,12 @@ from pathlib import Path
 import joblib
 import numpy as np
 import torch
+from parallel_wavegan.models import (
+    ParallelWaveGANDiscriminator,
+    ResidualParallelWaveGANDiscriminator,
+)
+from tensorboardX import SummaryWriter
+
 from crank.net.module.spkradv import SpeakerAdversarialNetwork
 from crank.net.module.vqvae2 import VQVAE2
 from crank.net.trainer import TrainerWrapper
@@ -31,11 +37,6 @@ from crank.net.trainer.utils import (
     get_scheduler,
 )
 from crank.utils import load_yaml, open_featsscp, open_scpdir
-from parallel_wavegan.models import (
-    ParallelWaveGANDiscriminator,
-    ResidualParallelWaveGANDiscriminator,
-)
-from tensorboardX import SummaryWriter
 
 warnings.simplefilter(action="ignore")
 logging.basicConfig(
@@ -52,8 +53,8 @@ torch.backends.cudnn.deterministic = False
 torch.backends.cudnn.benchmark = True
 
 
-def get_model(conf, spkr_size=0, device="cuda"):
-    models = {"G": VQVAE2(conf, spkr_size=spkr_size).to(device)}
+def get_model(conf, spkr_size=0, device="cuda", scaler=None):
+    models = {"G": VQVAE2(conf, spkr_size=spkr_size, scaler=scaler).to(device)}
     logging.info(models["G"])
 
     # speaker adversarial network
@@ -177,7 +178,8 @@ def main():
     spkr_size = len(scp["train"]["spkrs"])
 
     # load model
-    model = get_model(conf, spkr_size, device)
+    scaler = joblib.load(featdir / "scaler.pkl")
+    model = get_model(conf, spkr_size, device, scaler=scaler)
     resume = 0
     if args.checkpoint != "None":
         model, resume = load_checkpoint(model, args.checkpoint)
@@ -197,7 +199,6 @@ def main():
     )
 
     # load others
-    scaler = joblib.load(featdir / "scaler.pkl")
     optimizer = get_optimizer(conf, model)
     criterion = get_criterion(conf)
     dataloader = get_dataloader(conf, scp, scaler, n_jobs=args.n_jobs, flag=args.flag)

@@ -17,9 +17,11 @@ import numpy as np
 import pytest
 import soundfile as sf
 import torch
+from parallel_wavegan.bin.preprocess import logmelfilterbank
+from sklearn.preprocessing import StandardScaler
+
 from crank.net.module.mlfb import LogMelFilterBankLayer, STFTLayer
 from crank.utils import load_yaml, plot_mlfb
-from parallel_wavegan.bin.preprocess import logmelfilterbank
 
 datadir = Path(__file__).parent / "data"
 ymlf = datadir / "mlfb_vqvae_22050.yml"
@@ -159,3 +161,47 @@ def test_stft_torch():
 
     np.testing.assert_equal(spc_np.shape, spc_torch.shape)
     np.testing.assert_almost_equal(spc_np, spc_torch, decimal=5)
+
+
+def test_feature_onthefly_scaler():
+    x, fs = sf.read(str(wavf))
+    x = np.array(x, dtype=np.float)
+
+    # extract feature
+    mlfb_np = logmelfilterbank(
+        x,
+        fs,
+        hop_size=conf["feature"]["hop_size"],
+        fft_size=conf["feature"]["fftl"],
+        win_length=conf["feature"]["win_length"],
+        window="hann",
+        num_mels=conf["feature"]["mlfb_dim"],
+        fmin=conf["feature"]["fmin"],
+        fmax=conf["feature"]["fmax"],
+    )
+
+    ss = StandardScaler()
+    ss.partial_fit(mlfb_np)
+
+    # extract feature by pytorch
+    mlfb_layer = LogMelFilterBankLayer(
+        fs=fs,
+        hop_size=conf["feature"]["hop_size"],
+        fft_size=conf["feature"]["fftl"],
+        win_length=conf["feature"]["win_length"],
+        window="hann",
+        center=True,
+        n_mels=conf["feature"]["mlfb_dim"],
+        fmin=conf["feature"]["fmin"],
+        fmax=conf["feature"]["fmax"],
+        scaler=ss,
+    )
+
+    raw = torch.from_numpy(x).unsqueeze(0).float()
+    mlfb_torch = mlfb_layer(raw).detach().squeeze(0).detach().cpu().numpy()
+
+    plot_mlfb(mlfb_torch, datadir / "mlfb_torch_scaler.png")
+    plot_mlfb(mlfb_np, datadir / "mlfb_np_scaler.png")
+
+    np.testing.assert_equal(mlfb_np.shape, mlfb_torch.shape)
+    np.testing.assert_almost_equal(ss.transform(mlfb_np), mlfb_torch, decimal=4)
