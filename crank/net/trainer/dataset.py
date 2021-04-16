@@ -158,20 +158,13 @@ class BaseDataset(Dataset):
     def _zero_padding(self, sample):
         blen = self.batch_len
         diff_frames = blen - sample["flen"]
-        p = random.choice(range(0, abs(diff_frames))) + 1 if diff_frames < 0 else 0
+        p = random.choice(range(0, abs(diff_frames))) if diff_frames < 0 else 0
         for k, v in sample.items():
             if not isinstance(v, np.ndarray):
                 continue
 
-            if k in ["org_h", "cv_h"]:
-                # padding -100 for ignore_index
-                sample[k] = padding(v, diff_frames, blen, value=-100, p=p).astype(
-                    np.long
-                )
-            elif k in ["mask"]:
-                sample[k] = padding(v, diff_frames, blen, value=False, p=p).astype(bool)
-            elif k in ["raw"]:
-                # padding 0 for raw samples
+            if k in ["raw"]:
+                # pad 0.0 for raw waveform
                 sample[k] = padding_raw(
                     v.squeeze(),
                     diff_frames,
@@ -180,18 +173,28 @@ class BaseDataset(Dataset):
                     self.conf["feature"]["hop_size"],
                     value=0.0,
                     p=p,
-                ).astype(np.float32)
+                )
             else:
-                # padding 0 for continuous values
-                sample[k] = padding(v, diff_frames, blen, value=0.0, p=p).astype(
-                    np.float32
-                )
-            if k not in ["raw"]:
-                assert (
-                    sample[k].shape[0] == blen
-                ), "ERROR in padding: {}, diff_frames{}, p{}, v{}".format(
-                    k, diff_frames, p, sample[k].shape[0]
-                )
+                if k in ["mask"]:
+                    # pad boolean
+                    sample[k] = padding(v, diff_frames, blen, value=False, p=p)
+                elif k in ["org_h", "cv_h"]:
+                    # pad -100 for ignore_index
+                    sample[k] = padding(v, diff_frames, blen, value=-100, p=p)
+                else:
+                    # padding 0.0 for continuous array
+                    if sample["flen"] != sample[k].shape[0]:
+                        sample[k] = padding(
+                            v, blen - sample[k].shape[0], blen, value=0.0, p=p
+                        )
+                    else:
+                        sample[k] = padding(v, diff_frames, blen, value=0.0, p=p)
+                if k not in ["raw"]:
+                    if sample[k].shape[0] != blen:
+                        raise ValueError(
+                            f"ERROR in padding, type: {k}, diff_frames: {diff_frames}, "
+                            f"p: {p}, shape: {sample[k].shape[0]}"
+                        )
         return sample
 
     def _spec_augment(self, feats):
@@ -247,7 +250,12 @@ def padding(x, dlen, batch_len, value=0.0, p=0):
     elif dlen < 0:
         # discard
         x = x[p : p + batch_len]
-    return x
+    if type(value) == bool:
+        return x.astype(bool)
+    elif isinstance(value, int):
+        return x.astype(np.long)
+    else:
+        return x.astype(np.float32)
 
 
 def padding_raw(x, dlen, batch_len, fftl, hop_size, value=0.0, p=0):

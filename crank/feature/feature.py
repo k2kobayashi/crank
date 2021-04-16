@@ -16,10 +16,11 @@ from pathlib import Path
 import numpy as np
 import scipy.signal as sp
 import soundfile as sf
-from crank.utils import convert_continuos_f0, low_cut_filter, mlfb2wavf
 from parallel_wavegan.bin.preprocess import logmelfilterbank
 from sprocket.speech import FeatureExtractor, Synthesizer
 from sprocket.util import HDF5
+
+from crank.utils import convert_continuos_f0, low_cut_filter, mlfb2wavf
 
 EPS = 1e-10
 
@@ -58,6 +59,8 @@ class Feature(object):
     def _save_hdf5(self, h5f):
         h5 = HDF5(h5f, "a")
         for k, v in self.feats.items():
+            if v.dtype == np.float64:
+                v = v.astype(np.float32)
             h5.save(v, ext=k)
         h5.close()
 
