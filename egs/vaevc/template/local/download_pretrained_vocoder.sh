@@ -14,12 +14,15 @@ voc=
 set -eu # stop when error occured and undefined vars are used
 
 case "${voc}" in
-    "PWG") id="set id of google drive" ;;
+    "PWG") id="SET_ID_OF_GOOGLE_DRIVE_HERE" ;;
     *) echo "No such pretrained model: ${voc}"; exit 1 ;;
 esac
 
 mkdir -p "${downloaddir}"
-if [ ! -e "${downloaddir}"/.done ]; then
+if [ "${id}" = "SET_ID_OF_GOOGLE_DRIVE_HERE" ] ; then
+    echo "Skip download pretrained vocoder model"
+    echo "Please set Google drive ID, if you have."
+elif [ ! -e "${downloaddir}"/.done ] ; then
     gdown --id "$id" \
         --output "$downloaddir"/PWG.tar.gz
     tar zxvf "$downloaddir"/PWG.tar.gz \
