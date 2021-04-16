@@ -123,13 +123,6 @@ class BaseDataset(Dataset):
             "cycle_decoder_mask",
         ]:
             sample[ed] = np.copy(sample["mask"])
-        if self.conf["causal"]:
-            er = self.conf["encoder_receptive_size"]
-            dr = self.conf["decoder_receptive_size"]
-            sample["encoder_mask"][:er] = False
-            sample["decoder_mask"][: er + dr] = False
-            sample["cycle_encoder_mask"][: er * 2 + dr] = False
-            sample["cycle_decoder_mask"][: (er + dr) * 2] = False
         del sample["mask"]
         return sample
 
