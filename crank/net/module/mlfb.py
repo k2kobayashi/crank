@@ -116,9 +116,6 @@ class STFTLayer(torch.nn.Module):
 class MLFBScalerLayer(nn.Module):
     def __init__(self, scaler):
         super().__init__()
-        print(scaler.var_, scaler.mean_)
-
-        print(torch.from_numpy(scaler.mean_).float().size())
         self.register_parameter(
             "mean",
             nn.Parameter(torch.from_numpy(scaler.mean_).float(), requires_grad=False),

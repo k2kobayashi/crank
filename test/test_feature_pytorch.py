@@ -123,7 +123,7 @@ def test_feature_onthefly_padding():
     mlfb_torch = mlfb_layer(raw).squeeze(0).detach().cpu().numpy()
 
     np.testing.assert_equal(mlfb_np.shape, mlfb_torch.shape)
-    np.testing.assert_almost_equal(mlfb_np, mlfb_torch, decimal=4)
+    np.testing.assert_almost_equal(mlfb_np, mlfb_torch, decimal=3)
 
 
 def test_stft_torch():
@@ -204,4 +204,4 @@ def test_feature_onthefly_scaler():
     plot_mlfb(mlfb_np, datadir / "mlfb_np_scaler.png")
 
     np.testing.assert_equal(mlfb_np.shape, mlfb_torch.shape)
-    np.testing.assert_almost_equal(ss.transform(mlfb_np), mlfb_torch, decimal=4)
+    np.testing.assert_almost_equal(ss.transform(mlfb_np), mlfb_torch, decimal=3)
