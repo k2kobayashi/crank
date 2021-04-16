@@ -35,7 +35,7 @@ class SpeakerAdversarialNetwork(nn.Module):
     def _construct_net(self):
         self.grl = GradientReversalLayer(scale=self.conf["spkradv_lambda"])
 
-        # TODO: investigate peformance of residual network
+        # TODO(k2kobayashi): investigate peformance of residual network
         # if self.conf["use_residual_network"]:
         #     self.classifier = ResidualParallelWaveGANDiscriminator(
         #         in_channels=sum(
