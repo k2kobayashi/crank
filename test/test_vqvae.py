@@ -16,9 +16,10 @@ from pathlib import Path
 import numpy as np
 import soundfile as sf
 import torch
+from parallel_wavegan.bin.preprocess import logmelfilterbank
+
 from crank.net.module.vqvae2 import VQVAE2
 from crank.utils import load_yaml
-from parallel_wavegan.bin.preprocess import logmelfilterbank
 
 SPKR_SIZE = 10
 B, D = 3, 80
@@ -52,6 +53,7 @@ def test_vqvae():
     conf["use_raw"] = True
     conf["input_feat_type"] = "mlfb"
     conf["ignore_scaler"] = ["raw"]
+    conf["use_preprocessed_scaler"] = False
     fs = (conf["feature"]["fs"],)
 
     model = VQVAE2(conf, spkr_size=SPKR_SIZE)
@@ -61,7 +63,7 @@ def test_vqvae():
 
     mlfb = torch.from_numpy(mlfb_np).float()  # noqa
     raw = torch.from_numpy(x).unsqueeze(0).float()
-    y = model.forward(raw, enc_h, dec_h, spkrvec=spkrvec.long())
+    _ = model.forward(raw, enc_h, dec_h, spkrvec=spkrvec.long())
     # y = model.cycle_forward(
     #     mlfb, enc_h, dec_h, enc_h, dec_h, spkrvec.long(), spkrvec.long()
     # )
