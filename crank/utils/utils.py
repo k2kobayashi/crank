@@ -12,6 +12,7 @@ Utilities
 """
 
 import logging
+import os
 from pathlib import Path
 
 import librosa
@@ -64,8 +65,23 @@ def open_scpdir(scpdir):
 
 
 def load_yaml(ymlf):
+    def dictupdate(default, new):
+        for k, v in new.items():
+            if isinstance(v, dict) and k in default:
+                dictupdate(default[k], v)
+            else:
+                default[k] = v
+
     with open(ymlf) as fp:
-        return yaml.load(fp, Loader=yaml.SafeLoader)
+        yml = yaml.load(fp, Loader=yaml.SafeLoader)
+    default_ymlf = os.environ.get("CRANK_DEFAULT_YAML")
+    if default_ymlf is None:
+        return yml
+    else:
+        with open(default_ymlf) as fp:
+            default_yml = yaml.load(fp, Loader=yaml.SafeLoader)
+        dictupdate(default_yml, yml)
+        return default_yml
 
 
 def plot_mlfb(mlfb, path, ext="png"):
