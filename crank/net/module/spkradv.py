@@ -13,7 +13,7 @@ import torch
 import torch.nn as nn
 from parallel_wavegan.models import (
     ParallelWaveGANDiscriminator,
-    ResidualParallelWaveGANDiscriminator,
+    # ResidualParallelWaveGANDiscriminator,
 )
 
 
