@@ -142,7 +142,7 @@ class BaseDataset(Dataset):
 
     def _transform(self, sample):
         for k in self.features:
-            if k not in ["uv", "cap"] and k not in self.conf["ignore_scaler"]:
+            if k not in ["uv", "cap"] + self.conf["ignore_scaler"]:
                 sample[k] = self.scaler[k].transform(sample[k])
         return sample
 

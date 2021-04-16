@@ -15,9 +15,10 @@ from pathlib import Path
 import joblib
 import pytest
 import torch
+from torch.utils.data import DataLoader
+
 from crank.net.trainer.dataset import BaseDataset
 from crank.utils import load_yaml, open_scpdir
-from torch.utils.data import DataLoader
 
 datadir = Path(__file__).parent / "data"
 ymlf = datadir / "mlfb_vqvae_22050.yml"
@@ -45,7 +46,7 @@ def test_dataset(decoder_f0, use_mcep, use_raw):
     if use_mcep:
         conf["input_feat_type"] = "mcep"
         conf["output_feat_type"] = "mcep"
-        conf["ignore_scaler"] = ["mcep"]
+        conf["ignore_scaler"] = ["mcep", "raw"]
     if use_raw:
         conf["use_raw"] = True
         conf["input_feat_type"] = "mlfb"
@@ -63,13 +64,7 @@ def test_dataset(decoder_f0, use_mcep, use_raw):
         for k, v in batch.items():
             if isinstance(v, torch.Tensor):
                 pass
-                print(k, v.type(), v.size())
+                # print(k, v.type(), v.size())
             else:
                 pass
                 # print(k, v, type(v))
-
-        # print(torch.sum(batch["encoder_mask"], axis=1))
-        # print(torch.sum(batch["cycle_encoder_mask"], axis=1))
-        # print(batch[batch["in_key"][0]].size())
-        # print(batch[batch["out_key"][0]].size())
-        # print(batch["org_h"])
