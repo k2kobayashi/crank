@@ -12,7 +12,6 @@ Utilities
 """
 
 import logging
-from distutils.version import LooseVersion
 from pathlib import Path
 
 import librosa
@@ -209,13 +208,12 @@ def logmelspc_to_linearspc(lmspc, fs, n_mels, n_fft, fmin=None, fmax=None):
         ndarray: Linear spectrogram (T, n_fft // 2 + 1).
     """
     assert lmspc.shape[1] == n_mels
-    EPS = 1e-10
     fmin = 0 if fmin is None else fmin
     fmax = fs / 2 if fmax is None else fmax
     mspc = np.power(10.0, lmspc)
     mel_basis = librosa.filters.mel(fs, n_fft, n_mels, fmin, fmax)
     inv_mel_basis = np.linalg.pinv(mel_basis)
-    # spc = np.maximum(EPS, np.matmul(inv_mel_basis, mspc.T).T)
+    # spc = np.maximum(1e-10, np.matmul(inv_mel_basis, mspc.T).T)
     spc = np.matmul(inv_mel_basis, mspc.T).T
     return spc
 
