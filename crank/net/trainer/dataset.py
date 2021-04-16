@@ -127,7 +127,10 @@ class BaseDataset(Dataset):
         return sample
 
     def _post_getitem(self, sample):
-        # TODO(k2kobayashi): input feature modification such as SpecAugument and noise augment
+        """
+        TODO(k2kobayashi): input feature modification such as SpecAugument and
+        noise augment
+        """
         sample["in_feats"] = sample[self.conf["input_feat_type"]].copy()
         sample["out_feats"] = sample[self.conf["output_feat_type"]].copy()
         # sample["in_mod"] = sample[self.conf["input_feat_type"]]
