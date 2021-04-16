@@ -11,12 +11,13 @@ Generate kaldi-like scp related files for crank
 
 """
 
-import sys
 import argparse
-import random
-import yaml
 import logging
+import random
+import sys
 from pathlib import Path
+
+import yaml
 
 logging.basicConfig(
     level=logging.INFO,
@@ -81,6 +82,9 @@ def main():
     args = parser.parse_args()
 
     spkrs = [s.name for s in sorted(list(Path(args.wavdir).iterdir()))]
+    assert (
+        len(spkrs) > 2
+    ), f"No spkr directory found in {args.wavdir}. Please set wav files correctly."
     if not Path(args.spkr_yml).exists():
         create_spkr_yml(args.spkr_yml, spkrs)
 
