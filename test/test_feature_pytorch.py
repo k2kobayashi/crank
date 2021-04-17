@@ -108,8 +108,9 @@ def test_feature_onthefly_padding():
         fmin=conf["feature"]["fmin"],
         fmax=conf["feature"]["fmax"],
     )
-    p = np.random.choice(range(0, 100, 1))
+    p = np.random.choice(range(10, 500, 1))
     mlfb_np = mlfb_np[p : p + batch_len]
+    assert p * hop_size - int(fftl // 2) >= 0
     x_mod = x[
         p * hop_size
         - int(fftl // 2) : p * hop_size

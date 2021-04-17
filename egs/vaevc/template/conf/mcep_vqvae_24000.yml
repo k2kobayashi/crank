@@ -1,125 +1,29 @@
+# This configure file overrides defalt parameters.
+# Please see default configurations in 'conf/default.yaml'
+
 # feature setting
 feature:
   label: mcep10ms        # feature label
   fs: 24000              # sampling frequency
   fftl: 1024             # FFT size
   win_length: 1024       # window length, must be fftl >= win_length
-  hop_size: 128          # hop_size for FFT
+  hop_size: 240          # hop_size for FFT
   fmin: 80               # start freq to calculate fbank
   fmax: 7600             # stop freq to calculate fbank
   mlfb_dim: 80           # dimension of mel-spectrogram
   n_iteration: 100       # # iterations of GriffinLim
   framems: 20            # frame ms for WORLD
   shiftms: 10            # shift ms for WORLD
-  mcep_dim: 34           # mcep dimension (resulting dim will be [mcepdim+1])
+  mcep_dim: 36           # mcep dimension (resulting dim will be [mcepdim+1])
   mcep_alpha: 0.466      # all-path filter coefficient
   window_types: [hann]   # type of window for mlfb extraction
 
 # general setting
+trainer_type: vqvae      # trainer type ['vqvae', 'stargan']
 input_feat_type: mcep    # input feature type ['mlfb', 'mcep']
-output_feat_type: mcep   # output feature type ['mlfb', 'mcep', 'excit']
-trainer_type: vqvae      # trainer type ['vqvae', 'lsgan', 'cyclegan', 'stargan']
-input_size: 34           # input_size of G network ['mlfb_dim', 'mcep_dim+1']
-output_size: 34          # output_size of G network ['mlfb_dim', 'mcep_dim+1']
-n_steps: 200000          # # of training steps
-dev_steps: 2000          # # of development steps
-n_steps_save_model: 5000 # save model in each # steps
-n_steps_print_loss: 50   # print loss in each # steps
-batch_size: 50           # # of mini-batch in a batch
-batch_len: 500           # frame length (time_axis) of a mini-batch
-cache_dataset: true      # cache_dataset (NOTE: fix cv_spkr_label in a mini-batch)
-spec_augment: false      # apply SpecAugment mask to input feature
-n_spec_augment: 0        # # of bands of spec_augment (both time and freq axises)
+output_feat_type: mcep   # output feature type ['mlfb', 'mcep']
+input_size: 36           # input_size of G network ['mlfb_dim', 'mcep_dim']
+output_size: 36          # output_size of G network ['mlfb_dim', 'mcep_dim']
 use_mcep_0th: false      # model 0th order of mcep
+cache_dataset: true      # cache_dataset
 ignore_scaler: [mcep]    # ignore applying scaler ['mlfb', 'mcep', 'lcf0']
-
-# alpha
-alpha:
-  l1: 2
-  mse: 0
-  stft: 1
-  commit: 0.25
-  dict: 0.5
-  cycle: 0.1
-  ce: 1
-  adv: 1
-  real: 0.5
-  fake: 0.5
-  acgan: 1
-stft_params:  # parameters for STFT loss
-  fft_sizes: [64, 128]
-  win_sizes: [64, 128]
-  hop_sizes: [16, 32]
-  logratio: 0 # ratio between log-magnitude and magnitude
-
-optim:
-    G:
-        type: adam
-        lr: 0.0002
-        decay_size: 0.5
-        decay_step_size: 200000
-        clip_grad_norm: 0.0
-    D:
-        type: adam
-        lr: 0.00005
-        decay_size: 0.5
-        decay_step_size: 200000
-        clip_grad_norm: 0.0
-    C:
-        type: adam
-        lr: 0.0001
-        decay_size: 0.5
-        decay_step_size: 200000
-        clip_grad_norm: 0.0
-    SPKRADV:
-        type: adam
-        lr: 0.0001
-        decay_size: 0.5
-        decay_step_size: 200000
-        clip_grad_norm: 0.0
-
-# for G
-encoder_f0: false              # conditioned on F0 (lcf0, uv) to encoder
-decoder_f0: true               # conditioned on F0 (lcf0, uv) to decoder
-encoder_energy: false          # conditioned on energy (cenergy, energy_uv) to encoder
-decoder_energy: false          # conditioned on energy (cenergy, energy_uv) to decoder
-causal: false                  # use causal network
-causal_size: 0                 # # of look up frames (allow future frames)
-use_spkr_embedding: true       # use nn.Embedding instead of 1-hot vector
-spkr_embedding_size: 32        # output_size of speaker embedding
-ema_flag: true                 # use exponential moving average
-n_vq_stacks: 2                 # # of hierarchical VQVAE stacks [1, 2, 3]
-n_layers_stacks: [4, 3, 2]     # # stacks of layers in the stack
-n_layers: [2, 2, 2]            # # layers
-kernel_size: [5, 3, 3]         # # kernels in each stack
-emb_dim: [64, 64, 64]          # embedding dimension size for VQ
-emb_size: [512, 512, 512]      # # codebooks
-use_spkradv_training: true     # use speaker adversarial network
-n_spkradv_layers: 3            # # of layers
-spkradv_kernel_size: 3         # kernel_size for speaker adversarial net
-spkradv_lambda: 0.1            # hyper-parameter of gradient reversal layer
-use_spkr_classifier: true      # train speaker classifier
-n_spkr_classifier_layers: 8    # # of classifier layers
-spkr_classifier_kernel_size: 5 # kernel_size for classifier
-use_cyclic_training: false     # train VQVAE with cyclic constraints
-n_steps_cycle_start: 50000     # # steps when starts cycle-consistency training
-n_cycles: 1                    # # cycles of cyclic architecture
-
-# for D
-n_steps_gan_start: 100000      # # of steps to start adv training
-gan_type: lsgan                # type of GAN ['lsgan']
-use_residual_network: true     # use ResidualParallelWaveGANDiscriminator
-n_discriminator_layers: 2      # # of discriminator layers
-n_discriminator_stacks: 4      # # of stacks for Discriminator
-discriminator_kernel_size: 5   # kernel_size for discriminator
-discriminator_dropout: 0.25    # dropout rate if use_residual_network
-train_first: D                 # updated first ['G', 'D']
-switch_update: False           # Update only using either real or fake at 1 iteration
-cvadv_flag: false              # calculate adv_loss using converted or reconstructed
-acgan_flag: false              # add additional classifier to discriminator
-encoder_detach: false          # detach encoder and VQ for adv_loss (update decoder only)
-use_real_only_acgan: false     # train acgan with real sample only
-use_D_uv: true                 # conditioned on uv symbol to D
-use_D_spkrcode: true           # conditioned on speaker code to D
-use_vqvae_loss: true           # update G as well as vqvae loss
-n_steps_stop_generator: 0      # # of steps for stopping training discriminator

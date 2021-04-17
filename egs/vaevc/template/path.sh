@@ -22,3 +22,6 @@ if ! python -c "import crank" > /dev/null 2>&1 ; then
     echo "Error: Please setup your environment by following README.md" >&2
     return 1
 fi
+
+# set default.yml as environment variable
+export CRANK_DEFAULT_YAML="${PWD}"/conf/default.yml
