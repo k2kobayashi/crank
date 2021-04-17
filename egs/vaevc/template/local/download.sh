@@ -6,13 +6,14 @@
 # Distributed under terms of the MIT license.
 #
 
-wavdir=downloads/wav
+downloaddir=downloads
 
 # shellcheck disable=SC1091
 . utils/parse_options.sh
 set -e # stop when error occured
 
-if [ ! -e downloads/.done ]; then
-    echo "${wavdir}"
+mkdir -p $downloaddir/wav
+if [ ! -e "${downloaddir}"/.done ]; then
+    echo "${downloaddir}/wav"
     touch downloads/.done
 fi

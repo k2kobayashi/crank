@@ -36,5 +36,5 @@ tar_name="${recipe}_${confname}_${voc_confname}".tar.gz
 
 tar -cvzf "${tar_name}" \
     "${conf}" \
-    "${model_dir}/${ckpt}" "${wav_dir}"/mcd.log "${wav_dir}"/mosnet.log \
+    "${model_dir}/${ckpt}" "${wav_dir}/../mcd.log" "${wav_dir}/../mosnet.log" \
     "${wav_dir}"

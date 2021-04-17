@@ -33,10 +33,15 @@ class BaseDataset(Dataset):
         self.scaler = scaler
         self.batch_len = self.conf["batch_len"]
 
-        self.features = [self.conf["input_feat_type"], self.conf["output_feat_type"]]
+        self.features = [
+            self.conf["input_feat_type"],
+            self.conf["output_feat_type"],
+        ]
         self.features += ["lcf0", "uv"]
         if "mcep" in self.features:
             self.features += ["cap"]
+        if conf["use_raw"]:
+            self.features += ["raw"]
         self.features = set(self.features)
         self.spkrdict = dict(zip(self.spkrlist, range(len(self.spkrlist))))
         self.n_spkrs = len(self.spkrdict)
@@ -118,23 +123,17 @@ class BaseDataset(Dataset):
             "cycle_decoder_mask",
         ]:
             sample[ed] = np.copy(sample["mask"])
-        if self.conf["causal"]:
-            er = self.conf["encoder_receptive_size"]
-            dr = self.conf["decoder_receptive_size"]
-            sample["encoder_mask"][:er] = False
-            sample["decoder_mask"][: er + dr] = False
-            sample["cycle_encoder_mask"][: er * 2 + dr] = False
-            sample["cycle_decoder_mask"][: (er + dr) * 2] = False
         del sample["mask"]
         return sample
 
     def _post_getitem(self, sample):
-        # TODO(k2kobayashi): input feature modification such as SpecAugument and noise
-        # augment
-        sample["in_feats"] = sample[self.conf["input_feat_type"]]
-        sample["out_feats"] = sample[self.conf["output_feat_type"]]
+        """
+        TODO(k2kobayashi): input feature modification such as SpecAugument and
+        noise augment
+        """
+        sample["in_feats"] = sample[self.conf["input_feat_type"]].copy()
+        sample["out_feats"] = sample[self.conf["output_feat_type"]].copy()
         # sample["in_mod"] = sample[self.conf["input_feat_type"]]
-        del sample[self.conf["input_feat_type"]]
         if self.conf["output_feat_type"] in sample.keys():
             del sample[self.conf["output_feat_type"]]
         return sample
@@ -146,7 +145,7 @@ class BaseDataset(Dataset):
 
     def _transform(self, sample):
         for k in self.features:
-            if k not in ["uv", "cap"] and k not in self.conf["ignore_scaler"]:
+            if k not in ["uv", "cap"] + self.conf["ignore_scaler"]:
                 sample[k] = self.scaler[k].transform(sample[k])
         return sample
 
@@ -157,28 +156,41 @@ class BaseDataset(Dataset):
         return h_onehot, h
 
     def _zero_padding(self, sample):
-        dlen = self.batch_len - sample["flen"]
-        p = random.choice(list(range(0, abs(dlen)))) if dlen < 0 else 0
+        blen = self.batch_len
+        diff_frames = blen - sample["flen"]
+        p = random.choice(range(0, abs(diff_frames))) + 1 if diff_frames < 0 else 0
         for k, v in sample.items():
-            if isinstance(v, np.ndarray):
-                if k in ["org_h", "cv_h"]:
-                    # padding -100 for ignore_index
-                    sample[k] = padding(
-                        v, dlen, self.batch_len, value=-100, p=p
-                    ).astype(np.long)
-                elif k in ["mask"]:
-                    sample[k] = padding(
-                        v, dlen, self.batch_len, value=False, p=p
-                    ).astype(bool)
-                else:
-                    # padding 0 for continuous values
-                    sample[k] = padding(v, dlen, self.batch_len, value=0.0, p=p).astype(
-                        np.float32
-                    )
+            if not isinstance(v, np.ndarray):
+                continue
+
+            if k in ["org_h", "cv_h"]:
+                # padding -100 for ignore_index
+                sample[k] = padding(v, diff_frames, blen, value=-100, p=p).astype(
+                    np.long
+                )
+            elif k in ["mask"]:
+                sample[k] = padding(v, diff_frames, blen, value=False, p=p).astype(bool)
+            elif k in ["raw"]:
+                # padding 0 for raw samples
+                sample[k] = padding_raw(
+                    v.squeeze(),
+                    diff_frames,
+                    blen,
+                    self.conf["feature"]["fftl"],
+                    self.conf["feature"]["hop_size"],
+                    value=0.0,
+                    p=p,
+                ).astype(np.float32)
+            else:
+                # padding 0 for continuous values
+                sample[k] = padding(v, diff_frames, blen, value=0.0, p=p).astype(
+                    np.float32
+                )
+            if k not in ["raw"]:
                 assert (
-                    sample[k].shape[0] == self.batch_len
-                ), "ERROR in padding: {}, dlen{}, p{}, v{}".format(
-                    k, dlen, p, sample[k].shape[0]
+                    sample[k].shape[0] == blen
+                ), "ERROR in padding: {}, diff_frames{}, p{}, v{}".format(
+                    k, diff_frames, p, sample[k].shape[0]
                 )
         return sample
 
@@ -235,6 +247,26 @@ def padding(x, dlen, batch_len, value=0.0, p=0):
     elif dlen < 0:
         # discard
         x = x[p : p + batch_len]
+    return x
+
+
+def padding_raw(x, dlen, batch_len, fftl, hop_size, value=0.0, p=0):
+    target_length = fftl + hop_size * batch_len - 1
+
+    if dlen > 0 or p == 0:
+        # padding both side
+        if len(x) < target_length - fftl:
+            x = np.pad(x, int(fftl // 2), mode="reflect")
+    else:
+        # pad left
+        ph = p * hop_size
+        hfftl = fftl // 2
+        x = np.concatenate([np.zeros(hfftl), x[ph:]])
+    if len(x) < target_length:
+        x = np.concatenate([x, np.zeros(target_length - len(x))])
+    else:
+        x = x[:target_length]
+    assert len(x) == target_length, print(len(x), target_length)
     return x
 
 

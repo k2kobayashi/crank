@@ -7,25 +7,25 @@
 # Distributed under terms of the MIT license.
 #
 
-import sys
 import argparse
 import logging
+import sys
+from pathlib import Path
+
 import numpy as np
 import scipy
+import soundfile as sf
 from fastdtw import fastdtw
 from joblib import Parallel, delayed
-
-from pathlib import Path
-import soundfile as sf
 from sprocket.speech import FeatureExtractor
+
 from crank.net.trainer.dataset import read_feature
-from crank.utils import load_yaml, open_featsscp
-from crank.utils import low_cut_filter
+from crank.utils import load_yaml, low_cut_filter, open_featsscp
 
 
 def get_world_features(wavpath, spk, conf, spkr_conf):
     x, fs = sf.read(str(wavpath))
-    x = np.array(x, dtype=np.float)
+    x = np.array(x, dtype=np.float32)
     x = low_cut_filter(x, fs, cutoff=70)
     fe = FeatureExtractor(
         analyzer="world",

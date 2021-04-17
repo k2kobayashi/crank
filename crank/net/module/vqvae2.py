@@ -10,14 +10,33 @@ VQVAE class
 
 """
 
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from parallel_wavegan.models import ParallelWaveGANGenerator
 
+from crank.net.module.mlfb import LogMelFilterBankLayer
+from crank.net.module.sinc_conv import SincConvPreprocessingLayer
+
+
+def raw_preprocessing(func):
+    def wrapper_func(*args, **kwargs):
+        conf = args[0].conf
+        if conf["use_raw"] or conf["use_sinc_conv"]:
+            # extract feature vector on the fly
+            args = list(args)
+            args[1] = args[0].preprocess_layer(args[1])
+            result = func(*args, **kwargs)
+        else:
+            result = func(*args, **kwargs)
+        return result
+
+    return wrapper_func
+
 
 class VQVAE2(nn.Module):
-    def __init__(self, conf, spkr_size=0):
+    def __init__(self, conf, spkr_size=0, scaler=None):
         super(VQVAE2, self).__init__()
         self.conf = conf
         self.spkr_size = spkr_size
@@ -30,6 +49,39 @@ class VQVAE2(nn.Module):
                 self.spkr_size, self.conf["spkr_embedding_size"]
             )
 
+        if self.conf["use_raw"]:
+            mlfb_scaler = (
+                scaler["mlfb"] if self.conf["use_preprocessed_scaler"] else None
+            )
+            self.preprocess_layer = LogMelFilterBankLayer(
+                fs=conf["feature"]["fs"],
+                hop_size=conf["feature"]["hop_size"],
+                fft_size=conf["feature"]["fftl"],
+                win_length=conf["feature"]["win_length"],
+                window=self.conf["raw_window_type"],
+                center=False,
+                n_mels=conf["feature"]["mlfb_dim"],
+                fmin=conf["feature"]["fmin"],
+                fmax=conf["feature"]["fmax"],
+                scaler=mlfb_scaler,
+            )
+        elif self.conf["use_sinc_conv"]:
+            if (
+                np.prod(self.conf["sinc_conv_kernel_sizes"])
+                != self.conf["feature"]["hop_size"]
+            ):
+                raise ValueError(
+                    "Product of sinc_conv_kernel_sizes must be same as hop_size."
+                )
+            self.preprocess_layer = SincConvPreprocessingLayer(
+                in_channels=1,
+                sinc_conv_channels=self.conf["sinc_conv_channels"],
+                sinc_conv_kernel_size=self.conf["sinc_conv_kernel_size"],
+                out_channels=self.conf["input_size"],
+                kernel_sizes=["sinc_conv_down_sample_kernel_sizes"],
+            )
+
+    @raw_preprocessing
     def forward(
         self, x, enc_h, dec_h, spkrvec=None, use_ema=True, encoder_detach=False
     ):
@@ -46,12 +98,7 @@ class VQVAE2(nn.Module):
         outputs = self.make_dict(enc, dec, emb_idxs, qidxs, enc_unmod)
         return outputs
 
-    def _get_dec_h(self, dec_h, spkrvec):
-        if spkrvec is not None:
-            spkremb = self.spkr_embedding(spkrvec)
-            dec_h = spkremb if dec_h is None else torch.cat([dec_h, spkremb], axis=-1)
-        return dec_h
-
+    @raw_preprocessing
     def cycle_forward(
         self, x, org_enc_h, org_dec_h, cv_enc_h, cv_dec_h, org_spkrvec, cv_spkrvec
     ):
@@ -103,6 +150,12 @@ class VQVAE2(nn.Module):
             )
             x = recon_dec.clone().detach()
         return outputs
+
+    def _get_dec_h(self, dec_h, spkrvec):
+        if spkrvec is not None:
+            spkremb = self.spkr_embedding(spkrvec)
+            dec_h = spkremb if dec_h is None else torch.cat([dec_h, spkremb], axis=-1)
+        return dec_h
 
     def encode(self, x, enc_h=None):
         # encode

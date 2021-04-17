@@ -93,7 +93,7 @@ def extract_f0_and_npow(wavf):
     # open waveform
     print("Extract: " + wavf)
     fs, x = wavfile.read(wavf)
-    x = np.array(x, dtype=np.float)
+    x = np.array(x, dtype=np.float32)
     x = low_cut_filter(x, fs, cutoff=70)
 
     # constract FeatureExtractor class
