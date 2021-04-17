@@ -7,7 +7,7 @@ feature:
   fs: 24000              # sampling frequency
   fftl: 1024             # FFT size
   win_length: 1024       # window length, must be fftl >= win_length
-  hop_size: 128          # hop_size for FFT
+  hop_size: 240          # hop_size for FFT
   fmin: 80               # start freq to calculate fbank
   fmax: 7600             # stop freq to calculate fbank
   mlfb_dim: 80           # dimension of mel-spectrogram
