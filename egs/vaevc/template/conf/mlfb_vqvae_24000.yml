@@ -1,3 +1,6 @@
+# This configure file overrides defalt parameters.
+# Please see default configurations in 'conf/default.yaml'
+#
 # feature setting
 feature:
   label: mlfb            # feature label
@@ -14,3 +17,12 @@ feature:
   mcep_dim: 34           # mcep dimension (resulting dim will be [mcepdim+1])
   mcep_alpha: 0.466      # all-path filter coefficient
   window_types: [hann]   # type of window for mlfb extraction
+
+# general setting
+trainer_type: vqvae      # trainer type ['vqvae', 'lsgan', 'cyclegan', 'stargan']
+input_feat_type: mlfb    # input feature type ['mlfb', 'mcep']
+output_feat_type: mlfb   # output feature type ['mlfb', 'mcep', 'excit']
+input_size: 80           # input_size of G network ['mlfb_dim', 'mcep_dim']
+output_size: 80          # output_size of G network ['mlfb_dim', 'mcep_dim']
+cache_dataset: true      # cache_dataset in dataloader
+ignore_scaler: []    # ignore applying scaler ['mlfb', 'mcep', 'lcf0']
