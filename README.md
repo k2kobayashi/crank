@@ -1,4 +1,5 @@
 [![test](https://github.com/k2kobayashi/crank/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/k2kobayashi/crank/actions/workflows/ci.yml)
+[![PyPI version](https://badge.fury.io/py/crank-vc.svg)](https://badge.fury.io/py/crank-vc)
 
 # crank
 
