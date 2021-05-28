@@ -1,3 +1,5 @@
+[![test](https://github.com/k2kobayashi/crank/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/k2kobayashi/crank/actions/workflows/ci.yml)
+
 # crank
 
 Non-parallel voice conversion based on vector-quantized variational autoencoder with adversarial learning
