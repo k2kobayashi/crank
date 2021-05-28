@@ -1,8 +1,4 @@
-autopep8
+flake8
 pytest
-pytest-pythonpath
-pylint
-hacking
-flake8-docstrings
-mock
 black
+isort
