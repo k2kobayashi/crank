@@ -11,7 +11,7 @@ else:
 CHANGES = open("CHANGES.md").read()
 
 setup(
-    name="crank",
+    name="crank-vc",
     version="0.4.1",
     description="Non-parallel Voice Conversion called crank",
     url="https://github.com/k2kobayashi/crank",

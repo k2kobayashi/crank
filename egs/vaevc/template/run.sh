@@ -48,6 +48,7 @@ eval_utterances=5 # # of evaluation utterances
 eval_speakers=""  # evaluation speaker
 
 # parse options
+# shellcheck disable=SC1091
 . utils/parse_options.sh || exit 1;
 
 set -eu # stop when error occured and undefined vars are used
