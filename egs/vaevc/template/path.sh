@@ -5,7 +5,7 @@ export LD_LIBRARY_PATH="${CUDA_HOME}/lib64:${LD_LIBRARY_PATH}"
 # virtualenv related
 export PRJ_ROOT="${PWD}/../../.."
 if [ -e "${PRJ_ROOT}/tools/venv/bin/activate" ]; then
-    # shellcheck disable=SC1090
+    # shellcheck disable=SC1090,SC1091
     . "${PRJ_ROOT}/tools/venv/bin/activate"
 fi
 

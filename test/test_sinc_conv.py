@@ -15,7 +15,6 @@ from pathlib import Path
 import numpy as np
 import soundfile as sf
 import torch
-import torch.nn as nn
 from crank.net.module.mlfb import LogMelFilterBankLayer
 from crank.net.module.sinc_conv import SincConvPreprocessingLayer
 from crank.utils import load_yaml
